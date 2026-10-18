@@ -31,13 +31,13 @@ export function getDeliveryLabel(
   status: string,
   channel: StaffConversationStatus['channel'],
   dispatchStatus: string,
-  hasProviderMessageId: boolean,
+  hasValidProviderMessageSid: boolean,
 ): string {
   if (channel === 'whatsapp') {
     if (dispatchStatus === 'unknown') return 'Twilio outcome unknown; do not resend';
     if (dispatchStatus === 'dispatching') return 'Twilio outcome pending; do not resend';
     if (dispatchStatus === 'failed') return `Twilio send failed (${status})`;
-    if (!hasProviderMessageId) {
+    if (!hasValidProviderMessageSid) {
       return status === 'queued'
         ? 'WhatsApp queued; provider acceptance unverified'
         : `WhatsApp ${status} recorded; provider status unverified`;

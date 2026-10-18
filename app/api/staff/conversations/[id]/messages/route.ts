@@ -8,6 +8,7 @@ import {
   getTwilioStaffSendSettings,
   normalizeWhatsAppAddress,
 } from '@/lib/backend/twilio-staff-config';
+import { isTwilioMessageSid } from '@/lib/twilio-message-sid';
 import { requireStaff } from '@/lib/backend/staff-context';
 
 export const runtime = 'nodejs';
@@ -175,6 +176,7 @@ function apiMessage(
   content: string,
   createdAt: string,
   hasProviderMessageId = false,
+  providerMessageSid: unknown = null,
 ) {
   return {
     id: row.message_id,
@@ -186,6 +188,7 @@ function apiMessage(
     dispatch_error_code: null,
     dispatch_updated_at: createdAt,
     has_provider_message_id: hasProviderMessageId,
+    has_valid_provider_message_sid: isTwilioMessageSid(providerMessageSid),
     created_at: createdAt,
   };
 }
@@ -323,6 +326,7 @@ export async function POST(
         dispatch_error_code: null,
         dispatch_updated_at: null,
         has_provider_message_id: false,
+        has_valid_provider_message_sid: false,
         created_at: message.created_at,
       },
     }, { status: 201, headers: { 'Cache-Control': 'no-store' } });
@@ -458,8 +462,7 @@ export async function POST(
   }
 
   if (
-    typeof providerMessage.sid !== 'string'
-    || !/^SM[0-9A-Fa-f]{32}$/.test(providerMessage.sid)
+    !isTwilioMessageSid(providerMessage.sid)
   ) {
     console.error('Twilio returned an invalid staff reply SID');
     const tracked = await recordDispatch(
@@ -488,13 +491,13 @@ export async function POST(
   );
   if (!tracked) {
     return NextResponse.json({
-      data: apiMessage(claim, parsed.data.content, claim.created_at),
+      data: apiMessage(claim, parsed.data.content, claim.created_at, false, providerMessage.sid),
       notice: 'Twilio accepted the send request, but its status could not be saved. Do not resend; wait for callback or manual reconciliation.',
     }, { status: 202, headers: { 'Cache-Control': 'no-store' } });
   }
 
   return NextResponse.json({
-    data: apiMessage(tracked, parsed.data.content, claim.created_at, true),
+    data: apiMessage(tracked, parsed.data.content, claim.created_at, true, providerMessage.sid),
     notice: 'Twilio accepted the reply. Delivery is not confirmed until a signed status callback arrives.',
   }, { status: 201, headers: { 'Cache-Control': 'no-store' } });
 }

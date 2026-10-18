@@ -290,6 +290,80 @@ describe('staff conversation replies', () => {
     expect(errorSpy.mock.calls.flat().join(' ')).not.toContain(CONTENT);
   });
 
+  it('exposes provider acceptance only for valid Twilio MessageSids while preserving stored identifiers', async () => {
+    const conversationQuery = queryFor({
+      data: {
+        id: CONVERSATION_ID,
+        channel: 'whatsapp',
+        mode: 'AI_ACTIVE',
+        current_property_id: null,
+        assigned_staff_id: null,
+        created_at: '2026-10-19T11:00:00.000Z',
+        updated_at: '2026-10-19T12:00:00.000Z',
+        customer: { display_name: 'Synthetic Customer', email: null, phone: null, whatsapp_phone: 'whatsapp:+15550000001' },
+        property: null,
+      },
+      error: null,
+    });
+    const messagesQuery = queryFor({
+      data: [
+        { id: 'null-id', direction: 'outbound', sender_type: 'nia', content: CONTENT, message_type: 'text', delivery_status: 'queued', dispatch_status: 'not_applicable', provider_message_id: null, created_at: STALE_CREATED_AT },
+        { id: 'nia-id', direction: 'outbound', sender_type: 'nia', content: CONTENT, message_type: 'text', delivery_status: 'queued', dispatch_status: 'not_applicable', provider_message_id: 'nia:synthetic-reply-key', created_at: STALE_CREATED_AT },
+        { id: 'handoff-id', direction: 'outbound', sender_type: 'system', content: CONTENT, message_type: 'text', delivery_status: 'queued', dispatch_status: 'not_applicable', provider_message_id: 'handoff:synthetic-reply-key', created_at: STALE_CREATED_AT },
+        { id: 'malformed-id', direction: 'outbound', sender_type: 'nia', content: CONTENT, message_type: 'text', delivery_status: 'queued', dispatch_status: 'not_applicable', provider_message_id: 'SMnot-a-valid-sid', created_at: STALE_CREATED_AT },
+        { id: 'valid-id', direction: 'outbound', sender_type: 'agent', content: CONTENT, message_type: 'text', delivery_status: 'queued', dispatch_status: 'accepted', provider_message_id: PROVIDER_SID, created_at: STALE_CREATED_AT },
+      ],
+      error: null,
+    });
+    const profileQuery = queryFor({ data: null, error: null });
+    staffClient.from.mockImplementation((table: string) => (
+      table === 'conversations'
+        ? conversationQuery
+        : table === 'profiles'
+          ? profileQuery
+          : messagesQuery
+    ));
+
+    const response = await getConversation(
+      new Request(`${SITE_URL}/api/staff/conversations/${CONVERSATION_ID}`),
+      staffRouteParams(),
+    );
+    const result = await response.json();
+    const messages = new Map(result.data.messages.map((message: {
+      id: string;
+      provider_message_id: string | null;
+      has_provider_message_id: boolean;
+      has_valid_provider_message_sid: boolean;
+    }) => [message.id, message]));
+
+    expect(response.status).toBe(200);
+    expect(messages.get('null-id')).toMatchObject({
+      provider_message_id: null,
+      has_provider_message_id: false,
+      has_valid_provider_message_sid: false,
+    });
+    expect(messages.get('nia-id')).toMatchObject({
+      provider_message_id: 'nia:synthetic-reply-key',
+      has_provider_message_id: true,
+      has_valid_provider_message_sid: false,
+    });
+    expect(messages.get('handoff-id')).toMatchObject({
+      provider_message_id: 'handoff:synthetic-reply-key',
+      has_provider_message_id: true,
+      has_valid_provider_message_sid: false,
+    });
+    expect(messages.get('malformed-id')).toMatchObject({
+      provider_message_id: 'SMnot-a-valid-sid',
+      has_provider_message_id: true,
+      has_valid_provider_message_sid: false,
+    });
+    expect(messages.get('valid-id')).toMatchObject({
+      provider_message_id: PROVIDER_SID,
+      has_provider_message_id: true,
+      has_valid_provider_message_sid: true,
+    });
+  });
+
   it('enables the WhatsApp composer only for assigned staff after takeover and explicit opt-in', async () => {
     const conversationData = {
       id: CONVERSATION_ID,
@@ -470,6 +544,7 @@ describe('staff conversation replies', () => {
     });
     expect(result.data.delivery_status).toBe('queued');
     expect(result.data.has_provider_message_id).toBe(true);
+    expect(result.data.has_valid_provider_message_sid).toBe(true);
     expect(result.notice).toContain('not confirmed');
   });
 

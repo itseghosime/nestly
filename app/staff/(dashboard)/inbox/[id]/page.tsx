@@ -12,6 +12,7 @@ import {
   getConversationChannelNotice,
   getDeliveryLabel,
 } from '@/lib/staff-conversation-status';
+import { isTwilioMessageSid } from '@/lib/twilio-message-sid';
 import {
   ArrowLeft,
   ArrowDown,
@@ -33,6 +34,7 @@ type ThreadMessage = {
   dispatch_error_code: string | null;
   dispatch_updated_at: string | null;
   has_provider_message_id: boolean;
+  has_valid_provider_message_sid: boolean;
   created_at: string;
 };
 
@@ -76,6 +78,7 @@ function parseThreadMessage(value: unknown): ThreadMessage | null {
     || !(value.dispatch_error_code === null || typeof value.dispatch_error_code === 'string')
     || !(value.dispatch_updated_at === null || typeof value.dispatch_updated_at === 'string')
     || typeof value.has_provider_message_id !== 'boolean'
+    || typeof value.has_valid_provider_message_sid !== 'boolean'
     || typeof value.created_at !== 'string'
   ) return null;
   return {
@@ -88,6 +91,7 @@ function parseThreadMessage(value: unknown): ThreadMessage | null {
     dispatch_error_code: value.dispatch_error_code,
     dispatch_updated_at: value.dispatch_updated_at,
     has_provider_message_id: value.has_provider_message_id,
+    has_valid_provider_message_sid: value.has_valid_provider_message_sid,
     created_at: value.created_at,
   };
 }
@@ -641,7 +645,7 @@ export default function ConversationDetailPage({
                             msg.delivery_status,
                             conversation.channel,
                             msg.dispatch_status,
-                            msg.has_provider_message_id,
+                            msg.has_valid_provider_message_sid,
                           )}
                         </p>
                       )}
@@ -681,7 +685,7 @@ export default function ConversationDetailPage({
                             disabled={
                               reconcilingMessageId !== null
                               || !dispatchIsStale
-                              || (!msg.has_provider_message_id && !/^SM[0-9A-Fa-f]{32}$/.test(reconciliationSids[msg.id] || ''))
+                              || (!msg.has_provider_message_id && !isTwilioMessageSid(reconciliationSids[msg.id]))
                             }
                             className="rounded-full border border-amber-700 px-3 py-1.5 font-bold text-amber-950 disabled:cursor-not-allowed disabled:opacity-50"
                           >

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { assertSameOrigin } from '@/lib/backend/public-request';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireStaff } from '@/lib/backend/staff-context';
+import { TWILIO_MESSAGE_SID_PATTERN } from '@/lib/twilio-message-sid';
 
 export const runtime = 'nodejs';
 
@@ -32,7 +33,7 @@ const TWILIO_STATUSES = new Set([
 
 const requestSchema = z.object({
   messageId: z.string().uuid(),
-  providerMessageSid: z.string().regex(/^SM[0-9A-Fa-f]{32}$/).optional(),
+  providerMessageSid: z.string().regex(TWILIO_MESSAGE_SID_PATTERN).optional(),
 }).strict();
 
 type ConversationRow = {

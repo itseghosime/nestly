@@ -6,11 +6,11 @@ import {
   validateTwilioSignature,
 } from '@/lib/backend/twilio-webhook';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isTwilioMessageSid } from '@/lib/twilio-message-sid';
 
 export const runtime = 'nodejs';
 
 const messageIdSchema = z.string().uuid();
-const providerMessageIdPattern = /^SM[0-9A-Fa-f]{32}$/;
 const providerStatuses = new Set([
   'accepted',
   'scheduled',
@@ -88,8 +88,7 @@ export async function POST(request: Request): Promise<Response> {
   if (
     typeof params.AccountSid !== 'string'
     || params.AccountSid !== accountSid
-    || typeof params.MessageSid !== 'string'
-    || !providerMessageIdPattern.test(params.MessageSid)
+    || !isTwilioMessageSid(params.MessageSid)
     || typeof params.MessageStatus !== 'string'
     || !providerStatuses.has(params.MessageStatus.toLowerCase())
   ) {

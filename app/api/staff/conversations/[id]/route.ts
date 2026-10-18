@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { assertSameOrigin } from '@/lib/backend/public-request';
 import { requireStaff } from '@/lib/backend/staff-context';
 import { getTwilioStaffSendSettings } from '@/lib/backend/twilio-staff-config';
+import { isTwilioMessageSid } from '@/lib/twilio-message-sid';
 
 const CONVERSATION_STAFF_ROLES = [
   'Platform Admin',
@@ -125,6 +126,8 @@ export async function GET(
           : null,
         has_provider_message_id: 'provider_message_id' in message
           && typeof message.provider_message_id === 'string',
+        has_valid_provider_message_sid: 'provider_message_id' in message
+          && isTwilioMessageSid(message.provider_message_id),
       })),
       messageLimit: 100,
     },

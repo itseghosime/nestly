@@ -960,3 +960,11 @@ Phase A replaces the simulated `setTimeout`→`router.push` in `app/staff/(auth)
 - **Scope:** WF01/WF03, callbacks, linked schema, hosting configuration, account settings, and provider sends were not changed.
 - **Local validation:** `npm test -- tests/api/twilio-staff-replies.test.ts tests/unit/staff-identity.test.ts tests/unit/staff-conversation-status.test.ts` passed **30/30**. `npm run typecheck`, `npm run typecheck:tests`, and `npm run build` passed. Focused ESLint had **0 errors** and one existing `no-location-assign-relative-destination` warning in the sidebar sign-out handler; `git diff --check` passed.
 - **Push/deployment:** Implementation commit `3e8ca127ddeb7f4da704fdf9b0dd8b939543594f` was pushed normally to `origin/main`; a read-only remote check confirmed the SHA matched. GitHub's Vercel status for that revision completed successfully (“Deployment has completed”), and `https://nestly-sigma.vercel.app` returned HTTP 200. No provider request or external message was made.
+
+## 51. Validate Twilio MessageSid before showing provider acceptance (2026-10-18)
+
+- **Root cause:** The inbox treated any non-null `provider_message_id` as Twilio evidence. Linked database inspection reported by the user found Nia/handoff rows with internal `nia:` and `handoff:` keys.
+- **Correction:** Added the shared app-supported SID validator (`SM` followed by 32 hexadecimal characters). Conversation reads preserve the original `provider_message_id` and its existing presence flag, and separately expose `has_valid_provider_message_sid`. Delivery labels now use only that validated-SID evidence; null, internal, and malformed values stay “provider acceptance unverified.” The same validator is reused by staff-send response validation, reconciliation input, and signed status callbacks.
+- **Preserved behavior:** No stored IDs, message rows, history, idempotency keys, workflows, or callback semantics were rewritten. Reconciliation continues to receive the original identifier-presence field. No provider send was made.
+- **Validation:** Focused Twilio staff-reply, signed status-callback, and conversation-status tests passed **36/36**; both application and test TypeScript checks passed; focused ESLint passed with no warnings; production build passed; `git diff --check` passed.
+- **Push/deployment:** Recorded after deployment verification.

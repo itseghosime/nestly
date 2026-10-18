@@ -4,6 +4,7 @@ import {
   getConversationChannelNotice,
   getDeliveryLabel,
 } from '@/lib/staff-conversation-status';
+import { isTwilioMessageSid } from '@/lib/twilio-message-sid';
 
 describe('staff conversation status labels', () => {
   it('keeps website chat status separate from Twilio', () => {
@@ -40,6 +41,24 @@ describe('staff conversation status labels', () => {
       .toBe('WhatsApp queued; provider acceptance unverified');
     expect(getDeliveryLabel('queued', 'whatsapp', 'accepted', true))
       .toBe('Twilio accepted; delivery pending');
+  });
+
+  it.each([
+    ['null provider ID', null, false],
+    ['Nia internal key', 'nia:synthetic-reply-key', false],
+    ['handoff internal key', 'handoff:synthetic-reply-key', false],
+    ['malformed SID', 'SMnot-a-valid-sid', false],
+    ['valid Twilio SID', `SM${'a'.repeat(32)}`, true],
+  ] as const)('validates %s as provider evidence', (_label, providerId, isValid) => {
+    expect(isTwilioMessageSid(providerId)).toBe(isValid);
+    expect(getDeliveryLabel(
+      'queued',
+      'whatsapp',
+      'not_applicable',
+      isTwilioMessageSid(providerId),
+    )).toBe(isValid
+      ? 'Twilio accepted; delivery pending'
+      : 'WhatsApp queued; provider acceptance unverified');
   });
 
   it('preserves explicit pending and unknown no-resend states', () => {
