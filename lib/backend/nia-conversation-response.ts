@@ -8,6 +8,8 @@ import {
   getNiaReferenceIndex,
   isNiaFeeQuestion,
   isNiaPropertyReference,
+  classifyNiaMessageIntent,
+  EMPTY_NIA_CONTEXT,
   normalizeNiaContext,
   resolveNiaPreferences,
   type NiaConversationContext,
@@ -196,8 +198,43 @@ export async function answerNiaConversationMessage(
     };
   }
 
-  const criteria = resolveNiaPreferences(query, context.preferences);
-  if (!hasNiaSearchCriteria(criteria)) {
+  const intent = classifyNiaMessageIntent(query);
+  if (intent === 'preference_recall') {
+    const preferences = context.preferences;
+    if (!preferences) {
+      return {
+        message: 'I do not have saved property preferences yet. Tell me an area, bedroom count, property type, annual budget, or amenity to search.',
+        properties: [],
+        context,
+      };
+    }
+    const details = [
+      preferences.bedrooms ? `${preferences.bedrooms} bedrooms` : null,
+      preferences.location ? `in ${preferences.location}` : null,
+      preferences.propertyType,
+      preferences.maxAnnualRent
+        ? `up to ${formatNiaListingPrice(preferences.maxAnnualRent, 'NGN', 'yearly')}`
+        : null,
+      preferences.keywords.length
+        ? `details: ${preferences.keywords.join(', ')}`
+        : 'no amenity or detail filters',
+    ].filter((part): part is string => Boolean(part));
+    return {
+      message: `Your saved property preferences are ${details.join(', ')}.`,
+      properties: [],
+      context,
+    };
+  }
+
+  if (intent === 'reset_preferences') {
+    return {
+      message: 'I cleared your saved property preferences and recent listing references. What would you like to search for?',
+      properties: [],
+      context: EMPTY_NIA_CONTEXT,
+    };
+  }
+
+  if (intent === 'unsupported') {
     if (/\b(inspect|inspection|visit|viewing|book)\b/i.test(query)) {
       return {
         message: 'You can request an inspection from a listing page. A request is not a confirmed booking; an authorized team member must approve the time.',
@@ -205,6 +242,17 @@ export async function answerNiaConversationMessage(
         context,
       };
     }
+    return {
+      message: context.preferences
+        ? 'I am not sure whether you want to recall or change your saved search. Your preferences are unchanged. Ask what they are, or tell me what you would like to change.'
+        : 'I am not sure what you would like to search for. Tell me an area, bedroom count, property type, annual budget, or amenity.',
+      properties: [],
+      context,
+    };
+  }
+
+  const criteria = resolveNiaPreferences(query, context.preferences);
+  if (!hasNiaSearchCriteria(criteria)) {
     return {
       message: 'I can search current published listings by area, bedrooms, property type, listing details, or annual rent. What should I use?',
       properties: [],

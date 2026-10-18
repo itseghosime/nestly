@@ -21,9 +21,10 @@ export type NiaPropertySearchResponse =
   | { status: 'matches'; count: number; matches: NiaSearchProperty[]; message: string };
 
 const STOP_WORDS = new Set([
-  'a', 'about', 'an', 'and', 'any', 'are', 'at', 'bed', 'bedroom', 'bedrooms',
+  'a', 'about', 'add', 'an', 'and', 'any', 'are', 'at', 'bed', 'bedroom', 'bedrooms',
   'below', 'browse', 'browsing', 'but', 'can', 'change', 'check', 'could', 'consider', 'dear', 'find', 'give',
   'for', 'from', 'get', 'good', 'have', 'hello', 'help', 'hey', 'hi', 'home', 'homes', 'house', 'houses',
+  'include', 'including',
   'how', 'im', 'in', 'is', 'let', 'like', 'listing', 'listings', 'look', 'looking',
   'me', 'maybe', 'morning', 'near', 'need', 'nia', 'of', 'on', 'only', 'or', 'please', 'prefer',
   'searching', 'seeking', 'send',

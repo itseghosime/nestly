@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  classifyNiaMessageIntent,
   getNiaReferenceIndex,
   isNiaFeeQuestion,
   isNiaHandoffRequest,
@@ -81,6 +82,16 @@ describe('Nia website conversation context', () => {
     expect(isNiaFeeQuestion('What are the confirmed fees for the second one?')).toBe(true);
     expect(isNiaHandoffRequest('Please connect me to a person')).toBe(true);
     expect(isNiaHandoffRequest('Show me homes in GRA')).toBe(false);
+  });
+
+  it.each([
+    ['recalls saved property preferences', 'What were my property preferences?', 'preference_recall'],
+    ['clarifies ordinary conversation rather than searching', 'The weather was lovely today.', 'unsupported'],
+    ['recognizes an explicit location change', 'Try GRA instead.', 'search'],
+    ['recognizes a requested amenity search', 'Add solar to the search.', 'search'],
+    ['resets only on an explicit reset request', 'Clear my preferences.', 'reset_preferences'],
+  ] as const)('classifies intent when the user %s', (_description, query, intent) => {
+    expect(classifyNiaMessageIntent(query)).toBe(intent);
   });
 
   it('normalizes malformed stored context without trusting invalid fields', () => {

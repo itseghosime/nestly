@@ -190,3 +190,84 @@ describe('Nia preference changes applied to the public-property search contract'
     }
   });
 });
+
+describe('Nia preference recall and non-search messages', () => {
+  const savedContext = {
+    preferences: {
+      bedrooms: 2,
+      location: 'GRA',
+      propertyType: 'apartment' as const,
+      keywords: [],
+    },
+    recentPropertyIds: ['public-property-1'],
+    selectedPropertyId: 'public-property-1',
+  };
+
+  function createNoQueryClient(fetchMock: ReturnType<typeof vi.fn<typeof fetch>>) {
+    return createClient(
+      'https://synthetic-search.supabase.co',
+      'synthetic-anon-key',
+      {
+        auth: {
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+          persistSession: false,
+        },
+        global: { fetch: fetchMock },
+      },
+    );
+  }
+
+  it('answers preference recall from saved context without searching or changing it', async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    const supabase = createNoQueryClient(fetchMock);
+
+    const answer = await answerNiaConversationMessage(
+      supabase,
+      'What were my property preferences?',
+      savedContext,
+    );
+
+    expect(answer.message).toBe(
+      'Your saved property preferences are 2 bedrooms, in GRA, apartment, no amenity or detail filters.',
+    );
+    expect(answer.properties).toEqual([]);
+    expect(answer.context).toEqual(savedContext);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('clarifies ordinary conversation without overwriting established criteria', async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    const supabase = createNoQueryClient(fetchMock);
+
+    const answer = await answerNiaConversationMessage(
+      supabase,
+      'The weather was lovely today.',
+      savedContext,
+    );
+
+    expect(answer.message).toContain('Your preferences are unchanged');
+    expect(answer.properties).toEqual([]);
+    expect(answer.context).toEqual(savedContext);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('clears preferences only after an explicit reset request', async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    const supabase = createNoQueryClient(fetchMock);
+
+    const answer = await answerNiaConversationMessage(
+      supabase,
+      'Clear my preferences.',
+      savedContext,
+    );
+
+    expect(answer.message).toContain('I cleared your saved property preferences');
+    expect(answer.context).toEqual({
+      preferences: null,
+      recentPropertyIds: [],
+      selectedPropertyId: null,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
