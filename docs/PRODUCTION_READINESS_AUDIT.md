@@ -2,7 +2,7 @@
 
 **Review date:** 2026-10-18
 **Branch under review:** `feature/production-readiness-audit`
-**Base reviewed:** PR head `eb858103213b1c35047f55d9aaaa13c34fb98d9d`; local corrections are in the isolated worktree and are not yet pushed.
+**Reviewed PR head:** `8bed5e0c6695fdb6b33c9e4e86a89fc51defa4de`
 **Environment:** Isolated local worktree. No production data, provider, n8n workflow, migration, or hosting configuration was changed during this review.
 **Status:** Local review corrections and checks are complete; this is not a production-readiness certification.
 
@@ -37,7 +37,7 @@ No public form was submitted. No staff mutation, provider message, webhook repla
 | Changed-path lint | Pass with warnings | ESLint found 0 errors and 26 warnings, primarily raw `<img>` warnings. |
 | Production build and Turbopack root | Pass | Next.js 16.4.2 built from the worktree project root and generated 80/80 routes without the parent-directory root override. |
 | Browser rendering and responsive behavior | Pass, scoped local check | Fresh local production server: 8 public routes at 320, 390, and 1280 CSS-pixel viewports (24 combinations), with headings present and no horizontal overflow or app-error indicator. A dynamic demo property detail showed the unconfirmed-fee warning and “Availability not listed”; landlord form defaults were blank, city was explicit, and no file input was present. Mobile navigation opened and updated its accessible name. No form was submitted. |
-| Preview deployment | Not yet verified | Local fixes have not yet been pushed during this review pass. |
+| Vercel Preview deployment | Pass | Deployment `49NjUxSuu3yR9RSxxJ3W9Jf6koTH` reached Ready for reviewed head `8bed5e0c6695fdb6b33c9e4e86a89fc51defa4de`. The eight public routes above were also opened in Preview at all three viewports; no horizontal overflow or application-error indicators were observed. This is Preview evidence only. |
 | Production behavior | Not tested | No production deployment or mutation was requested or performed. |
 
 ## Remaining risks and blockers
@@ -50,4 +50,4 @@ No public form was submitted. No staff mutation, provider message, webhook repla
 
 ## Release state
 
-PR #3 remains a draft and unmerged. The review worktree is isolated from Antigravity's worktree. No deploy, form submission, provider send, n8n change, or migration was performed. Browser rendering used the locally built app and existing local environment configuration; secret values were not printed.
+PR #3 remains a draft and unmerged. The review worktree is isolated from Antigravity's worktree. No Production deploy, form submission, provider send, n8n change, or migration was performed. Local browser rendering used the existing local environment configuration; Preview testing was read-only. Secret values were not printed.
