@@ -283,7 +283,7 @@ describe('Public Release Hardening: Stale Related Listings Component Behavior', 
       updates.push(props);
     });
 
-    let isCancelled = false;
+    const isCancelled = false;
     await syncRelatedProperties('prop-1', setRelated, () => isCancelled);
 
     expect(setRelated).toHaveBeenCalledTimes(1);
@@ -301,7 +301,7 @@ describe('Public Release Hardening: Stale Related Listings Component Behavior', 
       updates.push(props);
     });
 
-    let isCancelled = false;
+    const isCancelled = false;
     await syncRelatedProperties('prop-1', setRelated, () => isCancelled);
 
     expect(setRelated).toHaveBeenCalledTimes(1);

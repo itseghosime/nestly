@@ -5,7 +5,8 @@
 **Git Worktree:** `/Users/mac/Documents/Tech4Youth/Nestly-public-release`  
 **Active Branch:** `feature/public-release-polish`  
 **Pull Request:** Draft PR #2 (`https://github.com/itseghosime/nestly/pull/2`)  
-**Base Commit / Upstream Merge:** Merged `origin/main` (`f182464b`) including Telegram conversation channel integration into `feature/public-release-polish` with 0 conflicts.  
+**Base Commit / Upstream Merge:** Refreshed and cleanly merged `origin/main` (`2a1ba6ed`, including admin Telegram webhook registration) into `feature/public-release-polish` with 0 conflicts.  
+**Mergeability:** Verified cleanly mergeable with `origin/main`; GitHub status reports `Checks passing`.  
 **Parallel Checkout Isolation:** Copilot's active work on `feature/telegram-integration` has been merged upstream into `main`. Primary checkout (`/Users/mac/Documents/Tech4Youth/Nestly`) on `main` was kept completely untouched. Shared `docs/BUILD_LOG.md` was preserved without local edits to prevent merge collisions.
 
 ---
@@ -32,19 +33,19 @@ To maintain strict truthfulness, verification results are partitioned strictly i
 
 | Test Category | Command | Target / Scope | Result | Details |
 |---|---|---|---|---|
-| **TypeScript Strict Check** | `npx tsc --noEmit` | Full workspace (79 routes + shared modules) | **PASSED (Exit 0)** | 0 type errors across all routes, components, and libraries. |
+| **TypeScript Strict Check** | `npx tsc --noEmit` | Full workspace (80 routes + shared modules) | **PASSED (Exit 0)** | 0 type errors across all routes, components, and libraries. |
 | **ESLint Static Analysis** | `npx eslint . --quiet` | React 19 compiler rules & Next.js standards | **PASSED (Exit 0)** | 0 warnings, 0 errors. Preserved manual memoization & eliminated cascading renders (`react-hooks/set-state-in-effect`). |
-| **Unit Test Suite** | `npx vitest run` | 21 test files (147 passed tests, 16 skipped) | **PASSED (Exit 0)** | 147 passed, 16 skipped (live Supabase/Twilio tests skipped due to unconfigured cloud credentials). Includes deterministic tests in `tests/unit/public-release-hardening.test.ts`. |
-| **Next.js Production Build** | `npm run build` | Next.js 16.4.2 (Turbopack engine) | **PASSED (Exit 0)** | Successfully compiled and emitted 79/79 static and dynamic routes. |
+| **Unit Test Suite** | `npx vitest run` | 22 test files (156 passed tests, 16 skipped) | **PASSED (Exit 0)** | 156 passed, 16 skipped (live Supabase/Twilio tests skipped due to unconfigured cloud credentials). Includes deterministic tests in `tests/unit/public-release-hardening.test.ts`. |
+| **Next.js Production Build** | `npm run build` | Next.js 16.4.2 (Turbopack engine) | **PASSED (Exit 0)** | Successfully compiled and emitted 80/80 static and dynamic routes. |
 
 ### B. Static Code Inspection (Inspected Artifacts)
 
 - `lib/types.ts`: Verified `Property` schema includes `fees?: FeeRow[]`, `computedTotal?: number | null`, and `unconfirmedFeeCount?: number`.
-- `lib/price.ts`: Verified `computeTotal` contract and `computeFeeBreakdown` helper. For `base=subtotal`, fees accumulate the running subtotal in `sort_order`. Confirmed missing or unconfirmed required fees (`confirmed_at === null`) return `null`.
-- `lib/properties.ts`: Inspected `mapApiRow`, `fetchProperties`, and `fetchPropertyById`. Confirmed HTTP 404 returns `null` cleanly without falling back to demo fixtures in connected mode. Confirmed HTTP 500 throws recoverable errors.
+- `lib/price.ts`: Verified `computeTotal` contract and `computeFeeBreakdown` helper. Intermediate subtotal accumulations maintain full precision; displayed values are rounded only upon presentation. Confirmed missing or unconfirmed required fees (`confirmed_at === null`) return `null`.
+- `lib/properties.ts`: Inspected `mapApiRow`, `fetchProperties`, `fetchPropertyById`, and `syncRelatedProperties`. Confirmed HTTP 404 returns `null` cleanly without falling back to demo fixtures in connected mode. Confirmed HTTP 500 throws recoverable errors. Correct API envelope `{ data: [...] }` used throughout.
 - `lib/neighborhoods.ts`: Inspected `fetchNeighborhoods` and `fetchNeighborhoodBySlug`. Confirmed 404 returns `null` and network errors throw recoverable exceptions in connected mode.
 - `components/public/PropertyCard.tsx`: Inspected spec line rendering to ensure absence of `powerRating` omits the metric rather than fabricating "24/7" or "Standard Daily".
-- `app/property/[id]/page.tsx`: Verified route param resets (`resolvedParams.id !== currentId`), fee ledger mapping without regex stripping, absence of hardcoded 10% legal/agency fees or ₦200k/₦300k fallbacks, and immediate clearing of related properties on route change, failure, or empty API array.
+- `app/property/[id]/page.tsx`: Verified route param resets (`resolvedParams.id !== currentId`), fee ledger mapping without regex stripping, absence of hardcoded 10% legal/agency fees or ₦200k/₦300k fallbacks, and immediate clearing of related properties via `syncRelatedProperties` on route change, failure, or empty API array `{ data: [] }`.
 - `app/neighborhoods/[slug]/page.tsx`: Verified route slug resets (`resolvedParams.slug !== currentSlug`), 404 vs 500 separation, power reliability truthfulness, and clearing of related listings on empty array or network failure.
 - `app/browse/page.tsx`: Verified fixture initialization gated behind `IS_DEMO_MODE`, empty state handling on network errors, and accessible labels on all dismiss controls.
 - `app/cookies/page.tsx`: Verified accessible label on cookie update dismiss button.
@@ -115,21 +116,20 @@ To maintain strict truthfulness, verification results are partitioned strictly i
   - Implemented state adjustment during render (`if (resolvedParams.id !== currentId)` and `if (resolvedParams.slug !== currentSlug)`) to instantly reset state, loading flags, and related properties when navigating between properties or neighborhood pockets.
   - Added accessible labels: `aria-label="Dismiss listing notice"`, `aria-label="Close filters"`, `aria-label="Dismiss cookie notice"`, and specific labels on all active filter chips.
 
-### Issue 5: Percentage-Fee Row Displays with Base=Subtotal
+### Issue 5: Alignment of Fee Breakdown with ComputeTotal Precision
 - **Location:** `lib/price.ts`, `app/property/[id]/page.tsx`
-- **Root Cause:** Percentage-fee rows previously used `(property.priceAnnual * feeAmountNum) / 100` for both base='rent' and base='subtotal', ignoring the running subtotal accumulation in `sort_order`.
+- **Root Cause:** `computeFeeBreakdown` previously rounded the intermediate subtotal after each step, producing cumulative rounding drift against `computeTotal` (e.g. 177.77 vs 177.78 on rent 100 with two 33.333% fees).
 - **Fix:**
-  - Implemented `computeFeeBreakdown(rentAnnual, fees)` in `lib/price.ts`, accumulating running subtotal across sorted fees.
-  - For `base=subtotal`, the calculated fee row uses `(runningSubtotal * amount) / 100`, exactly matching `computeTotal`.
-  - Example verified: rent 1,000 + fixed fee 100 + 10% subtotal displays fee 110 and total 1,210.
+  - Updated `computeFeeBreakdown` to preserve full floating-point precision during subtotal accumulation, rounding displayed amounts (`calculatedAmount` and `runningSubtotal`) only.
+  - Verified regression reproduction: rent 100 + 33.333% rent fee + 33.333% subtotal fee displays breakdown subtotal 177.78 matching `computeTotal` exactly.
 
-### Issue 6: Stale Related Listings Retention
-- **Location:** `app/property/[id]/page.tsx`, `app/neighborhoods/[slug]/page.tsx`
-- **Root Cause:** Related listings effects contained `if (!c && rows.length)` conditions, meaning empty array responses from the API (`rows.length === 0`) did not clear existing related properties. Request errors in `.catch()` also silently failed to clear state.
+### Issue 6: Stale Related Listings Component Behavior & Correct API Envelope
+- **Location:** `lib/properties.ts`, `app/property/[id]/page.tsx`, `app/neighborhoods/[slug]/page.tsx`
+- **Root Cause:** Unit tests previously tested local array assignment rather than actual component lifecycle behavior, and used an incorrect `{ properties: [] }` envelope rather than the actual `{ data: [] }` envelope.
 - **Fix:**
-  - Removed `rows.length` guard. An empty array response explicitly executes `setRelatedProperties([])`.
-  - Added `.catch(() => { if (!c) setRelatedProperties([]); })` to clear related properties on request failure.
-  - In route param change detection, cleared `setRelatedProperties(IS_DEMO_MODE ? ... : [])`.
+  - Implemented and exported `syncRelatedProperties` in `lib/properties.ts`, integrating it directly into `app/property/[id]/page.tsx`.
+  - Added unit regression tests exercising component behavior using `{ data: [] }` and `{ data: [...] }` envelopes.
+  - Verified route changes, empty array responses, network failures, and late responses arriving from previous routes (discarded via cancellation flag).
 
 ### Issue 7: Deterministic Connected-Mode Tests
 - **Location:** `tests/unit/public-release-hardening.test.ts`
@@ -137,13 +137,12 @@ To maintain strict truthfulness, verification results are partitioned strictly i
 - **Fix:**
   - Configured `vi.stubEnv('NEXT_PUBLIC_DEMO_MODE', 'false')` in `beforeEach`.
   - Added `vi.resetModules()` and dynamic module imports (`await import('@/lib/properties')`) to enforce deterministic connected-mode test execution on every run.
-  - Added unit regression assertions covering subtotal fee compounding, 404 null returns, HTTP 500 error propagation, and related listing clearing.
 
 ---
 
 ## 5. Remaining Blockers & External Backend Dependencies
 
-The public frontend polish for PR #2 is complete and verified against local typecheck, lint, unit test, and production build gates. Upstream Telegram channel integration from `origin/main` has been merged into this branch with zero conflicts. The following capabilities require live infrastructure, credentials, and backend completion before platform launch:
+The public frontend polish for PR #2 is complete and verified against local typecheck, lint, unit test, and production build gates. Upstream Telegram channel integration from `origin/main` has been refreshed and merged into this branch with zero conflicts. The following capabilities require live infrastructure, credentials, and backend completion before platform launch:
 
 1. **Production Backend Services:**
    - Real property inspection booking requires live endpoints connected to Postgres/Supabase and SMS dispatch.
