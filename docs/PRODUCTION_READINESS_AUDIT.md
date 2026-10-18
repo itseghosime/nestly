@@ -2,10 +2,10 @@
 
 **Review date:** 2026-10-19
 **Branch under review:** `feature/production-readiness-audit`
-**Reviewed implementation commit:** `4d784245965a6dd645b33c9ead5d76d2160e0c0d`
-**Main integration commit:** `b63f03a98c046b1313378aadb0f31ee950175764` (includes PR #6)
+**Reviewed implementation commit:** `9bbe4793d341a6270373c7dd02d2cb24f81d47b9`
+**Integrated main:** `f463e4a075eac5d2af4c1c7094d58b4667d9cd90` (includes PR #6 and current Nia integration)
 **Environment:** Isolated PR worktree. Production data, provider, n8n workflow, migrations, and hosting configuration were not changed.
-**Status:** Local tests/build passed; authenticated staff and Preview app behavior remain blocked. This is not a production-readiness certification.
+**Status:** Local tests/build passed on latest main; authenticated staff and Preview app behavior remain blocked. This is not a production-readiness certification.
 
 ## Scope and evidence limits
 
@@ -26,6 +26,7 @@ No public form was submitted. No staff mutation, provider message, webhook repla
 - Property preview no longer asserts GPS, title, power, water, inspector, or inspection-date checks. An empty gallery shows an empty state instead of a generic property photo. The review action is labeled for its actual effect: setting publication state to review; it does not claim to create or send revision work.
 - Live staff customer pages show an explicit unavailable state instead of fictional fixture records. Demo records are labeled, fabricated Prembly/NIN results and local-only note success were removed, and placeholder conversation IDs are no longer linked to customers. Historical WhatsApp conversations remain in their original channel and replies remain unavailable.
 - The staff property list is fixture-gated by explicit demo mode, does not invent inventory/inspection/portfolio metrics, does not infer status from inspection state, and filters availability only when both publication and rental-availability states allow it. Staff property reads no longer inherit the public rent ceiling by default.
+- Unsupported conversational messages now explicitly tell users saved preferences are unchanged; preference context remains intact without triggering a listing query.
 - The parent-directory Turbopack root override was removed. Portability is determined by a clean dependency install and build inside the project worktree, not by the earlier symlinked-dependency failure.
 - The mobile navigation button now changes its accessible name to “Close mobile navigation” while open.
 
@@ -34,13 +35,14 @@ No public form was submitted. No staff mutation, provider message, webhook repla
 | Check | Status | Evidence / limitation |
 |---|---|---|
 | Focused public-form/property/gallery tests | Pass | The focused suite passed 33 assertions across form retry, annual-rent parsing, fee rules, staff property status, rent filtering, and gallery-order tests. |
-| Full Vitest suite | Pass with skips | 212 passed; 16 skipped across 30 passing and 2 skipped files. Skipped live tests remain blocked, not passed. |
+| Focused Nia regressions | Pass | 64 tests passed across preference recall/non-search handling, conversation context, social replies, and the current n8n response integration. Unsupported input explicitly leaves saved preferences unchanged without querying listings. |
+| Full Vitest suite | Pass with skips | 256 passed; 16 skipped across 32 passing and 2 skipped files. Skipped live tests remain blocked, not passed. |
 | Application and test typechecks | Pass | `npm run typecheck` and `npm run typecheck:tests` completed on the reviewed tree. |
 | Full ESLint | Pass with warnings | 0 errors, 36 warnings. Warnings are mainly existing Next.js image/navigation advisories. |
 | Production build and Turbopack root | Pass | Next.js 16.4.2 built from the project root and generated 80/80 routes without a parent-directory root override. |
-| Browser rendering and responsive behavior | Pass, scoped local check | Local production build: 8 public routes at 320, 390, and 1280 CSS-pixel widths (24 combinations), all HTTP 200 with H1s, no detected horizontal overflow or app-error text. Contact had Telegram links and no WhatsApp links; landlord form had blank controls, no file input, and the photo-upload-unavailable disclosure. Mobile navigation opened with the accurate accessible label. No form was submitted. |
+| Browser rendering and responsive behavior | Pass, scoped local check | Local production build: 8 public routes at 320, 390, and 1280 CSS-pixel widths (24 combinations), all HTTP 200 with H1s, no detected horizontal overflow, app-error text, or WhatsApp links. Contact had Telegram links; landlord form had blank controls, no file input, and the photo-upload-unavailable disclosure. Mobile navigation opened with the accurate accessible label. No form was submitted. |
 | Local authenticated staff behavior | Blocked | Staff property and customer routes returned HTTP 500 because usable Supabase URL/key configuration is absent in this isolated worktree. No authenticated staff flow was tested or claimed. |
-| Vercel Preview | Deployment ready; app access blocked | Vercel deployment `FkYoxpqMvNPJUUr1thco8GUmee4C` completed for implementation commit `4d784245965a6dd645b33c9ead5d76d2160e0c0d`; Preview Comments passed. Requests to five public routes redirected HTTP 302 to deployment protection. No Nestly page was observed; Preview route, responsive, gallery, and authenticated staff behavior remain unverified. |
+| Vercel Preview | Deployment ready; app access blocked | Vercel deployment `CDjFtLHVJwryDBM2xwvvnTjzDv3F` completed for implementation commit `9bbe4793d341a6270373c7dd02d2cb24f81d47b9`; Preview Comments passed. Requests to five public routes redirected HTTP 302 to deployment protection. No Nestly page was observed; Preview route, responsive, gallery, and authenticated staff behavior remain unverified. |
 | Dependency advisories | Blocked upstream fix | Production dependencies: 0 vulnerabilities. Full audit: 5 high findings in the dev-only `eslint-config-next` → `@next/eslint-plugin-next` → `fast-glob` → `micromatch` → `braces` chain (GHSA-vfj7-8cjw-p6xm). Forced remediation downgrades the lint config to Next 14.2.35, incompatible with Next 16; no compatible update was found. |
 | Production behavior | Not tested | Production was not deployed or mutated for this review. |
 

@@ -207,3 +207,11 @@
 - [x] Expanded source-only regression harness: 92/92 passed, including enabled n8n→single mocked Telegram send and return-visitor handling.
 - [x] Retained legacy n8n chat trigger disabled; authenticated response endpoint rejects unauthenticated requests (403).
 - [ ] Real Production backend→authenticated n8n→Telegram reply on a fresh deliberate user inbound remains pending; deployment success is not handset verification.
+
+## PR #3 final review state after latest main — 2026-10-19
+
+- **Integrated main:** `f463e4a075eac5d2af4c1c7094d58b4667d9cd90` merged as `9bbe4793d341a6270373c7dd02d2cb24f81d47b9`. The new main-side Nia/n8n/Gemini integration and compact composer updates are retained. WF01/WF03 and external n8n configuration were not changed in this review.
+- **Nia context:** Unsupported conversational input clarifies that preferences are unchanged; it does not query listings or mutate context. Preference recall, context, social-reply, and n8n response regressions passed 64/64.
+- **Local checks:** Full suite 256 passed, 16 skipped; application/test typechecks passed; ESLint 0 errors/36 warnings; Next.js build 80/80 routes. The local public-route matrix passed 24/24 combinations at 320/390/1280px. No active WhatsApp links were found on checked public pages; Telegram contact, blank landlord defaults, disabled photo upload, and mobile navigation were checked without submitting forms.
+- **Blocked checks:** Authenticated staff routes returned HTTP 500 because the isolated worktree lacks usable Supabase URL/key configuration. The final Preview deployment reached Ready and Preview Comments passed, but public Preview routes redirected HTTP 302 to Vercel deployment protection. Thus authenticated staff and Preview UI behavior are not verified. Production remains untested.
+- **Release status:** PR #3 remains draft and unmerged; GitHub reports merge state `UNSTABLE`. Production data, provider settings, migrations, Telegram/webhooks, n8n workflows, and customer records were not changed.
