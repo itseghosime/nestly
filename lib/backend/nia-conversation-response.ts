@@ -13,10 +13,10 @@ import {
   type NiaConversationContext,
 } from '@/lib/backend/nia-conversation-context';
 import { buildNiaFeeAnswer, type NiaPublicFee } from '@/lib/backend/nia-fee-answer';
-import { createClient } from '@/lib/supabase/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { searchNiaPublicProperties, type NiaPublicPropertyRow } from '@/lib/backend/nia-public-search';
 
-type ServerSupabase = Awaited<ReturnType<typeof createClient>>;
+type ServerSupabase = SupabaseClient;
 
 export interface NiaConversationAnswer {
   message: string;

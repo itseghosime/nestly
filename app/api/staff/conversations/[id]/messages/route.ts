@@ -10,6 +10,7 @@ import {
 } from '@/lib/backend/twilio-staff-config';
 import { isTwilioMessageSid } from '@/lib/twilio-message-sid';
 import { requireStaff } from '@/lib/backend/staff-context';
+import { getTelegramServerSettings, sendTelegramText } from '@/lib/backend/telegram';
 
 export const runtime = 'nodejs';
 
@@ -50,6 +51,16 @@ type RecordedRow = {
   message_id: string;
   dispatch_status: string;
   delivery_status: string;
+};
+
+type TelegramDispatchRow = {
+  message_id: string;
+  bot_id: number | string;
+  chat_id: number | string;
+  dispatch_status: string;
+  delivery_status: string;
+  created_at: string;
+  should_dispatch: boolean;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -94,6 +105,29 @@ function parseRecordedRow(value: unknown): RecordedRow | null {
     message_id: row.message_id,
     dispatch_status: row.dispatch_status,
     delivery_status: row.delivery_status,
+  };
+}
+
+function parseTelegramDispatchRow(value: unknown): TelegramDispatchRow | null {
+  const row = firstRow(value);
+  if (
+    !row
+    || typeof row.message_id !== 'string'
+    || !(typeof row.bot_id === 'number' || typeof row.bot_id === 'string')
+    || !(typeof row.chat_id === 'number' || typeof row.chat_id === 'string')
+    || typeof row.dispatch_status !== 'string'
+    || typeof row.delivery_status !== 'string'
+    || typeof row.created_at !== 'string'
+    || typeof row.should_dispatch !== 'boolean'
+  ) return null;
+  return {
+    message_id: row.message_id,
+    bot_id: row.bot_id,
+    chat_id: row.chat_id,
+    dispatch_status: row.dispatch_status,
+    delivery_status: row.delivery_status,
+    created_at: row.created_at,
+    should_dispatch: row.should_dispatch,
   };
 }
 
@@ -215,6 +249,72 @@ function dispatchFailureResponse(code: string | undefined) {
   return NextResponse.json({ error: 'Unable to prepare Twilio reply' }, { status: 503 });
 }
 
+function telegramApiMessage(row: TelegramDispatchRow, content: string) {
+  return {
+    id: row.message_id,
+    direction: 'outbound',
+    sender_type: 'agent',
+    content,
+    delivery_status: row.delivery_status,
+    dispatch_status: row.dispatch_status,
+    dispatch_error_code: null,
+    dispatch_updated_at: row.created_at,
+    has_provider_message_id: false,
+    has_valid_provider_message_sid: false,
+    created_at: row.created_at,
+  };
+}
+
+function telegramDispatchFailureResponse(code: string | undefined) {
+  if (code === '42501') {
+    return NextResponse.json({ error: 'You are not authorized to reply to this assigned conversation' }, { status: 403 });
+  }
+  if (code === 'P0002') {
+    return NextResponse.json({ error: 'Conversation not found or inaccessible' }, { status: 404 });
+  }
+  if (code === '22023') {
+    return NextResponse.json({ error: 'A staff takeover and assignment to you are required before replying' }, { status: 409 });
+  }
+  if (code === '55000') {
+    return NextResponse.json({
+      error: 'A previous Telegram send has an unresolved outcome. Do not send another message until the outcome is reviewed.',
+    }, { status: 409 });
+  }
+  if (code === '23505') {
+    return NextResponse.json({ error: 'This reply request identifier was already used' }, { status: 409 });
+  }
+  console.error('Telegram staff reply claim failed', code || 'unknown');
+  return NextResponse.json({ error: 'Unable to prepare Telegram reply' }, { status: 503 });
+}
+
+async function finishTelegramDispatch(
+  admin: ReturnType<typeof createAdminClient>,
+  messageId: string,
+  outcome: 'accepted' | 'rejected' | 'unknown',
+  telegramMessageId: number | null,
+  errorCode: string | null,
+) {
+  const { error } = await admin.rpc('finish_telegram_dispatch', {
+    p_message_id: messageId,
+    p_outcome: outcome,
+    p_telegram_message_id: telegramMessageId,
+    p_error_code: errorCode,
+  });
+  if (!error) return true;
+  console.error('Telegram staff reply tracking failed', error.code || 'unknown');
+  if (outcome === 'unknown') return false;
+  const fallback = await admin.rpc('finish_telegram_dispatch', {
+    p_message_id: messageId,
+    p_outcome: 'unknown',
+    p_telegram_message_id: null,
+    p_error_code: 'TRACKING_FAILURE',
+  });
+  if (fallback.error) {
+    console.error('Telegram uncertain staff reply tracking failed', fallback.error.code || 'unknown');
+  }
+  return false;
+}
+
 async function recordDispatch(
   admin: ReturnType<typeof createAdminClient>,
   messageId: string,
@@ -329,6 +429,124 @@ export async function POST(
         has_valid_provider_message_sid: false,
         created_at: message.created_at,
       },
+    }, { status: 201, headers: { 'Cache-Control': 'no-store' } });
+  }
+
+  if (conversation.channel === 'telegram') {
+    const settings = getTelegramServerSettings();
+    if (!settings.token || !settings.botId) {
+      console.error('Telegram staff reply configuration is incomplete or invalid');
+      return NextResponse.json({ error: 'Telegram sending is not configured' }, { status: 503 });
+    }
+    if (!settings.outboundEnabled) {
+      return NextResponse.json({
+        error: 'Telegram staff sending is disabled for this deployment. No external message was sent.',
+      }, { status: 503 });
+    }
+
+    let admin: ReturnType<typeof createAdminClient>;
+    try {
+      admin = createAdminClient();
+    } catch {
+      console.error('Telegram staff reply tracking client is unavailable');
+      return NextResponse.json({ error: 'Telegram sending is not configured' }, { status: 503 });
+    }
+
+    const { data, error } = await context.client.rpc('claim_telegram_staff_reply', {
+      p_conversation_id: id,
+      p_content: parsed.data.content,
+      p_idempotency_key: idempotencyKey,
+    });
+    if (error) return telegramDispatchFailureResponse(error.code);
+    const claim = parseTelegramDispatchRow(data);
+    if (!claim) {
+      console.error('Telegram staff reply claim returned an invalid row shape');
+      return NextResponse.json({ error: 'Unable to prepare Telegram reply' }, { status: 503 });
+    }
+    if (!claim.should_dispatch) {
+      const message = telegramApiMessage(claim, parsed.data.content);
+      if (claim.dispatch_status === 'unknown' || claim.dispatch_status === 'dispatching') {
+        return NextResponse.json({
+          data: message,
+          notice: 'Telegram may have accepted this message. Do not resend; delivery and read status are unavailable.',
+        }, { status: 202, headers: { 'Cache-Control': 'no-store' } });
+      }
+      if (claim.dispatch_status === 'failed') {
+        return NextResponse.json({
+          error: 'Telegram did not accept this reply. A new attempt requires a new idempotency key.',
+          retryWithNewKey: true,
+          data: message,
+        }, { status: 422, headers: { 'Cache-Control': 'no-store' } });
+      }
+      return NextResponse.json({
+        data: message,
+        notice: 'Telegram API acceptance is recorded; delivery and read status are unavailable.',
+      }, { headers: { 'Cache-Control': 'no-store' } });
+    }
+
+    const botId = Number(claim.bot_id);
+    const chatId = Number(claim.chat_id);
+    if (
+      !Number.isSafeInteger(botId)
+      || botId !== settings.botId
+      || !Number.isSafeInteger(chatId)
+      || chatId <= 0
+    ) {
+      const recorded = await finishTelegramDispatch(
+        admin, claim.message_id, 'rejected', null, 'INVALID_TELEGRAM_TARGET',
+      );
+      if (!recorded) {
+        return NextResponse.json({
+          data: telegramApiMessage({ ...claim, dispatch_status: 'unknown' }, parsed.data.content),
+          notice: 'The reply was not sent; its stored outcome needs reconciliation.',
+        }, { status: 202, headers: { 'Cache-Control': 'no-store' } });
+      }
+      return NextResponse.json({ error: 'Telegram chat configuration is invalid', retryWithNewKey: true }, { status: 422 });
+    }
+
+    const sendResult = await sendTelegramText(settings.token, chatId, parsed.data.content);
+    const trackingSaved = await finishTelegramDispatch(
+      admin,
+      claim.message_id,
+      sendResult.outcome,
+      sendResult.outcome === 'accepted' ? sendResult.telegramMessageId : null,
+      sendResult.outcome === 'accepted' ? null : sendResult.errorCode,
+    );
+    if (!trackingSaved) {
+      return NextResponse.json({
+        data: telegramApiMessage({
+          ...claim,
+          dispatch_status: 'unknown',
+          delivery_status: 'queued',
+        }, parsed.data.content),
+        notice: 'Telegram send tracking failed. Do not resend; the provider outcome is uncertain.',
+      }, { status: 202, headers: { 'Cache-Control': 'no-store' } });
+    }
+    const resultingClaim = {
+      ...claim,
+      dispatch_status: sendResult.outcome === 'rejected' ? 'failed' : sendResult.outcome,
+      delivery_status: sendResult.outcome === 'accepted'
+        ? 'sent'
+        : sendResult.outcome === 'rejected'
+          ? 'failed'
+          : 'queued',
+    };
+    if (sendResult.outcome === 'unknown') {
+      return NextResponse.json({
+        data: telegramApiMessage(resultingClaim, parsed.data.content),
+        notice: 'Telegram may have accepted this message. It was not retried; delivery and read status are unavailable.',
+      }, { status: 202, headers: { 'Cache-Control': 'no-store' } });
+    }
+    if (sendResult.outcome === 'rejected') {
+      return NextResponse.json({
+        error: 'Telegram did not accept this reply. A new attempt requires a new idempotency key.',
+        retryWithNewKey: true,
+        data: telegramApiMessage(resultingClaim, parsed.data.content),
+      }, { status: 422, headers: { 'Cache-Control': 'no-store' } });
+    }
+    return NextResponse.json({
+      data: telegramApiMessage(resultingClaim, parsed.data.content),
+      notice: 'Telegram API accepted the reply. Delivery and read status are unavailable.',
     }, { status: 201, headers: { 'Cache-Control': 'no-store' } });
   }
 

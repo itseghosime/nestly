@@ -40,7 +40,7 @@ type ThreadMessage = {
 
 type Conversation = {
   id: string;
-  channel: 'website' | 'whatsapp';
+  channel: 'website' | 'whatsapp' | 'telegram';
   mode: 'AI_ACTIVE' | 'HUMAN_ACTIVE' | 'CLOSED';
   assignedStaffId: string | null;
   assignedStaff: string;
@@ -50,8 +50,13 @@ type Conversation = {
   whatsappSendConfigured: boolean;
   whatsappStatusCallbackConfigured: boolean;
   canSendWhatsApp: boolean;
+  telegramDispatchAvailable: boolean;
+  telegramOutboundEnabled: boolean;
+  telegramSendConfigured: boolean;
+  telegramWebhookSecretConfigured: boolean;
+  canSendTelegram: boolean;
   createdAt: string;
-  customer: { displayName: string; email: string; phone: string };
+  customer: { displayName: string; email: string; phone: string; username: string | null };
   property: { id: string | null; title: string; reference: string; location: string } | null;
   messages: ThreadMessage[];
 };
@@ -142,6 +147,11 @@ export default function ConversationDetailPage({
       ? 'CLOSED'
       : 'AI';
   const unresolvedWhatsAppSend = conversation?.channel === 'whatsapp'
+    && messages.some((message) => (
+      message.direction === 'outbound'
+      && (message.dispatch_status === 'dispatching' || message.dispatch_status === 'unknown')
+    ));
+  const unresolvedTelegramSend = conversation?.channel === 'telegram'
     && messages.some((message) => (
       message.direction === 'outbound'
       && (message.dispatch_status === 'dispatching' || message.dispatch_status === 'unknown')
@@ -280,7 +290,9 @@ export default function ConversationDetailPage({
       || sendingReply
       || conversation.mode !== 'HUMAN_ACTIVE'
       || (conversation.channel === 'whatsapp' && !conversation.canSendWhatsApp)
+      || (conversation.channel === 'telegram' && !conversation.canSendTelegram)
       || unresolvedWhatsAppSend
+      || unresolvedTelegramSend
     ) return;
 
     const request = replyRequestRef.current?.content === content
@@ -317,14 +329,16 @@ export default function ConversationDetailPage({
         throw new Error('Reply status could not be confirmed. Refresh the conversation before sending again.');
       }
       if (
-        conversation.channel === 'whatsapp'
+        (conversation.channel === 'whatsapp' || conversation.channel === 'telegram')
         && returnedMessage
         && (returnedMessage.dispatch_status === 'unknown' || returnedMessage.dispatch_status === 'dispatching')
       ) {
         setReplyAnnouncement(
           typeof result.notice === 'string'
             ? result.notice
-            : 'Twilio may have received this message. Do not resend until it is reconciled.',
+            : conversation.channel === 'telegram'
+              ? 'Telegram may have accepted this send. Do not resend; delivery and read status are unavailable.'
+              : 'Twilio may have received this message. Do not resend until it is reconciled.',
         );
         return;
       }
@@ -334,7 +348,9 @@ export default function ConversationDetailPage({
         ? 'Reply saved to website chat. It will be marked delivered when the customer loads it; no external message was sent.'
         : typeof result.notice === 'string'
           ? result.notice
-          : 'Twilio accepted the reply. Delivery is not confirmed until a signed status callback arrives.');
+          : conversation.channel === 'telegram'
+            ? 'Telegram API accepted the reply. Delivery and read confirmation are unavailable.'
+            : 'Twilio accepted the reply. Delivery is not confirmed until a signed status callback arrives.');
     } catch (replyError) {
       setError(replyError instanceof Error ? replyError.message : 'Unable to save staff reply');
     } finally {
@@ -476,7 +492,9 @@ export default function ConversationDetailPage({
                     {conversation.customer.displayName}
                   </h2>
                   <p className="text-xs font-mono text-muted-ink">
-                    {conversation.customer.phone || conversation.customer.email || 'No contact details'}
+                    {conversation.channel === 'telegram' && conversation.customer.username
+                      ? `@${conversation.customer.username}`
+                      : conversation.customer.phone || conversation.customer.email || 'No contact details'}
                   </p>
                 </div>
               </div>
@@ -695,6 +713,14 @@ export default function ConversationDetailPage({
                           </button>
                         </div>
                       )}
+                      {conversation.channel === 'telegram'
+                        && (msg.dispatch_status === 'dispatching' || msg.dispatch_status === 'unknown') && (
+                        <div className="mt-3 max-w-[min(85vw,24rem)] rounded-xl border border-amber-300 bg-amber-50 p-3 text-left text-[11px] leading-relaxed text-amber-950">
+                          {msg.dispatch_status === 'unknown'
+                            ? 'Telegram send outcome is unknown. The app did not retry it. Telegram provides no delivery/read callback or reliable lookup for a timed-out send; do not send a duplicate.'
+                            : 'Telegram API request is still pending. Do not retry until its outcome is recorded.'}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -715,10 +741,15 @@ export default function ConversationDetailPage({
             </div>
 
             {(conversation.channel === 'website' && triageMode === 'HUMAN')
-              || (conversation.channel === 'whatsapp' && triageMode === 'HUMAN' && conversation.canSendWhatsApp) ? (
+              || (conversation.channel === 'whatsapp' && triageMode === 'HUMAN' && conversation.canSendWhatsApp)
+              || (conversation.channel === 'telegram' && triageMode === 'HUMAN' && conversation.canSendTelegram) ? (
               <form onSubmit={handleSendReply} className="border-t border-hairline bg-white p-4 space-y-2">
                 <label htmlFor="conversation-staff-reply" className="block text-xs font-bold text-charcoal">
-                  {conversation.channel === 'website' ? 'Reply in website chat' : 'Reply in WhatsApp via Twilio'}
+                  {conversation.channel === 'website'
+                    ? 'Reply in website chat'
+                    : conversation.channel === 'telegram'
+                      ? 'Reply in Telegram'
+                      : 'Reply in WhatsApp via Twilio'}
                 </label>
                 <textarea
                   id="conversation-staff-reply"
@@ -729,23 +760,29 @@ export default function ConversationDetailPage({
                   }}
                   maxLength={4000}
                   rows={3}
-                  disabled={unresolvedWhatsAppSend}
+                  disabled={unresolvedWhatsAppSend || unresolvedTelegramSend}
                   placeholder={conversation.channel === 'website'
                     ? 'Write a reply for the customer’s saved website conversation…'
-                    : 'Write a WhatsApp reply…'}
+                    : conversation.channel === 'telegram'
+                      ? 'Write a Telegram reply…'
+                      : 'Write a WhatsApp reply…'}
                   className="w-full resize-y rounded-2xl border border-hairline bg-warm px-3 py-2 text-sm text-charcoal outline-none focus:border-primary"
                 />
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-[11px] leading-relaxed text-muted-ink">
                     {unresolvedWhatsAppSend
                       ? 'A previous send outcome is unresolved. Do not retry until a signed callback or manual reconciliation updates it.'
+                      : unresolvedTelegramSend
+                        ? 'A previous Telegram send is unresolved. It was not retried; do not send a duplicate.'
                       : conversation.channel === 'website'
                         ? 'Saved to this website conversation only. External delivery is not configured.'
-                        : 'Sent through the configured Twilio WhatsApp sender. Delivery is confirmed only by a signed status callback.'}
+                        : conversation.channel === 'telegram'
+                          ? 'Sent through the configured Telegram bot. API acceptance does not confirm delivery or reading.'
+                          : 'Sent through the configured Twilio WhatsApp sender. Delivery is confirmed only by a signed status callback.'}
                   </p>
                   <button
                     type="submit"
-                    disabled={sendingReply || unresolvedWhatsAppSend || !replyDraft.trim()}
+                    disabled={sendingReply || unresolvedWhatsAppSend || unresolvedTelegramSend || !replyDraft.trim()}
                     className="nestly-press shrink-0 rounded-full bg-primary px-4 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {sendingReply
@@ -759,7 +796,21 @@ export default function ConversationDetailPage({
               </form>
             ) : (
               <div className="border-t border-amber-200 bg-amber-50 p-4 text-xs leading-relaxed text-amber-950">
-                {conversation.channel === 'whatsapp'
+                {conversation.channel === 'telegram'
+                  ? triageMode === 'HUMAN'
+                    ? !conversation.telegramDispatchAvailable
+                      ? 'Telegram dispatch tracking is unavailable. No external message was sent.'
+                      : !conversation.telegramOutboundEnabled
+                        ? 'Telegram staff sending is disabled by the deployment flag. No external message was sent.'
+                        : !conversation.telegramSendConfigured
+                          ? 'Telegram bot token is missing or invalid. No external message was sent.'
+                          : !conversation.isAssignedToCurrentStaff
+                            ? `This conversation is assigned to ${conversation.assignedStaff}. Only the assigned staff member can send a Telegram reply.`
+                            : 'Your staff role is not authorized to send Telegram replies.'
+                    : triageMode === 'CLOSED'
+                      ? 'This conversation is closed. Reopen or take over only through the authorized staff workflow before replying.'
+                      : 'Take over this Telegram conversation before replying. Nia stays paused while staff owns it.'
+                  : conversation.channel === 'whatsapp'
                   ? triageMode === 'HUMAN'
                     ? !conversation.whatsappDispatchAvailable
                       ? 'Twilio staff replies are unavailable until the additive message-tracking migration is applied to this database. No external message was sent.'

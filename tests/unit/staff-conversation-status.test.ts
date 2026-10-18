@@ -34,6 +34,7 @@ describe('staff conversation status labels', () => {
   it('does not claim Nia is disconnected or conflate AI ownership with delivery', () => {
     expect(getAiOwnershipNotice('website')).toContain('ownership does not confirm delivery');
     expect(getAiOwnershipNotice('whatsapp')).toContain('WF01 handles inbound AI replies');
+    expect(getAiOwnershipNotice('telegram')).toContain('Telegram');
   });
 
   it('requires provider-message evidence before labeling a queued WhatsApp message accepted', () => {
@@ -66,5 +67,23 @@ describe('staff conversation status labels', () => {
       .toBe('Twilio outcome pending; do not resend');
     expect(getDeliveryLabel('queued', 'whatsapp', 'unknown', false))
       .toBe('Twilio outcome unknown; do not resend');
+  });
+
+  it('keeps Telegram API acceptance distinct from delivery and read confirmation', () => {
+    expect(getConversationChannelNotice({
+      channel: 'telegram',
+      whatsappDispatchAvailable: true,
+      whatsappOutboundEnabled: true,
+      whatsappSendConfigured: true,
+      whatsappStatusCallbackConfigured: true,
+      telegramDispatchAvailable: true,
+      telegramOutboundEnabled: false,
+      telegramSendConfigured: true,
+      telegramWebhookSecretConfigured: true,
+    })).toContain('staff sending disabled by default flag');
+    expect(getDeliveryLabel('sent', 'telegram', 'accepted', false))
+      .toBe('Telegram API accepted; delivery/read unconfirmed');
+    expect(getDeliveryLabel('queued', 'telegram', 'unknown', false))
+      .toBe('Telegram send outcome unknown; do not resend');
   });
 });
