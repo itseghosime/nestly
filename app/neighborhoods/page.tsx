@@ -9,7 +9,8 @@ import { useGSAP } from '@gsap/react';
 import { Header } from '@/components/public/Header';
 import { Footer } from '@/components/public/Footer';
 import { NiaWidget } from '@/components/public/NiaWidget';
-import { NEIGHBORHOODS } from '@/lib/fixtures/neighborhoods';
+import { fetchNeighborhoods } from '@/lib/neighborhoods';
+import type { NeighborhoodGuide } from '@/lib/types';
 import { prefersReducedMotion } from '@/lib/motion';
 import {
   Search,
@@ -18,7 +19,26 @@ import {
 } from 'lucide-react';
 
 export default function NeighborhoodsPage() {
+  const [neighborhoods, setNeighborhoods] = useState<NeighborhoodGuide[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchNeighborhoods()
+      .then((rows) => {
+        if (!cancelled) setNeighborhoods(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError('The guides could not be loaded. Please try again.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [reloadTrigger]);
   const [stateFilter, setStateFilter] = useState<'all' | 'Edo' | 'Delta'>('all');
   const [isNiaOpen, setIsNiaOpen] = useState(false);
 
@@ -27,7 +47,7 @@ export default function NeighborhoodsPage() {
   const isFirstRender = useRef(true);
 
   const filtered = useMemo(() => {
-    return NEIGHBORHOODS.filter((n) => {
+    return neighborhoods.filter((n) => {
       if (stateFilter !== 'all' && n.state !== stateFilter) return false;
       if (searchTerm.trim()) {
         const q = searchTerm.toLowerCase();
@@ -40,7 +60,7 @@ export default function NeighborhoodsPage() {
       }
       return true;
     });
-  }, [stateFilter, searchTerm]);
+  }, [neighborhoods, stateFilter, searchTerm]);
 
   useGSAP(
     () => {
@@ -86,11 +106,11 @@ export default function NeighborhoodsPage() {
           </h1>
 
           <p className="text-sm sm:text-lg text-muted-ink leading-relaxed font-normal">
-            Discover residential pockets across Benin City and the Sapele corridor. Real local perspectives on water infrastructure, electrical transformer stability, and compound living.
+            Explore Benin City, Sapele and Effurun with practical guidance on access, compound living, utilities and the questions to ask before choosing a home.
           </p>
 
           <div className="mt-4 inline-block px-3.5 py-1.5 rounded-full bg-persimmon-soft text-persimmon text-xs font-semibold border border-persimmon/20">
-            Note: Curated guide for design review; local descriptions verified by field staff.
+            Start with an area. Confirm the details at the property.
           </div>
         </div>
 
@@ -144,6 +164,22 @@ export default function NeighborhoodsPage() {
           </div>
         </div>
 
+        {loading ? (
+          <p role="status" className="py-8 text-sm text-muted-ink">Loading neighbourhood guides…</p>
+        ) : loadError ? (
+          <div role="alert" className="mb-8 rounded-2xl border border-hairline bg-white p-6">
+            <p className="mb-4 text-sm text-charcoal">{loadError}</p>
+            <button type="button" className="shrink-0 rounded-full bg-charcoal px-5 py-3 text-sm font-bold text-white"
+              onClick={() => { setLoading(true); setLoadError(null); setReloadTrigger((value) => value + 1); }}>
+              Try again
+            </button>
+          </div>
+        ) : filtered.length === 0 ? (
+          <p role="status" className="py-8 text-sm text-muted-ink">
+            {neighborhoods.length === 0 ? 'Neighbourhood guides are being prepared. Browse available homes or ask Nia for help.' : 'No guides match your search. Try another area or clear the filters.'}
+          </p>
+        ) : null}
+
         {/* Neighborhoods Grid */}
         <div ref={gridRef} data-nh-enter className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {filtered.map((n) => (
@@ -177,13 +213,13 @@ export default function NeighborhoodsPage() {
                   {/* Micro Metrics */}
                   <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl bg-soft-stone border border-hairline text-xs">
                     <div>
-                      <span className="text-[10px] uppercase font-bold text-muted-ink block">Avg 3-Bed Rent</span>
-                      <span className="font-extrabold text-charcoal">{n.averageAnnualRent3Bed}/yr</span>
+                      <span className="text-[10px] uppercase font-bold text-muted-ink block">3-Bed guide price</span>
+                      <span className="font-extrabold text-charcoal">{n.averageAnnualRent3Bed || 'Ask for current options'}</span>
                     </div>
                     <div>
-                      <span className="text-[10px] uppercase font-bold text-muted-ink block">Power Uptime</span>
+                      <span className="text-[10px] uppercase font-bold text-muted-ink block">Guide covers</span>
                       <span className="font-extrabold text-charcoal">
-                        {n.powerReliability ? `${n.powerReliability.split(' ')[0]} Daily` : 'Not provided'}
+                        Access, utilities & costs
                       </span>
                     </div>
                   </div>

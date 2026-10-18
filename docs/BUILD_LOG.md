@@ -1123,3 +1123,10 @@ The Mac localhost repository was not changed by the GitHub merge. It must fetch 
 
 
 Post-merge live HTTP verification: Vercel's GitHub status for b67bcb9b71230192feb8a4782d1f4b13de5e09ee completed successfully. All nine new editorial WebP URLs returned HTTP 200 with expected file sizes. Home, About, How It Works, Neighbourhoods and Submit Property returned HTTP 200 and their HTML included the new editorial paths. These are deployment/HTTP checks, not a completed interactive browser or mobile visual audit. Localhost sync on the user's Mac remains a separate pending action.
+
+
+## Missing neighbourhood guides — repair (2026-10-18)
+
+Live reproduction: public.neighborhoods contained zero rows; /api/neighborhoods returned 200 with an empty array; the four fixture-linked detail APIs returned 404. Directory and detail used different data sources. Prepared fix/neighborhood-guides: directory fetches the API with loading/error/retry/empty states; query failures return 503 rather than false 404; city-scoped related listing fetches include Warri and Effurun. Four detailed editorial guides and an idempotent, insert-only DML seed are in supabase/content/neighborhood-guides.sql. Removed automatic Priority Feeder/Flood-free checked labels and unsupported power/security claims from this guide flow and Home's area panels. Rent benchmarks stay null rather than claiming market averages. New editorial photography, layouts, motion and existing property prices/galleries are preserved. Context, sources, verification harness and Copilot handoff: docs/NEIGHBORHOOD_GUIDES.md.
+
+Local: esbuild syntax/transpilation passed for five touched TS/TSX files; five mocked detail-API cases passed (active, missing, database failure, inactive-public, existing staff preview); read-only integration harness syntax passed. Preview build and live seeded-guide checks pending at this entry. No schema migration, RLS change, n8n change, customer-data write, provider send, recording, screenshot or PDF.

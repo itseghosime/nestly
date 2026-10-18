@@ -683,8 +683,8 @@ export default function HomePage() {
                     GRA &amp; Boundary Road, Benin
                   </h3>
                   <p className="text-xs sm:text-sm text-white/80 mt-1 max-w-sm">
-                    Leafy avenues, 20-22hr priority electrical feeder, and elite
-                    security.
+                    Compare established streets, everyday routes, and compound
+                    arrangements.
                   </p>
                 </div>
                 <Link
@@ -717,8 +717,8 @@ export default function HomePage() {
                     Clinic Road, Sapele
                   </h3>
                   <p className="text-xs text-white/80 mt-1 max-w-xs">
-                    Elevated flood-free topography with direct river port and
-                    Warri connectivity.
+                    Explore Sapele addresses with practical guidance on access,
+                    utilities, and viewing checks.
                   </p>
                 </div>
                 <Link

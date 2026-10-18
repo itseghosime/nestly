@@ -61,19 +61,24 @@ export default function NeighborhoodGuideDetailPage({ params }: { params: Promis
           setLoading(false);
         }
       });
-    fetchProperties()
-      .then((rows) => {
-        if (!c) {
-          setRelatedProperties(Array.isArray(rows) ? rows : []);
-        }
-      })
-      .catch(() => {
-        if (!c) {
-          setRelatedProperties([]);
-        }
-      });
     return () => { c = true; };
   }, [resolvedParams.slug, reloadTrigger]);
+
+  const propertyCities = neighborhood?.city;
+  useEffect(() => {
+    if (!propertyCities) return;
+    let cancelled = false;
+    const cities = propertyCities.split('/').map((city) => city.trim()).filter(Boolean);
+    Promise.all(cities.map((location) => fetchProperties({ location })))
+      .then((groups) => {
+        if (!cancelled) {
+          const unique = new Map(groups.flat().map((property) => [property.id, property]));
+          setRelatedProperties([...unique.values()]);
+        }
+      })
+      .catch(() => { if (!cancelled) setRelatedProperties([]); });
+    return () => { cancelled = true; };
+  }, [propertyCities, reloadTrigger]);
 
   const handleRetry = () => {
     setLoading(true);
@@ -89,7 +94,7 @@ export default function NeighborhoodGuideDetailPage({ params }: { params: Promis
     ? relatedProperties.filter(
         (p) =>
           p.neighborhood.toLowerCase().includes(neighborhood.name.toLowerCase().split(' ')[0]) ||
-          p.city.toLowerCase() === neighborhood.city.toLowerCase()
+          neighborhood.city.toLowerCase().split('/').map((city) => city.trim()).includes(p.city.toLowerCase())
       )
     : [];
 
@@ -228,44 +233,42 @@ export default function NeighborhoodGuideDetailPage({ params }: { params: Promis
         <div data-nhdetail-enter className="grid grid-cols-2 md:grid-cols-4 gap-4 p-5 sm:p-6 bg-white rounded-3xl border border-hairline shadow-2xs mb-12">
           <div>
             <span className="text-[11px] uppercase tracking-wider text-muted-ink font-bold block mb-1">
-              Avg 2-Bed Flat
+              2-Bed guide price
             </span>
-            <p className="font-headline text-lg sm:text-xl font-extrabold text-charcoal">
-              {neighborhood.averageAnnualRent2Bed}
+            <p className="text-sm font-semibold text-charcoal leading-relaxed">
+              {neighborhood.averageAnnualRent2Bed || 'Ask for current options'}
             </p>
-            <span className="text-[11px] text-muted-ink">per annum</span>
+            <span className="text-[11px] text-muted-ink">Confirm rent and fees on the listing</span>
           </div>
 
           <div>
             <span className="text-[11px] uppercase tracking-wider text-muted-ink font-bold block mb-1">
-              Avg 3-Bed Terrace
+              3-Bed guide price
             </span>
             <p className="font-headline text-lg sm:text-xl font-extrabold text-charcoal">
-              {neighborhood.averageAnnualRent3Bed}
+              {neighborhood.averageAnnualRent3Bed || 'Ask for current options'}
             </p>
-            <span className="text-[11px] text-muted-ink">per annum</span>
+            <span className="text-[11px] text-muted-ink">Confirm rent and fees on the listing</span>
           </div>
 
           <div>
             <span className="text-[11px] uppercase tracking-wider text-muted-ink font-bold block mb-1">
-              Electrical Uptime
+              Power & utilities
             </span>
             <p className="font-headline text-lg sm:text-xl font-extrabold text-charcoal">
-              {neighborhood.powerReliability ? `${neighborhood.powerReliability.split(' ')[0]} Daily` : 'Not provided'}
+              {neighborhood.powerReliability || 'Confirm at the property'}
             </p>
-            {neighborhood.powerReliability ? (
-              <span className="text-[11px] text-emerald-700 font-medium">Priority Feeder</span>
-            ) : null}
+
           </div>
 
           <div>
             <span className="text-[11px] uppercase tracking-wider text-muted-ink font-bold block mb-1">
-              Road &amp; Topography
+              Access &amp; drainage
             </span>
-            <p className="font-headline text-sm font-extrabold text-charcoal truncate" title={neighborhood.roadNetwork}>
+            <p className="text-sm font-semibold text-charcoal leading-relaxed" title={neighborhood.roadNetwork}>
               {neighborhood.roadNetwork}
             </p>
-            <span className="text-[11px] text-muted-ink">Flood-free checked</span>
+            <span className="text-[11px] text-muted-ink">Check conditions during your viewing</span>
           </div>
         </div>
 
@@ -297,7 +300,7 @@ export default function NeighborhoodGuideDetailPage({ params }: { params: Promis
 
             <div>
               <h3 className="font-headline text-xl font-bold text-charcoal mb-3">
-                Popular &amp; High-Demand Streets
+                Roads &amp; search areas
               </h3>
               <div className="flex flex-wrap gap-2">
                 {neighborhood.popularStreets.map((st, i) => (
@@ -341,10 +344,10 @@ export default function NeighborhoodGuideDetailPage({ params }: { params: Promis
           <div className="flex items-center justify-between mb-8">
             <div>
               <h2 className="font-headline text-2xl sm:text-3xl font-extrabold text-charcoal">
-                Available Homes in {neighborhood.name}
+                Current listings around {neighborhood.city}
               </h2>
               <p className="text-xs sm:text-sm text-muted-ink mt-0.5">
-                Verified daylight listings ready for accompanied walkthroughs.
+                Compare the published details, fees and inspection availability for each home.
               </p>
             </div>
             <Link
@@ -364,13 +367,13 @@ export default function NeighborhoodGuideDetailPage({ params }: { params: Promis
             </div>
           ) : (
             <div className="bg-white rounded-3xl p-8 border border-hairline text-center max-w-md mx-auto">
-              <p className="text-sm font-bold text-charcoal mb-1">No active listings in this pocket yet</p>
-              <p className="text-xs text-muted-ink mb-4">New properties are verified weekly by our field operations team.</p>
+              <p className="text-sm font-bold text-charcoal mb-1">No current listings in this area</p>
+              <p className="text-xs text-muted-ink mb-4">Explore other areas or ask Nia to help refine your search.</p>
               <Link
                 href="/browse"
                 className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold uppercase tracking-wider nestly-press"
               >
-                <span>Browse all verified listings</span>
+                <span>Browse available homes</span>
               </Link>
             </div>
           )}
