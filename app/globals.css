@@ -1,0 +1,179 @@
+@import "tailwindcss";
+
+@theme {
+  --color-warm: #FCFBF8;
+  --color-soft-stone: #F4F2EB;
+  --color-stone-card: #F0EEE9;
+  --color-charcoal: #202320;
+  --color-persimmon: #ED572E;
+  --color-persimmon-hover: #DB471F;
+  --color-persimmon-soft: #FDF0EB;
+  --color-muted-ink: #666964;
+  --color-hairline: #E5E2DA;
+  --color-hairline-subtle: #EAE7DF;
+
+  /* Editorial & Staff dashboard palette tokens */
+  --color-surface: #FAF8F3;
+  --color-surface-dim: #DADAD5;
+  --color-surface-bright: #FAF8F3;
+  --color-surface-container-lowest: #FFFFFF;
+  --color-surface-container-low: #F4F4EF;
+  --color-surface-container: #EEEEE9;
+  --color-surface-container-high: #E8E8E3;
+  --color-surface-container-highest: #E2E3DE;
+  --color-on-surface: #1A1C19;
+  --color-on-surface-variant: #414845;
+  --color-primary: #173F35;
+  --color-on-primary: #FFFFFF;
+  --color-primary-container: #173F35;
+  --color-on-primary-container: #82AA9D;
+  --color-secondary: #576157;
+  --color-secondary-container: #DDE7DB;
+  --color-on-secondary-container: #202320;
+  --color-tertiary: #C77956;
+  --color-tertiary-container: #FDF0EB;
+  --color-outline: #717975;
+  --color-outline-variant: #C0C8C4;
+
+  --font-headline: var(--font-manrope), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-plus-jakarta), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: var(--font-newsreader), Georgia, serif;
+}
+
+:root {
+  --background: #FCFBF8;
+  --foreground: #202320;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-plus-jakarta), sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, .font-headline {
+  font-family: var(--font-manrope), sans-serif;
+}
+
+/* Custom scrollbars for clean dashboard view */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #E5E2DA;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C0C8C4;
+}
+
+/* Inward notch hero cutout */
+.hero-notch-container {
+  position: relative;
+  border-radius: 40px;
+  overflow: hidden;
+}
+.cutout-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #FCFBF8;
+  padding: 14px 20px 18px 24px;
+  border-bottom-left-radius: 36px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.cutout-badge::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -24px;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border-top-right-radius: 24px;
+  box-shadow: 12px -12px 0 12px #FCFBF8;
+  pointer-events: none;
+}
+.cutout-badge::after {
+  content: '';
+  position: absolute;
+  bottom: -24px;
+  right: 0;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border-top-right-radius: 24px;
+  box-shadow: 12px -12px 0 12px #FCFBF8;
+  pointer-events: none;
+}
+
+/* Accordion FAQ rotate icon */
+details summary::-webkit-details-marker { display: none; }
+details[open] summary .faq-icon {
+  transform: rotate(45deg);
+  background-color: #ED572E;
+  color: #ffffff;
+}
+
+/* Shared Motion & Compositor Micro-interaction System */
+@property --animation-reduced {
+  syntax: "*";
+  inherits: false;
+  initial-value: none;
+}
+
+.nestly-press {
+  transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1),
+              background-color 160ms ease-out,
+              border-color 160ms ease-out,
+              box-shadow 180ms ease-out,
+              color 150ms ease-out;
+}
+.nestly-press:active {
+  transform: scale(0.97);
+}
+
+/* Hover-only card & image enhancements (disabled on coarse touch pointers) */
+@media (hover: hover) and (pointer: fine) {
+  .property-card-hover {
+    transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 280ms cubic-bezier(0.22, 1, 0.36, 1),
+                border-color 220ms ease-out;
+  }
+  .property-card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 32px rgba(32, 35, 32, 0.08);
+  }
+  .property-card-hover:hover .property-card-img {
+    transform: scale(1.038);
+  }
+}
+
+.property-card-img {
+  transition: transform 480ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+/* Accessible Reduced Motion overrides */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: var(--animation-reduced) !important;
+    scroll-behavior: auto !important;
+  }
+  .property-card-hover:hover,
+  .property-card-hover:hover .property-card-img,
+  .nestly-press:active {
+    transform: none !important;
+  }
+}
