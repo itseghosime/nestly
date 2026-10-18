@@ -109,6 +109,10 @@ function providerErrorCode(error: unknown): string | null {
   return /^[A-Za-z0-9_-]{1,32}$/.test(value) ? value : null;
 }
 
+function hasParameter(payload: object, ...names: string[]): boolean {
+  return names.some((name) => Object.prototype.hasOwnProperty.call(payload, name));
+}
+
 function validWhatsAppAddress(value: string): string | null {
   const phone = value.startsWith('whatsapp:') ? value.slice('whatsapp:'.length) : value;
   return /^\+[1-9]\d{7,14}$/.test(phone) ? `whatsapp:${phone}` : null;
@@ -352,23 +356,35 @@ export async function POST(
     return NextResponse.json({ error: 'Twilio recipient or callback configuration is invalid', retryWithNewKey: true }, { status: 422 });
   }
 
+  const sendPayload = {
+    from: config.from.startsWith('whatsapp:') ? config.from : `whatsapp:${config.from}`,
+    to: recipient,
+    body: parsed.data.content,
+    statusCallback,
+  };
+
   let providerMessage: { sid: string; status: string };
   try {
     const client = twilio(config.accountSid, config.authToken);
-    const response = await client.messages.create({
-      from: config.from.startsWith('whatsapp:') ? config.from : `whatsapp:${config.from}`,
-      to: recipient,
-      body: parsed.data.content,
-      statusCallback,
-    });
+    const response = await client.messages.create(sendPayload);
     providerMessage = { sid: response.sid, status: response.status };
   } catch (sendError) {
     const statusCode = providerStatusCode(sendError);
+    const code = providerErrorCode(sendError);
+    console.error('Twilio staff reply provider error', {
+      httpStatus: statusCode,
+      twilioErrorCode: code,
+      redactedErrorMessage: 'Provider error message redacted',
+      parameters: {
+        Body: hasParameter(sendPayload, 'body', 'Body'),
+        ContentSid: hasParameter(sendPayload, 'contentSid', 'ContentSid'),
+        ContentVariables: hasParameter(sendPayload, 'contentVariables', 'ContentVariables'),
+      },
+    });
     const definitivelyRejected = statusCode !== null
       && statusCode >= 400
       && statusCode < 500
       && statusCode !== 408;
-    const code = providerErrorCode(sendError);
     const tracked = await recordDispatch(
       admin,
       claim.message_id,

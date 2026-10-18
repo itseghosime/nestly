@@ -449,10 +449,17 @@ describe('staff conversation replies', () => {
     expect(adminRpc).not.toHaveBeenCalled();
   });
 
-  it('marks definitive provider rejection as failed and permits only an explicit new attempt', async () => {
-    mocks.messagesCreate.mockRejectedValue(Object.assign(new Error(CONTENT), {
+  it('logs sanitized diagnostics for a definitive rejection and permits only an explicit new attempt', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mocks.messagesCreate.mockRejectedValue(Object.assign(new Error([
+      CONTENT,
+      'whatsapp:+15550000001',
+      AUTH_TOKEN,
+      ACCOUNT_SID,
+      SERVICE_ROLE,
+    ].join(' ')), {
       status: 400,
-      code: 21610,
+      code: 21654,
     }));
     adminRpc.mockResolvedValue({ data: [recordedRow({
       dispatch_status: 'failed',
@@ -465,9 +472,25 @@ describe('staff conversation replies', () => {
     expect(response.status).toBe(502);
     expect(result.retryWithNewKey).toBe(true);
     expect(result.data.dispatch_status).toBe('failed');
+    expect(errorSpy).toHaveBeenCalledWith('Twilio staff reply provider error', {
+      httpStatus: 400,
+      twilioErrorCode: '21654',
+      redactedErrorMessage: 'Provider error message redacted',
+      parameters: {
+        Body: true,
+        ContentSid: false,
+        ContentVariables: false,
+      },
+    });
+    const serializedLog = JSON.stringify(errorSpy.mock.calls);
+    expect(serializedLog).not.toContain(CONTENT);
+    expect(serializedLog).not.toContain('whatsapp:+15550000001');
+    expect(serializedLog).not.toContain(AUTH_TOKEN);
+    expect(serializedLog).not.toContain(ACCOUNT_SID);
+    expect(serializedLog).not.toContain(SERVICE_ROLE);
     expect(adminRpc).toHaveBeenCalledWith('finish_twilio_staff_reply', expect.objectContaining({
       p_outcome: 'rejected',
-      p_error_code: '21610',
+      p_error_code: '21654',
     }));
   });
 
