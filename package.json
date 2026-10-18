@@ -11,6 +11,8 @@
     "test:supabase:local": "node scripts/test-local-supabase.mjs",
     "typecheck": "tsc --noEmit",
     "typecheck:tests": "tsc --project tsconfig.tests.json --noEmit",
+    "telegram:preflight": "node scripts/telegram-preflight.mjs",
+    "test:telegram:local": "node scripts/test-telegram-local.mjs",
     "test:twilio-dedup:local": "node scripts/test-twilio-message-dedup-local.mjs",
     "test:twilio-staff:local": "node scripts/test-twilio-staff-replies-local.mjs"
   },

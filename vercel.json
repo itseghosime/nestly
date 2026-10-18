@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/telegram-dispatch-recovery",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}
