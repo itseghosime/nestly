@@ -451,13 +451,20 @@ describe('staff conversation replies', () => {
 
   it('logs sanitized diagnostics for a definitive rejection and permits only an explicit new attempt', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    mocks.messagesCreate.mockRejectedValue(Object.assign(new Error([
-      CONTENT,
-      'whatsapp:+15550000001',
-      AUTH_TOKEN,
-      ACCOUNT_SID,
-      SERVICE_ROLE,
-    ].join(' ')), {
+    const usefulExplanation = 'Invalid ContentVariables JSON: expected a valid JSON object.';
+    const providerMessage = [
+      usefulExplanation,
+      `Body: ${CONTENT}`,
+      'To: whatsapp:+15550000001',
+      'From: whatsapp:+14155238886',
+      `ContentSid: ${PROVIDER_SID}`,
+      `MessageSid: ${PROVIDER_SID}`,
+      `AccountSid: ${ACCOUNT_SID}`,
+      `Authorization: Bearer ${AUTH_TOKEN}`,
+      `URL: https://twilio.example.test/status?token=${SERVICE_ROLE}&message_id=${MESSAGE_ID}`,
+      'Additional provider details. '.repeat(100),
+    ].join('\n\t');
+    mocks.messagesCreate.mockRejectedValue(Object.assign(new Error(providerMessage), {
       status: 400,
       code: 21654,
     }));
@@ -472,22 +479,44 @@ describe('staff conversation replies', () => {
     expect(response.status).toBe(502);
     expect(result.retryWithNewKey).toBe(true);
     expect(result.data.dispatch_status).toBe('failed');
-    expect(errorSpy).toHaveBeenCalledWith('Twilio staff reply provider error', {
+    const diagnosticCall = errorSpy.mock.calls.find(([label]) => (
+      label === 'Twilio staff reply provider error'
+    ));
+    expect(diagnosticCall).toBeDefined();
+    const diagnostic = diagnosticCall?.[1] as {
+      httpStatus: number | null;
+      twilioErrorCode: string | null;
+      redactedErrorMessage: string;
+      parameters: {
+        Body: boolean;
+        ContentSid: boolean;
+        ContentVariables: boolean;
+      };
+    };
+    expect(diagnostic).toEqual({
       httpStatus: 400,
       twilioErrorCode: '21654',
-      redactedErrorMessage: 'Provider error message redacted',
+      redactedErrorMessage: expect.any(String),
       parameters: {
         Body: true,
         ContentSid: false,
         ContentVariables: false,
       },
     });
+    expect(diagnostic.redactedErrorMessage).toContain(usefulExplanation);
+    expect(diagnostic.redactedErrorMessage).toContain('token=[REDACTED]');
+    expect(diagnostic.redactedErrorMessage).toContain('message_id=[REDACTED]');
+    expect(diagnostic.redactedErrorMessage).not.toMatch(/\s{2,}|\n/);
+    expect(diagnostic.redactedErrorMessage.length).toBeLessThanOrEqual(400);
     const serializedLog = JSON.stringify(errorSpy.mock.calls);
     expect(serializedLog).not.toContain(CONTENT);
     expect(serializedLog).not.toContain('whatsapp:+15550000001');
+    expect(serializedLog).not.toContain('whatsapp:+14155238886');
     expect(serializedLog).not.toContain(AUTH_TOKEN);
     expect(serializedLog).not.toContain(ACCOUNT_SID);
     expect(serializedLog).not.toContain(SERVICE_ROLE);
+    expect(serializedLog).not.toContain(PROVIDER_SID);
+    expect(serializedLog).not.toContain(MESSAGE_ID);
     expect(adminRpc).toHaveBeenCalledWith('finish_twilio_staff_reply', expect.objectContaining({
       p_outcome: 'rejected',
       p_error_code: '21654',

@@ -113,6 +113,54 @@ function hasParameter(payload: object, ...names: string[]): boolean {
   return names.some((name) => Object.prototype.hasOwnProperty.call(payload, name));
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function redactExactValue(message: string, value: string): string {
+  if (!value) return message;
+  return message.replace(new RegExp(escapeRegExp(value), 'gi'), '[REDACTED]');
+}
+
+function sanitizeProviderErrorMessage(error: unknown, sensitiveValues: string[]): string {
+  const fallback = 'Provider error message redacted';
+  try {
+    const providerMessage = providerField(error, 'message');
+    if (typeof providerMessage !== 'string' || !providerMessage.trim()) return fallback;
+
+    let message = providerMessage.slice(0, 8192);
+    for (const value of sensitiveValues) {
+      if (!value) continue;
+      message = redactExactValue(message, value);
+      message = redactExactValue(message, encodeURIComponent(value));
+      message = redactExactValue(message, JSON.stringify(value).slice(1, -1));
+      message = redactExactValue(
+        message,
+        new URLSearchParams({ value }).toString().slice('value='.length),
+      );
+    }
+
+    message = message
+      .replace(/\b(https?:\/\/)[^\s/@]+@/gi, '$1[REDACTED]@')
+      .replace(/([?&][^=&#\s]+)=([^&#\s,;]*)/g, '$1=[REDACTED]')
+      .replace(/\b(?:authorization|proxy-authorization|cookie|set-cookie|x-twilio-signature|api[_-]?key|auth[_-]?token|access[_-]?token|refresh[_-]?token|client[_-]?secret|password|secret)\s*[:=]\s*(?:bearer\s+|basic\s+)?[^\s,;&]+/gi, '[REDACTED]')
+      .replace(/\b(?:bearer|basic)\s+[A-Za-z0-9._~+/-]+=*/gi, '[REDACTED]')
+      .replace(/\b[A-Z]{2}[0-9A-F]{32}\b/gi, '[REDACTED]')
+      .replace(/\b[0-9A-F]{8}-(?:[0-9A-F]{4}-){3}[0-9A-F]{12}\b/gi, '[REDACTED]')
+      .replace(/\bwhatsapp:\s*\+?[\d(). -]{7,}\d/gi, '[REDACTED]')
+      .replace(/(?<![\w])\+\d[\d(). -]{6,}\d(?!\w)/g, '[REDACTED]')
+      .replace(/(?<!\d)\d{8,15}(?!\d)/g, '[REDACTED]')
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!message) return fallback;
+    return message.length > 400 ? `${message.slice(0, 397)}...` : message;
+  } catch {
+    return fallback;
+  }
+}
+
 function validWhatsAppAddress(value: string): string | null {
   const phone = value.startsWith('whatsapp:') ? value.slice('whatsapp:'.length) : value;
   return /^\+[1-9]\d{7,14}$/.test(phone) ? `whatsapp:${phone}` : null;
@@ -374,7 +422,22 @@ export async function POST(
     console.error('Twilio staff reply provider error', {
       httpStatus: statusCode,
       twilioErrorCode: code,
-      redactedErrorMessage: 'Provider error message redacted',
+      redactedErrorMessage: sanitizeProviderErrorMessage(sendError, [
+        config.authToken,
+        config.accountSid,
+        process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+        process.env.NESTLY_WF01_RELAY_SECRET ?? '',
+        request.headers.get('authorization') ?? '',
+        request.headers.get('proxy-authorization') ?? '',
+        request.headers.get('cookie') ?? '',
+        request.headers.get('x-twilio-signature') ?? '',
+        sendPayload.from,
+        sendPayload.to,
+        sendPayload.body,
+        sendPayload.statusCallback,
+        claim.message_id,
+      ]),
       parameters: {
         Body: hasParameter(sendPayload, 'body', 'Body'),
         ContentSid: hasParameter(sendPayload, 'contentSid', 'ContentSid'),
