@@ -147,15 +147,15 @@ export default function AboutPage() {
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
             <div data-about-mosaic className="property-card-hover md:col-span-8 h-[300px] sm:h-[420px] rounded-3xl overflow-hidden bg-soft-stone border border-hairline shadow-sm">
               <img
-                src="/images/generated/img_864608b0ef784f93a2ea34fab3c747f1.png"
-                alt="Benin City residential district"
+                src="/images/editorial/tropical-residence.webp" loading="lazy" decoding="async"
+                alt="Contemporary home surrounded by tropical greenery"
                 className="property-card-img w-full h-full object-cover"
               />
             </div>
             <div data-about-mosaic className="property-card-hover md:col-span-4 h-[300px] sm:h-[420px] rounded-3xl overflow-hidden bg-soft-stone border border-hairline shadow-sm">
               <img
-                src="/images/generated/img_5b652e6df80b49e698189b91c2274307.png"
-                alt="Contemporary Nigerian interior"
+                src="/images/editorial/architectural-interior.webp" loading="lazy" decoding="async"
+                alt="Light-filled interior with a sculptural staircase"
                 className="property-card-img w-full h-full object-cover"
               />
             </div>

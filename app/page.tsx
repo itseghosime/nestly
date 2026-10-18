@@ -339,8 +339,8 @@ export default function HomePage() {
               className="hero-notch-container w-full h-[400px] sm:h-[540px] lg:h-[680px] bg-soft-stone relative shadow-sm border border-hairline"
             >
               <img
-                src="/images/generated/img_790f21b75f6c4829b0e7c145c8ca6112.png"
-                alt="Contemporary Nigerian upscale residential home exterior in GRA Benin City"
+                src="/images/editorial/home-terrace.webp" fetchPriority="high" decoding="async"
+                alt="Modern home with a shaded terrace, palm trees, and a green lawn"
                 className="w-full h-full object-cover object-center"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-charcoal/50 via-transparent to-transparent"></div>
@@ -368,7 +368,7 @@ export default function HomePage() {
                 className="absolute bottom-6 right-6 hidden lg:flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-charcoal/60 backdrop-blur-md text-white text-[12px] font-medium border border-white/20"
               >
                 <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                <span>Boundary Road, GRA · Sample rental architecture</span>
+                <span>Homes, greenery & spaces to settle into</span>
               </div>
             </div>
 
@@ -379,8 +379,8 @@ export default function HomePage() {
             >
               <div className="w-full h-[190px] rounded-3xl overflow-hidden relative">
                 <img
-                  src="/images/generated/img_182f9d8fffd242df93d3c53e9b4abbc0.png"
-                  alt="Sunlit modern Nigerian living room interior"
+                  src="/images/editorial/sunlit-living-room.webp" loading="lazy" decoding="async"
+                  alt="Sunlit living room with natural wood and indoor plants"
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute bottom-3 left-3 px-3 py-1 rounded-full bg-white/90 backdrop-blur-sm text-[11px] font-bold text-charcoal">
@@ -532,8 +532,8 @@ export default function HomePage() {
           <div data-intro-strip className="w-full">
             <div className="w-full h-[260px] sm:h-[340px] rounded-3xl sm:rounded-4xl overflow-hidden relative shadow-sm border border-hairline">
               <img
-                src="/images/generated/img_5b652e6df80b49e698189b91c2274307.png"
-                alt="Wide architectural interior in Benin City"
+                src="/images/editorial/architectural-interior.webp" loading="lazy" decoding="async"
+                alt="Open-plan interior with a sculptural staircase and natural light"
                 className="w-full h-full object-cover object-center"
               />
             </div>
@@ -670,8 +670,8 @@ export default function HomePage() {
               className="lg:col-span-7 relative rounded-3xl sm:rounded-4xl overflow-hidden h-[340px] sm:h-[420px] group shadow-sm border border-hairline"
             >
               <img
-                src="/images/generated/img_864608b0ef784f93a2ea34fab3c747f1.png"
-                alt="Aerial panoramic photograph of Benin City residential district"
+                src="/images/editorial/tropical-residence.webp" loading="lazy" decoding="async"
+                alt="Contemporary residence framed by tropical greenery"
                 className="property-card-img w-full h-full object-cover group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent"></div>
@@ -684,8 +684,8 @@ export default function HomePage() {
                     GRA &amp; Boundary Road, Benin
                   </h3>
                   <p className="text-xs sm:text-sm text-white/80 mt-1 max-w-sm">
-                    Leafy avenues, 20-22hr priority electrical feeder, and elite
-                    security.
+                    Compare established streets, everyday routes, and compound
+                    arrangements.
                   </p>
                 </div>
                 <Link
@@ -704,8 +704,8 @@ export default function HomePage() {
               className="lg:col-span-5 relative rounded-3xl sm:rounded-4xl overflow-hidden h-[340px] sm:h-[420px] group shadow-sm border border-hairline"
             >
               <img
-                src="/images/generated/img_319202c571e24bb2bff0a0c8ebecb4df.png"
-                alt="Townhouses on Clinic Road Sapele"
+                src="/images/editorial/garden-entry.webp" loading="lazy" decoding="async"
+                alt="Garden pathway leading to a contemporary home"
                 className="property-card-img w-full h-full object-cover group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent"></div>
@@ -718,8 +718,8 @@ export default function HomePage() {
                     Clinic Road, Sapele
                   </h3>
                   <p className="text-xs text-white/80 mt-1 max-w-xs">
-                    Elevated flood-free topography with direct river port and
-                    Warri connectivity.
+                    Explore Sapele addresses with practical guidance on access,
+                    utilities, and viewing checks.
                   </p>
                 </div>
                 <Link
@@ -870,8 +870,8 @@ export default function HomePage() {
                 </span>
                 <div className="w-[64px] sm:w-[72px] h-[64px] sm:h-[72px] rounded-2xl overflow-hidden bg-soft-stone shrink-0 border border-hairline">
                   <img
-                    src="/images/generated/img_b16cbd4db4884a038e93243e9b975b81.png"
-                    alt="Balcony detail"
+                    src="/images/editorial/neutral-detail.webp" loading="lazy" decoding="async"
+                    alt="Soft neutral seating and natural textures"
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -905,8 +905,8 @@ export default function HomePage() {
                 </span>
                 <div className="w-[64px] sm:w-[72px] h-[64px] sm:h-[72px] rounded-2xl overflow-hidden bg-soft-stone shrink-0 border border-hairline">
                   <img
-                    src="/images/generated/img_0c79e160286544189f5f68168d230479.png"
-                    alt="Townhouse compound"
+                    src="/images/editorial/modern-facade.webp" loading="lazy" decoding="async"
+                    alt="Modern white facade with balcony and trees"
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -941,8 +941,8 @@ export default function HomePage() {
                 </span>
                 <div className="w-[64px] sm:w-[72px] h-[64px] sm:h-[72px] rounded-2xl overflow-hidden bg-soft-stone shrink-0 border border-hairline">
                   <img
-                    src="/images/generated/img_21d26ecda7f74e63a2b5a318df70b1f1.png"
-                    alt="Serviced apartment compound"
+                    src="/images/editorial/warm-living-room.webp" loading="lazy" decoding="async"
+                    alt="Warm living room with soft seating and wood finishes"
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -1001,8 +1001,8 @@ export default function HomePage() {
               <div>
                 <div className="w-full h-[220px] sm:h-[260px] rounded-2xl overflow-hidden mb-5">
                   <img
-                    src="/images/generated/img_790f21b75f6c4829b0e7c145c8ca6112.png"
-                    alt="Upscale residential home in GRA Benin City"
+                    src="/images/editorial/home-terrace.webp" loading="lazy" decoding="async"
+                    alt="Contemporary home with a shaded terrace"
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -1190,8 +1190,8 @@ export default function HomePage() {
         <section className="max-w-[1180px] mx-auto px-6 lg:px-8 py-12 sm:py-16">
           <div className="relative w-full rounded-3xl sm:rounded-5xl overflow-hidden h-[380px] sm:h-[440px] flex items-center justify-center text-center p-6 sm:p-8 bg-charcoal shadow-lg">
             <img
-              src="/images/generated/img_cf5daf1e9cf9439499d9088aa14ce3f9.png"
-              alt="Peaceful Nigerian residential compound dusk exterior"
+              src="/images/editorial/terrace-detail.webp" loading="lazy" decoding="async"
+              alt="Shaded terrace overlooking a palm-lined garden"
               className="absolute inset-0 w-full h-full object-cover opacity-45 mix-blend-luminosity"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-charcoal/90 via-charcoal/50 to-charcoal/80"></div>
