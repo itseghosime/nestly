@@ -50,16 +50,28 @@ interface TriggerArgs {
   targetHref: string;
 }
 
+interface PropertyNavigationPreview {
+  propertyId: string;
+  imageSrc: string;
+  title: string;
+}
+
 interface PropertyTransitionContextValue {
   activeTransition: PropertyTransitionPayload | null;
+  propertyPreview: PropertyNavigationPreview | null;
+  clearPropertyPreview: (propertyId: string) => void;
   triggerPropertyTransition: (e: React.MouseEvent<HTMLElement>, payload: TriggerArgs) => void;
   isMorphingProperty: (propertyId: string) => boolean;
+  cancelPropertyTransition: () => void;
 }
 
 const PropertyTransitionContext = createContext<PropertyTransitionContextValue>({
   activeTransition: null,
+  propertyPreview: null,
+  clearPropertyPreview: () => {},
   triggerPropertyTransition: () => {},
   isMorphingProperty: () => false,
+  cancelPropertyTransition: () => {},
 });
 
 const PENDING_TIMEOUT_MS = 2500;
@@ -72,6 +84,10 @@ export function PropertyTransitionProvider({ children }: { children: React.React
   const router = useRouter();
   const pathname = usePathname();
   const [activeTransition, setActiveTransition] = useState<PropertyTransitionPayload | null>(null);
+  const [propertyPreview, setPropertyPreview] = useState<PropertyNavigationPreview | null>(null);
+  const clearPropertyPreview = useCallback((propertyId: string) => {
+    setPropertyPreview((preview) => preview?.propertyId === propertyId ? null : preview);
+  }, []);
 
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const overlayImgRef = useRef<HTMLImageElement | null>(null);
@@ -103,13 +119,14 @@ export function PropertyTransitionProvider({ children }: { children: React.React
       }
 
       saveListingScrollPosition(pathname, propertyId);
+      const cardImg = cardImageElement?.querySelector('img');
+      setPropertyPreview({ propertyId, imageSrc: cardImg?.currentSrc || imageSrc, title });
 
       // Ordinary navigation fallback: reduced motion, missing/invisible source.
       if (prefersReducedMotion() || !cardImageElement) return;
       const rect = cardImageElement.getBoundingClientRect();
       if (rect.width < 8 || rect.height < 8 || rect.bottom < 0 || rect.top > window.innerHeight) return;
 
-      const cardImg = cardImageElement.querySelector('img');
       const imgRect = cardImg ? cardImg.getBoundingClientRect() : rect;
       const zoom = Math.max(1, imgRect.width / rect.width);
       const radius = parseFloat(window.getComputedStyle(cardImageElement).borderTopLeftRadius) || 16;
@@ -130,7 +147,7 @@ export function PropertyTransitionProvider({ children }: { children: React.React
       setActiveTransition({
         id,
         propertyId,
-        imageSrc,
+        imageSrc: cardImg?.currentSrc || imageSrc,
         title,
         source: { left: rect.left, top: rect.top, width: rect.width, height: rect.height, radius, zoom },
         naturalWidth: cardImg?.naturalWidth || rect.width,
@@ -152,6 +169,7 @@ export function PropertyTransitionProvider({ children }: { children: React.React
   // Back/Forward during a transition: never leave a stale overlay.
   useEffect(() => {
     const onPop = () => {
+      setPropertyPreview(null);
       if (activeIdRef.current) clearTransition();
     };
     window.addEventListener('popstate', onPop);
@@ -175,7 +193,6 @@ export function PropertyTransitionProvider({ children }: { children: React.React
 
     const t = activeTransition;
     let rafId = 0;
-    let attempts = 0;
 
     const start = () => {
       const destImg = document.querySelector<HTMLImageElement>(
@@ -186,8 +203,7 @@ export function PropertyTransitionProvider({ children }: { children: React.React
       const inner = overlayImgRef.current;
 
       if (!destImg || !destContainer || !overlay || !inner) {
-        attempts += 1;
-        if (attempts < 30) rafId = requestAnimationFrame(start);
+        if (performance.now() - t.startedAt < PENDING_TIMEOUT_MS) rafId = requestAnimationFrame(start);
         else clearTransition();
         return;
       }
@@ -223,9 +239,15 @@ export function PropertyTransitionProvider({ children }: { children: React.React
       inner.style.left = `${(BW - IW) / 2}px`;
       inner.style.top = `${(BH - IH) / 2}px`;
 
+      // The pending photo shell can be replaced by the validated gallery mid-morph.
+      // Always resolve the mounted destination rather than measuring a detached image.
+      const currentDestination = () => document.querySelector<HTMLImageElement>(
+        `[data-property-hero-img="${t.propertyId}"][data-active="true"]`
+      ) || destImg;
       const src = t.source;
       const apply = (p: number) => {
-        const d = destImg.getBoundingClientRect();
+        const d = currentDestination().getBoundingClientRect();
+        if (d.width < 8 || d.height < 8) return;
         const x = lerp(src.left, d.left, p);
         const y = lerp(src.top, d.top, p);
         const w = lerp(src.width, d.width, p);
@@ -256,7 +278,7 @@ export function PropertyTransitionProvider({ children }: { children: React.React
             if (activeIdRef.current === t.id) clearTransition();
           };
           // Destination photo is the same cached asset; make sure it is decoded before the swap.
-          destImg.decode().then(finish, finish);
+          currentDestination().decode().then(finish, finish);
         },
       });
     };
@@ -273,7 +295,7 @@ export function PropertyTransitionProvider({ children }: { children: React.React
   );
 
   return (
-    <PropertyTransitionContext.Provider value={{ activeTransition, triggerPropertyTransition, isMorphingProperty }}>
+    <PropertyTransitionContext.Provider value={{ activeTransition, propertyPreview, clearPropertyPreview, triggerPropertyTransition, isMorphingProperty, cancelPropertyTransition: clearTransition }}>
       {children}
 
       {activeTransition && (
