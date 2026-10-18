@@ -1,3 +1,4 @@
+import { getNiaSocialReply } from '@/lib/backend/nia-social-reply';
 import {
   formatNiaListingPrice,
   hasNiaSearchCriteria,
@@ -145,6 +146,8 @@ export async function answerNiaConversationMessage(
   storedContext: unknown,
 ): Promise<NiaConversationAnswer> {
   const context = normalizeNiaContext(storedContext);
+  const socialReply = getNiaSocialReply(query, context.preferences !== null);
+  if (socialReply) return { message: socialReply, properties: [], context };
   const referenceIndex = getNiaReferenceIndex(query);
   const isReference = isNiaPropertyReference(query);
 
@@ -245,8 +248,8 @@ export async function answerNiaConversationMessage(
     }
     return {
       message: context.preferences
-        ? 'I am not sure whether you want to recall or change your saved search. Your preferences are unchanged. Ask what they are, or tell me what you would like to change.'
-        : 'I am not sure what you would like to search for. Tell me an area, bedroom count, property type, annual budget, or amenity.',
+        ? "I'm not quite sure what you mean yet. Your preferences are unchanged. Would you like to keep looking with them, change your search, or check a listing's fees?"
+        : "I'd be happy to help you find a home. Which area are you interested in?",
       properties: [],
       context,
     };
@@ -264,8 +267,9 @@ export async function answerNiaConversationMessage(
   const result = await searchNiaPublicProperties(supabase, criteria);
   if (!result.properties.length) {
     return {
-      message: 'I could not find a current published listing matching those details. Which preference would you like to change?',
+      message: "I couldn't find a home matching all those details right now. Would you like to try a nearby area or adjust your budget?",
       properties: [],
+      searchResultCount: 0,
       context: mergeContext(context, {
         preferences: criteria,
         recentPropertyIds: [],
@@ -275,7 +279,7 @@ export async function answerNiaConversationMessage(
   }
 
   return {
-    message: `I found ${result.count} current published listing${result.count === 1 ? '' : 's'} matching those details${result.count > result.properties.length ? `; showing the first ${result.properties.length}` : ''}. These match the preferences you gave me.`,
+    message: `I found ${result.count} available home${result.count === 1 ? '' : 's'} matching those details${result.count > result.properties.length ? `; showing the first ${result.properties.length}` : ''}. Which one catches your eye? You can ask about its fees, too.`,
     properties: result.properties.map(toSearchProperty),
     context: {
       preferences: criteria,

@@ -193,3 +193,17 @@
 - **Environment limitations:** Local unauthenticated staff property/customer pages returned HTTP 500 because usable Supabase URL/key configuration is absent in this isolated worktree. No authenticated staff browser verification is claimed. Vercel reports the implementation Preview deployment Ready and Preview Comments passed, but direct public route requests redirect with HTTP 302 to Vercel deployment protection; Preview app behavior and authenticated staff flows remain blocked. Production behavior was not tested.
 - **Dependencies:** `npm audit --omit=dev` reports 0 vulnerabilities. The full audit reports 5 high development-toolchain findings in the `braces` dependency chain (GHSA-vfj7-8cjw-p6xm). The forced fix downgrades `eslint-config-next` to 14.2.35 and is incompatible with Next 16; no dependency files were changed pending a compatible upstream fix.
 - **Release boundary:** PR #3 remains open and draft. No production changes, database migrations, provider messages, webhook replays, customer writes, n8n/WF01/WF03 edits, recordings, screenshots, or PDFs were made.
+
+## Nia conversational AI integration — 2026-10-19
+- [x] Authenticated WF02/Gemini response path added and synthetic manual executions passed.
+- [x] Telegram bridge, bounded same-conversation history, grounded fact preservation and safe fallback prepared; 65 focused local tests passed.
+- [x] Detailed personality, truthfulness, privacy and action boundaries documented.
+- [ ] Vercel revision build/merge/deployment verification (pending at preparation checkpoint).
+- [ ] New deliberate Telegram inbound confirms deployed backend→n8n→Telegram path; no automatic replay/send.
+
+- [x] Returning-user detection and greeting behavior added; 68 focused local tests passed; n8n synthetic returning visitor execution 91 passed. Final deployed roundtrip pending.
+
+- [x] PR #7 merged; final Preview and Production deployment checks succeeded for a26177d.
+- [x] Expanded source-only regression harness: 92/92 passed, including enabled n8n→single mocked Telegram send and return-visitor handling.
+- [x] Retained legacy n8n chat trigger disabled; authenticated response endpoint rejects unauthenticated requests (403).
+- [ ] Real Production backend→authenticated n8n→Telegram reply on a fresh deliberate user inbound remains pending; deployment success is not handset verification.

@@ -504,3 +504,39 @@ describe('Telegram webhook', () => {
     }));
   });
 });
+
+describe('n8n response orchestration', () => {
+  it('generates a returning greeting through n8n and sends it only once through the existing claim', async () => {
+    vi.stubEnv('NIA_N8N_ENABLED', 'true');
+    vi.stubEnv('NIA_N8N_WEBHOOK_URL', 'https://agent.example.test/nia');
+    vi.stubEnv('NESTLY_WF01_RELAY_SECRET', 'synthetic-relay-secret');
+    mocks.answerNiaConversationMessage.mockResolvedValue({
+      message: 'Hello', properties: [],
+      context: { preferences: null, recentPropertyIds: [], selectedPropertyId: null },
+    });
+    const history = {
+      select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue({ data: [{ id: 'prior-inbound', direction: 'inbound', sender_type: 'customer', content: 'Hello before' }], error: null }),
+    };
+    mocks.createAdminClient.mockReturnValue({ rpc: mocks.adminRpc, from: vi.fn().mockReturnValue(history) });
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url, request) => {
+      if (String(url) === 'https://agent.example.test/nia') {
+        const body = JSON.parse(String(request?.body));
+        expect(body.visitor).toEqual({ returningUser: true });
+        return new Response(JSON.stringify({ version: 1, requestId: body.requestId, message: 'Welcome back! How can I help you today?' }));
+      }
+      return acceptedProviderResponse();
+    });
+    vi.stubGlobal('fetch', fetcher);
+    const update = makeUpdate();
+    update.message.text = 'Hey';
+    const response = await POST(webhookRequest(update));
+    expect(response.status).toBe(200);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    const providerCalls = fetcher.mock.calls.filter(([url]) => String(url).includes('/sendMessage'));
+    expect(providerCalls).toHaveLength(1);
+    const claim = mocks.adminRpc.mock.calls.find(([name]) => name === 'claim_telegram_ai_reply');
+    expect(claim?.[1]?.p_content).toContain('Welcome back!');
+    expect(history.eq).toHaveBeenCalledWith('conversation_id', '11111111-1111-4111-8111-111111111111');
+  });
+});
