@@ -1087,3 +1087,11 @@ Phase A replaces the simulated `setTimeout`→`router.push` in `app/staff/(auth)
 - **Live Telegram evidence:** The independently checked user-led results remain in §61. Handset receipt is still unconfirmed.
 - **Open follow-ups:** The “Human Active” takeover label is misleading; Telegram search replies expose a match count without listing details; hosted acceptance tests remain outstanding.
 - **Safety:** Telegram secrets/outbound settings, WF01/WF03, approved designs, GSAP motion, and gallery behavior were preserved. PR #2 is merged; no follow-up was closed by this merge.
+
+## 63. Showing grounded property results in Telegram replies (2026-10-18)
+
+- **Defect and correction:** Telegram search replies announced only the match count. Successful grounded searches now expose their result count explicitly to the Telegram route, which formats the existing public result projection as numbered property title, location, formatted rent, and canonical website link. It performs no second property lookup and does not add fields outside the public search projection.
+- **Persistence and bounds:** The exact formatted reply is passed to the durable AI-dispatch claim and then to Telegram `sendMessage`, preserving the existing idempotency claim and context update. The formatter bounds the outgoing plain-text body to Telegram's 4096-character limit and never appends staff/private fields.
+- **Local verification:** Focused Telegram and Nia public-search tests passed **32/32**. Application typecheck, test typecheck, targeted ESLint, and production build passed; Next.js generated 80/80 routes. Provider calls in route tests are mocked.
+- **Production deployment:** Commit `aca4c882582d0327aa8b21e7e7a84468032c0d29` was pushed to `main`; its Vercel check completed successfully. This confirms deployment status only, not a live Telegram rendering/delivery test.
+- **Live verification and safety:** No user update was replayed and no provider message was sent by the operator. A deliberate new inbound user search is still needed to verify the rendered reply on Telegram; API acceptance must not be described as handset receipt. Telegram configuration, context, WF01/WF03, migrations, and the separate production-readiness audit worktree were not changed.
