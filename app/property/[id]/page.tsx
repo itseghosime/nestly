@@ -26,17 +26,38 @@ import {
   ArrowLeft,
   Info,
   Check,
-  MapPin
+  MapPin,
+  Home
 } from 'lucide-react';
 
 export default function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
-  const [property, setProperty] = React.useState<import('@/lib/types').Property | null>(() => FIXTURE_PROPERTIES.find((p) => p.id === resolvedParams.id) || FIXTURE_PROPERTIES[0]);
-  const [relatedProperties, setRelatedProperties] = React.useState<import('@/lib/types').Property[]>(() => FIXTURE_PROPERTIES.filter((p) => p.id !== (FIXTURE_PROPERTIES.find((x) => x.id === resolvedParams.id) || FIXTURE_PROPERTIES[0]).id).slice(0, 3));
+  const initialProp = FIXTURE_PROPERTIES.find((p) => p.id === resolvedParams.id) || null;
+  const [property, setProperty] = React.useState<import('@/lib/types').Property | null>(initialProp);
+  const [loading, setLoading] = React.useState(!initialProp);
+  const [relatedProperties, setRelatedProperties] = React.useState<import('@/lib/types').Property[]>(() =>
+    FIXTURE_PROPERTIES.filter((p) => p.id !== resolvedParams.id).slice(0, 3)
+  );
+
   React.useEffect(() => {
     let c = false;
-    fetchPropertyById(resolvedParams.id).then((row) => { if (!c && row) setProperty(row); });
-    fetchAllProperties().then((rows) => { if (!c && rows.length) setRelatedProperties(rows.filter((r) => r.id !== resolvedParams.id).slice(0, 3)); });
+    fetchPropertyById(resolvedParams.id)
+      .then((row) => {
+        if (!c) {
+          setProperty(row);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!c) setLoading(false);
+      });
+    fetchAllProperties()
+      .then((rows) => {
+        if (!c && rows.length) {
+          setRelatedProperties(rows.filter((r) => r.id !== resolvedParams.id).slice(0, 3));
+        }
+      })
+      .catch(() => {});
     return () => { c = true; };
   }, [resolvedParams.id]);
   const { isSaved, toggleSave } = useSavedHomes();
@@ -47,12 +68,12 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
 
   const mainRef = useRef<HTMLElement>(null);
   const saveBtnRef = useRef<HTMLButtonElement>(null);
-  const currentProperty = property ?? FIXTURE_PROPERTIES[0];
+  const currentProperty = property;
 
   // Coordinate destination title, badges, thumbnails, and booking card around the hero transition
   useGSAP(
     () => {
-      if (prefersReducedMotion()) return;
+      if (prefersReducedMotion() || !currentProperty) return;
 
       const morphing = isMorphingProperty(currentProperty.id);
       const baseDelay = morphing ? 0.14 : 0;
@@ -85,10 +106,53 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
         }
       );
     },
-    { scope: mainRef, dependencies: [currentProperty.id] }
+    { scope: mainRef, dependencies: [currentProperty?.id] }
   );
 
-  if (!property) return null;
+  if (loading && !property) {
+    return (
+      <div className="min-h-screen bg-warm text-charcoal flex flex-col">
+        <Header onOpenNia={() => setIsNiaOpen(true)} />
+        <main className="flex-1 max-w-[1240px] mx-auto w-full px-4 sm:px-8 py-20 flex items-center justify-center">
+          <div className="text-center space-y-3">
+            <div className="w-9 h-9 border-3 border-persimmon border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs font-bold text-muted-ink uppercase tracking-wider">Verifying listing details...</p>
+          </div>
+        </main>
+        <Footer onOpenNia={() => setIsNiaOpen(true)} />
+      </div>
+    );
+  }
+
+  if (!property) {
+    return (
+      <div className="min-h-screen bg-warm text-charcoal flex flex-col selection:bg-persimmon selection:text-white">
+        <Header onOpenNia={() => setIsNiaOpen(true)} />
+        <main className="flex-1 max-w-[1240px] mx-auto w-full px-4 sm:px-8 py-16 flex flex-col items-center justify-center text-center">
+          <div className="bg-white rounded-3xl p-10 sm:p-14 border border-hairline shadow-sm max-w-lg mx-auto">
+            <div className="w-16 h-16 rounded-full bg-soft-stone text-persimmon flex items-center justify-center mx-auto mb-4">
+              <Home className="w-8 h-8" />
+            </div>
+            <h1 className="font-headline text-2xl sm:text-3xl font-extrabold text-charcoal mb-2">
+              Property Not Found
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-ink leading-relaxed mb-6">
+              Listing reference &ldquo;{resolvedParams.id}&rdquo; was not found in our verified database or may have been archived following a confirmed lease.
+            </p>
+            <Link
+              href="/browse"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold uppercase tracking-wider shadow-sm nestly-press"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Browse Verified Homes</span>
+            </Link>
+          </div>
+        </main>
+        <Footer onOpenNia={() => setIsNiaOpen(true)} />
+        <NiaWidget isOpenExternal={isNiaOpen} onCloseExternal={() => setIsNiaOpen(false)} />
+      </div>
+    );
+  }
 
   const saved = isSaved(property.id);
 
@@ -109,12 +173,16 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
     setTimeout(() => setCopiedLink(false), 2500);
   };
 
-  // Fee calculation
+  // Fee calculation (grounded in property commercial terms)
   const annualRent = property.priceAnnual;
   const legalFee = annualRent * 0.1;
   const agencyFee = annualRent * 0.1;
-  const cautionDeposit = 200000;
-  const serviceCharge = 300000;
+  const cautionDeposit = property.cautionDeposit
+    ? parseInt(property.cautionDeposit.replace(/[^0-9]/g, ''), 10) || 200000
+    : 200000;
+  const serviceCharge = property.serviceCharge
+    ? parseInt(property.serviceCharge.replace(/[^0-9]/g, ''), 10) || 300000
+    : 300000;
   const totalMoveIn = annualRent + legalFee + agencyFee + cautionDeposit + serviceCharge;
 
   const morphing = isMorphingProperty(property.id);
@@ -206,7 +274,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
               <div>
                 <span className="text-[11px] uppercase tracking-wider text-muted-ink font-bold block mb-1">Power</span>
                 <p className="font-headline text-sm font-extrabold text-charcoal truncate" title={property.powerRating}>
-                  {property.powerRating.split(' ')[0]} Daily
+                  {(property.powerRating || 'Standard').split(' ')[0]} Daily
                 </p>
               </div>
               <div>

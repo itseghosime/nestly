@@ -22,34 +22,91 @@ import {
 
 export default function NeighborhoodGuideDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const resolvedParams = use(params);
-  const [neighborhood, setNeighborhood] = useState(() => FIXTURE_NEIGHBORHOODS.find((n) => n.slug === resolvedParams.slug) || FIXTURE_NEIGHBORHOODS[0]);
+  const initialNeighborhood = FIXTURE_NEIGHBORHOODS.find((n) => n.slug === resolvedParams.slug) || null;
+  const [neighborhood, setNeighborhood] = useState(initialNeighborhood);
+  const [loading, setLoading] = useState(!initialNeighborhood);
   const [relatedProperties, setRelatedProperties] = useState<import('@/lib/types').Property[]>(FIXTURE_PROPERTIES);
+
   useEffect(() => {
-    let c=false;
-    fetchNeighborhoodBySlug(resolvedParams.slug).then((row)=>{ if(!c && row) setNeighborhood(row); });
-    fetchProperties().then((rows)=>{ if(!c && rows.length) setRelatedProperties(rows); });
-    return ()=>{c=true};
+    let c = false;
+    fetchNeighborhoodBySlug(resolvedParams.slug)
+      .then((row) => {
+        if (!c) {
+          setNeighborhood(row);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!c) setLoading(false);
+      });
+    fetchProperties()
+      .then((rows) => { if (!c && rows.length) setRelatedProperties(rows); })
+      .catch(() => {});
+    return () => { c = true; };
   }, [resolvedParams.slug]);
   const [isNiaOpen, setIsNiaOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
 
-  const localProperties = relatedProperties.filter(
-    (p) =>
-      p.neighborhood.toLowerCase().includes(neighborhood.name.toLowerCase().split(' ')[0]) ||
-      p.city.toLowerCase() === neighborhood.city.toLowerCase()
-  );
+  const localProperties = neighborhood
+    ? relatedProperties.filter(
+        (p) =>
+          p.neighborhood.toLowerCase().includes(neighborhood.name.toLowerCase().split(' ')[0]) ||
+          p.city.toLowerCase() === neighborhood.city.toLowerCase()
+      )
+    : [];
 
   useGSAP(
     () => {
-      if (prefersReducedMotion()) return;
+      if (prefersReducedMotion() || !neighborhood) return;
       gsap.fromTo(
         '[data-nhdetail-enter]',
         { opacity: 0, y: 16 },
         { opacity: 1, y: 0, duration: 0.42, stagger: 0.065, ease: 'power2.out', clearProps: 'all' }
       );
     },
-    { scope: mainRef, dependencies: [neighborhood.slug] }
+    { scope: mainRef, dependencies: [neighborhood?.slug] }
   );
+
+  if (loading && !neighborhood) {
+    return (
+      <div className="min-h-screen bg-warm text-charcoal flex flex-col">
+        <Header onOpenNia={() => setIsNiaOpen(true)} />
+        <main className="flex-1 max-w-[1240px] mx-auto w-full px-4 sm:px-8 py-20 flex items-center justify-center">
+          <div className="text-center space-y-3">
+            <div className="w-9 h-9 border-3 border-persimmon border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs font-bold text-muted-ink uppercase tracking-wider">Loading neighborhood guide...</p>
+          </div>
+        </main>
+        <Footer onOpenNia={() => setIsNiaOpen(true)} />
+      </div>
+    );
+  }
+
+  if (!neighborhood) {
+    return (
+      <div className="min-h-screen bg-warm text-charcoal flex flex-col selection:bg-persimmon selection:text-white">
+        <Header onOpenNia={() => setIsNiaOpen(true)} />
+        <main className="flex-1 max-w-[1240px] mx-auto w-full px-4 sm:px-8 py-16 flex flex-col items-center justify-center text-center">
+          <div className="bg-white rounded-3xl p-10 sm:p-14 border border-hairline shadow-sm max-w-lg mx-auto">
+            <h1 className="font-headline text-2xl sm:text-3xl font-extrabold text-charcoal mb-2">
+              Neighborhood Guide Not Found
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-ink leading-relaxed mb-6">
+              We couldn&apos;t find an active neighborhood guide for &ldquo;{resolvedParams.slug}&rdquo;. Explore our other residential pockets in Edo and Delta States.
+            </p>
+            <Link
+              href="/neighborhoods"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold uppercase tracking-wider shadow-sm nestly-press"
+            >
+              <span>Explore All Neighborhoods</span>
+            </Link>
+          </div>
+        </main>
+        <Footer onOpenNia={() => setIsNiaOpen(true)} />
+        <NiaWidget isOpenExternal={isNiaOpen} onCloseExternal={() => setIsNiaOpen(false)} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-warm text-charcoal flex flex-col selection:bg-persimmon selection:text-white">
@@ -115,7 +172,7 @@ export default function NeighborhoodGuideDetailPage({ params }: { params: Promis
               Electrical Uptime
             </span>
             <p className="font-headline text-lg sm:text-xl font-extrabold text-charcoal">
-              {neighborhood.powerReliability.split(' ')[0]} Daily
+              {(neighborhood.powerReliability || 'Standard').split(' ')[0]} Daily
             </p>
             <span className="text-[11px] text-emerald-700 font-medium">Priority Feeder</span>
           </div>

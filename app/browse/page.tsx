@@ -36,8 +36,6 @@ function BrowseContent() {
   const [isNiaOpen, setIsNiaOpen] = useState(false);
   const [mobileFilterDrawerOpen, setMobileFilterDrawerOpen] = useState(false);
   const [propertiesError, setPropertiesError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const pageSize = 9;
   const [properties, setProperties] = useState(FIXTURE_PROPERTIES);
   useEffect(() => {
     let cancelled = false;
@@ -233,6 +231,23 @@ function BrowseContent() {
             </div>
           </div>
         </div>
+
+        {/* Listing Error / Offline Notice */}
+        {propertiesError && (
+          <div
+            role="alert"
+            className="mb-8 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex items-center justify-between"
+          >
+            <span>Listing sync notice: {propertiesError}</span>
+            <button
+              type="button"
+              onClick={() => setPropertiesError(null)}
+              className="text-amber-700 hover:text-amber-900 font-bold ml-2 cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Floating Comprehensive Filter Surface */}
         <div data-browse-enter className="bg-white rounded-3xl p-4 sm:p-6 border border-hairline shadow-sm mb-10">
