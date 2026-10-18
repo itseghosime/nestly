@@ -1120,3 +1120,6 @@ At the user's instruction, reviewed PR #4 and merged it with a squash commit b67
 Production deployment for the squash commit was observed pending. Direct Vercel MCP inspection returned a team-scope 403; the Vercel CLI is unavailable in this workspace, so subsequent deployment verification uses GitHub's Vercel status and public HTTP asset checks rather than claiming authenticated Vercel inspection. Full interactive mobile/browser visual review remains outstanding.
 
 The Mac localhost repository was not changed by the GitHub merge. It must fetch and safely integrate main on its active branch, preserving Copilot/Antigravity local work, then restart the dev server. No reset, force checkout, database change, provider send, workflow change or hosting configuration change performed.
+
+
+Post-merge live HTTP verification: Vercel's GitHub status for b67bcb9b71230192feb8a4782d1f4b13de5e09ee completed successfully. All nine new editorial WebP URLs returned HTTP 200 with expected file sizes. Home, About, How It Works, Neighbourhoods and Submit Property returned HTTP 200 and their HTML included the new editorial paths. These are deployment/HTTP checks, not a completed interactive browser or mobile visual audit. Localhost sync on the user's Mac remains a separate pending action.
