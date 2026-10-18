@@ -75,6 +75,15 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
     gsap.fromTo(toastRef.current, { y: -8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.22, ease: MOTION.ease.crispOut, clearProps: 'transform,opacity' });
   }, { dependencies: [isSavedToast] });
 
+  useEffect(() => {
+    if (!showDiscardDialog) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowDiscardDialog(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showDiscardDialog]);
+
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const propertyId = initialProperty?.id || code;
@@ -688,8 +697,17 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
 
       {/* Discard confirmation modal */}
       {showDiscardDialog && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div ref={dialogRef} className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-xl border border-hairline space-y-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Unsaved Changes Alert"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+          <div
+            onClick={() => setShowDiscardDialog(false)}
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs"
+          />
+          <div ref={dialogRef} className="relative z-10 bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-xl border border-hairline space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5" />
@@ -703,14 +721,14 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
               <button
                 type="button"
                 onClick={() => setShowDiscardDialog(false)}
-                className="px-4 py-2 rounded-full bg-soft-stone text-charcoal text-xs font-bold"
+                className="min-h-[36px] px-4 py-2 rounded-full bg-soft-stone hover:bg-hairline text-charcoal text-xs font-bold shrink-0 transition-colors"
               >
                 Keep Editing
               </button>
               <button
                 type="button"
                 onClick={() => router.push('/staff/properties')}
-                className="px-4 py-2 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold"
+                className="min-h-[36px] px-4 py-2 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold shrink-0 transition-colors"
               >
                 Discard Changes
               </button>

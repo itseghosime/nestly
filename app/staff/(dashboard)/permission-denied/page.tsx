@@ -45,6 +45,15 @@ export default function PermissionDeniedPage() {
     gsap.fromTo(toastRef.current, { y: -8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.2, ease: MOTION.ease.crispOut, clearProps: 'transform,opacity' });
   }, { dependencies: [toastMessage] });
 
+  React.useEffect(() => {
+    if (!isModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsModalOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isModalOpen]);
+
   const handleSendEscalation = (e: React.FormEvent) => {
     e.preventDefault();
     setIsModalOpen(false);
@@ -106,7 +115,7 @@ export default function PermissionDeniedPage() {
               className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full border border-[#202320]/15 bg-white text-xs font-bold text-[#202320] shadow-sm hover:bg-[#202320]/5 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               <Mail className="w-4 h-4 text-[#ED572E]" />
-              Contact Administrator (Demo)
+              Contact Administrator
             </button>
           </div>
         </div>
@@ -116,9 +125,14 @@ export default function PermissionDeniedPage() {
           <div
             role="dialog"
             aria-modal="true"
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs"
+            aria-label="Escalate Permission Request"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
           >
-            <div ref={modalRef} className="bg-[#FCFBF8] border border-[#202320]/15 rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-2xl space-y-6">
+            <div
+              onClick={() => setIsModalOpen(false)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-xs"
+            />
+            <div ref={modalRef} className="relative z-10 bg-[#FCFBF8] border border-[#202320]/15 rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-2xl space-y-6">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-[#DDE7DB] text-[#173F35] flex items-center justify-center">

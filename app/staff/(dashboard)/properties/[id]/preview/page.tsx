@@ -28,6 +28,7 @@ export default function StaffPropertyPreviewPage({
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [showRevisionModal, setShowRevisionModal] = useState(false);
   const [isApproved, setIsApproved] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
   const approvalRef = useRef<HTMLDivElement>(null);
   const revisionRef = useRef<HTMLDivElement>(null);
   const bannerRef = useRef<HTMLDivElement>(null);
@@ -49,6 +50,18 @@ export default function StaffPropertyPreviewPage({
       });
     return () => { active = false; };
   }, [resolvedParams.id]);
+
+  React.useEffect(() => {
+    if (!showApprovalModal && !showRevisionModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowApprovalModal(false);
+        setShowRevisionModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showApprovalModal, showRevisionModal]);
 
   useGSAP(() => {
     if (!showApprovalModal || !approvalRef.current || prefersReducedMotion()) return;
@@ -305,8 +318,17 @@ export default function StaffPropertyPreviewPage({
 
       {/* Approval Modal */}
       {showApprovalModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div ref={approvalRef} className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-xl border border-hairline space-y-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Publish Listing to Public Portal"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+          <div
+            onClick={() => !isMutating && setShowApprovalModal(false)}
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs"
+          />
+          <div ref={approvalRef} className="relative z-10 bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-xl border border-hairline space-y-4">
             <CheckCircle2 className="w-12 h-12 text-emerald-600" />
             <h3 className="font-headline text-lg font-bold text-charcoal">
               Publish Listing to Public Portal?
@@ -317,24 +339,31 @@ export default function StaffPropertyPreviewPage({
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
+                disabled={isMutating}
                 onClick={() => setShowApprovalModal(false)}
-                className="px-4 py-2 rounded-full bg-soft-stone text-charcoal text-xs font-bold"
+                className="min-h-[36px] px-4 py-2 rounded-full bg-soft-stone hover:bg-hairline text-charcoal text-xs font-bold shrink-0 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               {loadError && <span className="text-xs font-bold text-red-600">{loadError}</span>}
               <button
                 type="button"
+                disabled={isMutating}
                 onClick={async () => {
-                  const r = await fetch(`/api/properties/${encodeURIComponent(property.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ publication_state: 'published', verification_state: 'vetted', rental_availability: 'available' }) });
-                  if (!r.ok) { const j = await r.json().catch(() => ({})); setLoadError(j.error || 'Publish failed'); return; }
-                  setProperty((current) => current ? { ...current, status: 'Available', verificationBadge: 'Vetted Landlord' } : current);
-                  setIsApproved(true);
-                  setShowApprovalModal(false);
+                  try {
+                    setIsMutating(true);
+                    const r = await fetch(`/api/properties/${encodeURIComponent(property.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ publication_state: 'published', verification_state: 'vetted', rental_availability: 'available' }) });
+                    if (!r.ok) { const j = await r.json().catch(() => ({})); setLoadError(j.error || 'Publish failed'); return; }
+                    setProperty((current) => current ? { ...current, status: 'Available', verificationBadge: 'Vetted Landlord' } : current);
+                    setIsApproved(true);
+                    setShowApprovalModal(false);
+                  } finally {
+                    setIsMutating(false);
+                  }
                 }}
-                className="px-5 py-2 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold"
+                className="min-h-[36px] px-5 py-2 rounded-full bg-persimmon hover:bg-persimmon-hover disabled:opacity-50 text-white text-xs font-bold shrink-0 transition-colors"
               >
-                Confirm Publication
+                {isMutating ? 'Publishing…' : 'Confirm Publication'}
               </button>
             </div>
           </div>
@@ -343,8 +372,17 @@ export default function StaffPropertyPreviewPage({
 
       {/* Revision Modal */}
       {showRevisionModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div ref={revisionRef} className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-xl border border-hairline space-y-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Request Field Re-Inspection"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+          <div
+            onClick={() => !isMutating && setShowRevisionModal(false)}
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs"
+          />
+          <div ref={revisionRef} className="relative z-10 bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-xl border border-hairline space-y-4">
             <AlertTriangle className="w-10 h-10 text-amber-600" />
             <h3 className="font-headline text-lg font-bold text-charcoal">
               Request Field Re-Inspection
@@ -360,22 +398,29 @@ export default function StaffPropertyPreviewPage({
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
+                disabled={isMutating}
                 onClick={() => setShowRevisionModal(false)}
-                className="px-4 py-2 rounded-full bg-soft-stone text-charcoal text-xs font-bold"
+                className="min-h-[36px] px-4 py-2 rounded-full bg-soft-stone hover:bg-hairline text-charcoal text-xs font-bold shrink-0 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
+                disabled={isMutating}
                 onClick={async () => {
-                  const r = await fetch(`/api/properties/${encodeURIComponent(property.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ publication_state: 'review' }) });
-                  if (!r.ok) { const j = await r.json().catch(() => ({})); setLoadError(j.error || 'Request failed'); return; }
-                  setIsApproved(false);
-                  setShowRevisionModal(false);
+                  try {
+                    setIsMutating(true);
+                    const r = await fetch(`/api/properties/${encodeURIComponent(property.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ publication_state: 'review' }) });
+                    if (!r.ok) { const j = await r.json().catch(() => ({})); setLoadError(j.error || 'Request failed'); return; }
+                    setIsApproved(false);
+                    setShowRevisionModal(false);
+                  } finally {
+                    setIsMutating(false);
+                  }
                 }}
-                className="px-5 py-2 rounded-full bg-charcoal text-white text-xs font-bold"
+                className="min-h-[36px] px-5 py-2 rounded-full bg-charcoal hover:bg-black disabled:opacity-50 text-white text-xs font-bold shrink-0 transition-colors"
               >
-                Send Revisions
+                {isMutating ? 'Submitting…' : 'Send Revisions'}
               </button>
             </div>
           </div>

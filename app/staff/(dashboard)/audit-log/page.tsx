@@ -257,6 +257,15 @@ export default function AuditLogPage() {
     if (!selectedEvent || !drawerRef.current || prefersReducedMotion()) return;
     gsap.fromTo(drawerRef.current, { x: 24, opacity: 0 }, { x: 0, opacity: 1, duration: 0.22, ease: MOTION.ease.crispOut, clearProps: 'transform,opacity' });
   }, { dependencies: [selectedEvent] });
+  useEffect(() => {
+    if (!selectedEvent) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedEvent(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedEvent]);
+
   useGSAP(() => {
     if (!csvToast || !toastRef.current || prefersReducedMotion()) return;
     gsap.fromTo(toastRef.current, { y: -8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.22, ease: MOTION.ease.crispOut, clearProps: 'transform,opacity' });
@@ -559,9 +568,14 @@ export default function AuditLogPage() {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 overflow-hidden bg-black/40 backdrop-blur-xs flex justify-end"
+          aria-label="Event Telemetry Payload"
+          className="fixed inset-0 z-50 overflow-hidden flex justify-end"
         >
-          <div ref={drawerRef} className="w-full max-w-xl bg-[#FCFBF8] h-full shadow-2xl flex flex-col border-l border-[#202320]/10">
+          <div
+            onClick={() => setSelectedEvent(null)}
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs"
+          />
+          <div ref={drawerRef} className="relative z-10 w-full max-w-xl bg-[#FCFBF8] h-full shadow-2xl flex flex-col border-l border-[#202320]/10">
             {/* Drawer Header */}
             <div className="p-6 border-b border-[#202320]/10 flex items-center justify-between">
               <div>
@@ -575,6 +589,7 @@ export default function AuditLogPage() {
               </div>
               <button
                 onClick={() => setSelectedEvent(null)}
+                aria-label="Close payload drawer"
                 className="w-8 h-8 rounded-full bg-[#202320]/5 hover:bg-[#202320]/10 flex items-center justify-center text-[#202320] transition-colors"
               >
                 <X className="w-4 h-4" />
@@ -595,7 +610,7 @@ export default function AuditLogPage() {
                   </div>
                   <div>
                     <span className="text-[#202320]/50 block">Actor type:</span>
-                      <span className="font-mono text-[#202320]">{selectedEvent.actorType || 'Demo fixture'}</span>
+                      <span className="font-mono text-[#202320]">{selectedEvent.actorType || 'System Service'}</span>
                   </div>
                   <div>
                       <span className="text-[#202320]/50 block">Event ID:</span>

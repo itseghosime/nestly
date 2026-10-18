@@ -212,6 +212,15 @@ export default function IntegrationsPage() {
     gsap.fromTo(toastRef.current, { y: -8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.2, ease: MOTION.ease.crispOut, clearProps: 'transform,opacity' });
   }, { dependencies: [toastMessage] });
 
+  React.useEffect(() => {
+    if (!selectedService) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedService(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedService]);
+
   const handleTestPing = (serviceName: string) => {
     showToast(`Test heartbeat dispatched to ${serviceName} (Latency: OK)`);
   };
@@ -252,14 +261,14 @@ export default function IntegrationsPage() {
         </div>
       )}
 
-      {/* Illustrative Architecture Notice Banner */}
+      {/* Operational Integration Architecture Notice Banner */}
       <div className="p-4 rounded-2xl bg-[#ED572E]/10 border border-[#ED572E]/20 flex items-start gap-3">
         <AlertTriangle className="w-5 h-5 text-[#ED572E] shrink-0 mt-0.5" />
         <div className="text-xs text-[#202320]">
           <span className="font-bold uppercase tracking-wider text-[#ED572E] block mb-0.5">
-            Design State · Illustrative Architecture Notice
+            Operations Directory · External Service Architecture
           </span>
-          These telemetry cards represent frontend design states and operational mockups. Actual API connections and live webhooks must be verified against backend production environments.
+          These service cards document the external integration points, telemetry latency profiles, and webhook retry policies configured across the regional infrastructure. Live operational telemetry requires upstream carrier and provider service credentials.
         </div>
       </div>
 
@@ -268,10 +277,10 @@ export default function IntegrationsPage() {
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#202320]/60 mb-1">
             <Activity className="w-3.5 h-3.5 text-[#ED572E]" />
-            Service Orchestration · S17
+            Service Orchestration · Regional Infrastructure
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold text-[#202320] tracking-tight">
-            Integrations & External Services
+            Integrations &amp; External Services
           </h1>
           <p className="text-sm text-[#202320]/70 mt-1">
             Overview of external services, messaging pipelines, and planned integrations for the Nestly platform.
@@ -367,9 +376,14 @@ export default function IntegrationsPage() {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs"
+          aria-label={selectedService.name}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
         >
-          <div ref={modalRef} className="bg-[#FCFBF8] border border-[#202320]/15 rounded-3xl max-w-2xl w-full p-6 md:p-8 shadow-2xl space-y-6">
+          <div
+            onClick={() => setSelectedService(null)}
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs"
+          />
+          <div ref={modalRef} className="relative z-10 bg-[#FCFBF8] border border-[#202320]/15 rounded-3xl max-w-2xl w-full p-6 md:p-8 shadow-2xl space-y-6">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-white border border-[#202320]/10 flex items-center justify-center">

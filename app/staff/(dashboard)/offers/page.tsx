@@ -216,7 +216,7 @@ export default function OffersPage() {
                           type="button"
                           onClick={() => void decide(offer, 'approved')}
                           disabled={savingId !== null}
-                          className="nestly-press inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50"
+                          className="nestly-press inline-flex items-center justify-center min-h-[36px] gap-1.5 rounded-full bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white shrink-0 disabled:opacity-50"
                         >
                           <BadgeCheck className="h-4 w-4" /> Approve
                         </button>
@@ -224,7 +224,7 @@ export default function OffersPage() {
                           type="button"
                           onClick={() => void decide(offer, 'countered')}
                           disabled={savingId !== null}
-                          className="nestly-press rounded-full border border-hairline bg-soft-stone px-4 py-2.5 text-xs font-bold text-charcoal disabled:opacity-50"
+                          className="nestly-press inline-flex items-center justify-center min-h-[36px] rounded-full border border-hairline bg-soft-stone px-4 py-2.5 text-xs font-bold text-charcoal shrink-0 disabled:opacity-50"
                         >
                           Counter
                         </button>
@@ -232,7 +232,7 @@ export default function OffersPage() {
                           type="button"
                           onClick={() => void decide(offer, 'rejected')}
                           disabled={savingId !== null}
-                          className="nestly-press inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-white px-4 py-2.5 text-xs font-bold text-red-700 disabled:opacity-50"
+                          className="nestly-press inline-flex items-center justify-center min-h-[36px] gap-1.5 rounded-full border border-red-200 bg-white px-4 py-2.5 text-xs font-bold text-red-700 shrink-0 disabled:opacity-50"
                         >
                           <XCircle className="h-4 w-4" /> Reject
                         </button>
@@ -251,13 +251,13 @@ export default function OffersPage() {
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-2 shrink-0">
           <button
             type="button"
             onClick={() => setPage((current) => Math.max(1, current - 1))}
             disabled={page === 1 || loading}
             aria-label="Previous page"
-            className="rounded-full border border-hairline bg-white p-2 text-charcoal disabled:opacity-40"
+            className="w-9 h-9 flex items-center justify-center rounded-full border border-hairline bg-white text-charcoal shrink-0 disabled:opacity-40"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -267,7 +267,7 @@ export default function OffersPage() {
             onClick={() => setPage((current) => current + 1)}
             disabled={loading || offers.length < 100}
             aria-label="Next page"
-            className="rounded-full border border-hairline bg-white p-2 text-charcoal disabled:opacity-40"
+            className="w-9 h-9 flex items-center justify-center rounded-full border border-hairline bg-white text-charcoal shrink-0 disabled:opacity-40"
           >
             <ChevronRight className="h-4 w-4" />
           </button>

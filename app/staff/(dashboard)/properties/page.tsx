@@ -29,7 +29,6 @@ type PropertyListResponse = {
 export default function PropertyManagementPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'Available' | 'In Review' | 'Draft' | 'Rented'>('all');
-  const [isSimulatingEmpty, setIsSimulatingEmpty] = useState(false);
   const [csvExported, setCsvExported] = useState(false);
   const [properties, setProperties] = React.useState<Property[]>(FIXTURE_PROPERTIES);
   const [listError, setListError] = React.useState<string | null>(null);
@@ -67,26 +66,50 @@ export default function PropertyManagementPage() {
 
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
 
-  const filteredProperties = isSimulatingEmpty
-    ? []
-    : properties.filter((p) => {
-        const codeMatch = (p.code || p.id).toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesSearch =
-          p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.neighborhood.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          codeMatch ||
-          p.city.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredProperties = properties.filter((p) => {
+    const codeMatch = (p.code || p.id).toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch =
+      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.neighborhood.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      codeMatch ||
+      p.city.toLowerCase().includes(searchQuery.toLowerCase());
 
-        const propStatus = p.status || (p.inspectionStatus === 'Waitlist' ? 'In Review' : 'Available');
-        const matchesStatus =
-          statusFilter === 'all' ||
-          (statusFilter === 'Available' && propStatus === 'Available') ||
-          (statusFilter === 'In Review' && propStatus === 'In Review') ||
-          (statusFilter === 'Draft' && propStatus === 'Draft') ||
-          (statusFilter === 'Rented' && propStatus === 'Rented');
+    const propStatus = p.status || (p.inspectionStatus === 'Waitlist' ? 'In Review' : 'Available');
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'Available' && propStatus === 'Available') ||
+      (statusFilter === 'In Review' && propStatus === 'In Review') ||
+      (statusFilter === 'Draft' && propStatus === 'Draft') ||
+      (statusFilter === 'Rented' && propStatus === 'Rented');
 
-        return matchesSearch && matchesStatus;
-      });
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleExportCsv = () => {
+    if (typeof window === 'undefined') return;
+    const headers = ['Code', 'Title', 'Neighborhood', 'City', 'Price (NGN)', 'Bedrooms', 'Status'];
+    const rows = filteredProperties.map((p) => [
+      `"${(p.code || p.id).replace(/"/g, '""')}"`,
+      `"${p.title.replace(/"/g, '""')}"`,
+      `"${p.neighborhood.replace(/"/g, '""')}"`,
+      `"${p.city.replace(/"/g, '""')}"`,
+      p.priceAnnual,
+      p.bedrooms,
+      `"${(p.status || 'Available').replace(/"/g, '""')}"`,
+    ]);
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `nestly-properties-${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setCsvExported(true);
+    setTimeout(() => setCsvExported(false), 2500);
+  };
 
   useGSAP(
     () => {
@@ -107,7 +130,7 @@ export default function PropertyManagementPage() {
         }
       );
     },
-    { dependencies: [statusFilter, isSimulatingEmpty], scope: tableBodyRef }
+    { dependencies: [statusFilter, searchQuery], scope: tableBodyRef }
   );
 
   return (
@@ -149,19 +172,8 @@ export default function PropertyManagementPage() {
           <div className="flex items-center gap-2.5 flex-wrap">
             <button
               type="button"
-              onClick={() => setIsSimulatingEmpty(!isSimulatingEmpty)}
-              className="nestly-press flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-soft-stone hover:bg-hairline text-charcoal text-xs font-semibold transition-colors border border-hairline shadow-2xs"
-            >
-              <Eye className="w-3.5 h-3.5 text-muted-ink" />
-              <span>{isSimulatingEmpty ? 'Show Active Catalog' : 'Test Empty State'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setCsvExported(true);
-                setTimeout(() => setCsvExported(false), 2500);
-              }}
-              className="nestly-press flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white hover:bg-warm text-charcoal text-xs font-semibold transition-colors border border-hairline shadow-2xs"
+              onClick={handleExportCsv}
+              className="nestly-press flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white hover:bg-warm text-charcoal text-xs font-semibold transition-colors border border-hairline shadow-2xs shrink-0"
             >
               <Download className="w-3.5 h-3.5 text-muted-ink" />
               <span>{csvExported ? 'CSV Downloaded!' : 'Export List (CSV)'}</span>
@@ -380,16 +392,16 @@ export default function PropertyManagementPage() {
                         {prop.powerRating}
                       </td>
                       <td className="py-4 px-6 text-right">
-                        <div className="inline-flex items-center gap-1.5">
+                        <div className="inline-flex items-center gap-1.5 shrink-0">
                           <Link
                             href={`/staff/properties/${prop.id}/preview`}
-                            className="nestly-press px-3 py-1 rounded-full bg-soft-stone hover:bg-hairline text-charcoal text-[11px] font-bold transition-colors border border-hairline"
+                            className="nestly-press inline-flex items-center justify-center min-h-[36px] px-3.5 py-1.5 rounded-full bg-soft-stone hover:bg-hairline text-charcoal text-xs font-bold transition-colors border border-hairline shrink-0 whitespace-nowrap"
                           >
                             Audit
                           </Link>
                           <Link
                             href={`/staff/properties/${prop.id}/edit`}
-                            className="nestly-press px-3 py-1 rounded-full bg-charcoal hover:bg-black text-white text-[11px] font-bold transition-colors"
+                            className="nestly-press inline-flex items-center justify-center min-h-[36px] px-3.5 py-1.5 rounded-full bg-charcoal hover:bg-black text-white text-xs font-bold transition-colors shrink-0 whitespace-nowrap"
                           >
                             Edit
                           </Link>
@@ -404,9 +416,9 @@ export default function PropertyManagementPage() {
             {totalCount > pageSize && (
               <div className="flex items-center justify-between pt-4">
                 <span className="text-xs text-muted-ink">Page {page} of {Math.ceil(totalCount / pageSize)}</span>
-                <div className="flex gap-2">
-                  <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="px-3 py-1 rounded-full bg-soft-stone disabled:opacity-50 text-xs font-bold">Prev</button>
-                  <button disabled={page >= Math.ceil(totalCount / pageSize)} onClick={() => setPage((p) => p + 1)} className="px-3 py-1 rounded-full bg-soft-stone disabled:opacity-50 text-xs font-bold">Next</button>
+                <div className="flex gap-2 shrink-0">
+                  <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="px-3.5 py-1.5 min-h-[36px] rounded-full bg-soft-stone hover:bg-hairline disabled:opacity-40 text-xs font-bold shrink-0 transition-colors">Prev</button>
+                  <button disabled={page >= Math.ceil(totalCount / pageSize)} onClick={() => setPage((p) => p + 1)} className="px-3.5 py-1.5 min-h-[36px] rounded-full bg-soft-stone hover:bg-hairline disabled:opacity-40 text-xs font-bold shrink-0 transition-colors">Next</button>
                 </div>
               </div>
             )}

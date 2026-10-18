@@ -323,7 +323,7 @@ export default function NotificationsPage() {
             {!loading && total > 0 && (
               <div className="flex items-center justify-between rounded-2xl border border-hairline bg-white px-4 py-3 text-xs text-muted-ink">
                 <span>Page {(page - 1) * 50 + 1}–{Math.min(page * 50, total)} of {total}</span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={() => {
@@ -331,7 +331,7 @@ export default function NotificationsPage() {
                       setLoading(true);
                     }}
                     disabled={page === 1}
-                    className="rounded-full border border-hairline px-3 py-1.5 font-semibold text-charcoal disabled:opacity-40"
+                    className="min-h-[36px] px-3.5 py-1.5 rounded-full border border-hairline bg-soft-stone hover:bg-hairline text-charcoal font-semibold disabled:opacity-40 shrink-0 transition-colors"
                   >
                     Previous
                   </button>
@@ -342,7 +342,7 @@ export default function NotificationsPage() {
                       setLoading(true);
                     }}
                     disabled={page >= Math.ceil(total / 50)}
-                    className="rounded-full border border-hairline px-3 py-1.5 font-semibold text-charcoal disabled:opacity-40"
+                    className="min-h-[36px] px-3.5 py-1.5 rounded-full border border-hairline bg-soft-stone hover:bg-hairline text-charcoal font-semibold disabled:opacity-40 shrink-0 transition-colors"
                   >
                     Next
                   </button>
