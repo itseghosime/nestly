@@ -400,7 +400,7 @@ describe('staff conversation replies', () => {
     expect(adminRpc).not.toHaveBeenCalled();
   });
 
-  it('sends only a claimed reply and attaches the signed status callback URL', async () => {
+  it('sends plain text in Body without template fields and preserves the status callback', async () => {
     staffRpc.mockResolvedValue({ data: [claimRow()], error: null });
     adminRpc.mockResolvedValue({ data: [recordedRow()], error: null });
 
@@ -415,6 +415,12 @@ describe('staff conversation replies', () => {
       body: CONTENT,
       statusCallback: `${CALLBACK_BASE}?message_id=${MESSAGE_ID}`,
     });
+    const sendPayload = mocks.messagesCreate.mock.calls[0]?.[0];
+    expect(sendPayload).toHaveProperty('body', CONTENT);
+    expect(sendPayload).not.toHaveProperty('contentVariables');
+    expect(sendPayload).not.toHaveProperty('contentSid');
+    expect(sendPayload).not.toHaveProperty('ContentVariables');
+    expect(sendPayload).not.toHaveProperty('ContentSid');
     expect(adminRpc).toHaveBeenCalledWith('finish_twilio_staff_reply', {
       p_message_id: MESSAGE_ID,
       p_outcome: 'accepted',
