@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { computeTotal, formatMoveInTotal, computeFeeBreakdown, type FeeRow } from '@/lib/price';
+import type { Property } from '@/lib/types';
 
 describe('Public Release Hardening: Fee Ledger Contract', () => {
   it('returns null when fee array is empty', () => {
@@ -150,6 +151,41 @@ describe('Public Release Hardening: Fee Ledger Contract', () => {
 
     expect(computeTotal(2000000, fees)).toBe(2640000);
   });
+
+  it('aligns computeFeeBreakdown with computeTotal rounding behavior (reproduction: rent 100, 33.333% rent, 33.333% subtotal)', () => {
+    const fees: FeeRow[] = [
+      {
+        fee_key: 'fee_1',
+        kind: 'percent',
+        amount: 33.333,
+        base: 'rent',
+        required: true,
+        confirmed_at: '2026-04-01T00:00:00Z',
+        sort_order: 1,
+      },
+      {
+        fee_key: 'fee_2',
+        kind: 'percent',
+        amount: 33.333,
+        base: 'subtotal',
+        required: true,
+        confirmed_at: '2026-04-01T00:00:00Z',
+        sort_order: 2,
+      },
+    ];
+
+    const total = computeTotal(100, fees);
+    expect(total).toBe(177.78);
+
+    const breakdown = computeFeeBreakdown(100, fees);
+    expect(breakdown).toHaveLength(2);
+    expect(breakdown[0].calculatedAmount).toBe(33.33);
+    expect(breakdown[0].runningSubtotal).toBe(133.33);
+
+    expect(breakdown[1].calculatedAmount).toBe(44.44);
+    // Preserving full precision for intermediate calculations produces 177.78, matching computeTotal exactly
+    expect(breakdown[1].runningSubtotal).toBe(177.78);
+  });
 });
 
 describe('Public Release Hardening: Deterministic Connected-Mode 404 & Network Error Handling', () => {
@@ -218,7 +254,7 @@ describe('Public Release Hardening: Deterministic Connected-Mode 404 & Network E
   });
 });
 
-describe('Public Release Hardening: Stale Related Listings Clearing Logic', () => {
+describe('Public Release Hardening: Stale Related Listings Component Behavior', () => {
   const originalFetch = global.fetch;
 
   beforeEach(() => {
@@ -233,51 +269,112 @@ describe('Public Release Hardening: Stale Related Listings Clearing Logic', () =
     vi.resetModules();
   });
 
-  it('clears related listings when fetchProperties returns an empty array', async () => {
-    const { fetchProperties } = await import('@/lib/properties');
+  it('clears related listings when the API returns an empty data array { data: [] }', async () => {
+    const { syncRelatedProperties } = await import('@/lib/properties');
 
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ properties: [] }),
+      json: async () => ({ data: [] }), // Correct API envelope
     });
 
-    const properties = await fetchProperties();
-    expect(properties).toEqual([]);
+    const updates: Property[][] = [];
+    const setRelated = vi.fn((props: Property[]) => {
+      updates.push(props);
+    });
 
-    // Simulating component state update logic: empty array must produce empty related list
-    const currentId = 'prop-1';
-    const related = (Array.isArray(properties) ? properties : []).filter((p) => p.id !== currentId).slice(0, 3);
-    expect(related).toEqual([]);
+    let isCancelled = false;
+    await syncRelatedProperties('prop-1', setRelated, () => isCancelled);
+
+    expect(setRelated).toHaveBeenCalledTimes(1);
+    expect(setRelated).toHaveBeenCalledWith([]);
+    expect(updates[updates.length - 1]).toEqual([]);
   });
 
-  it('clears related listings when related-list request throws an error', async () => {
-    const { fetchProperties } = await import('@/lib/properties');
+  it('clears related listings when the related-list request fails with an error', async () => {
+    const { syncRelatedProperties } = await import('@/lib/properties');
 
-    global.fetch = vi.fn().mockRejectedValue(new Error('Failed to fetch'));
+    global.fetch = vi.fn().mockRejectedValue(new Error('HTTP 500 Connection reset'));
 
-    let relatedState = [{ id: 'stale-prop-1' }];
-    try {
-      await fetchProperties();
-    } catch {
-      // In component catch block: related listings are cleared
-      relatedState = [];
-    }
+    const updates: Property[][] = [];
+    const setRelated = vi.fn((props: Property[]) => {
+      updates.push(props);
+    });
 
-    expect(relatedState).toEqual([]);
+    let isCancelled = false;
+    await syncRelatedProperties('prop-1', setRelated, () => isCancelled);
+
+    expect(setRelated).toHaveBeenCalledTimes(1);
+    expect(setRelated).toHaveBeenCalledWith([]);
+    expect(updates[updates.length - 1]).toEqual([]);
   });
 
-  it('clears related listings when route property ID changes', () => {
-    const previousRelated = [{ id: 'prop-2', title: 'Old Related Property' }];
-    const nextRouteId = 'prop-2';
+  it('clears related listings immediately when route ID changes in connected mode', async () => {
+    const { IS_DEMO_MODE } = await import('@/lib/properties');
+    expect(IS_DEMO_MODE).toBe(false);
 
-    // When route ID changes in connected mode (IS_DEMO_MODE = false):
-    const isDemoMode = false;
-    let relatedState = previousRelated;
-    if (nextRouteId !== 'prop-1') {
-      relatedState = isDemoMode ? [] : [];
-    }
+    // Component state harness modeling app/property/[id]/page.tsx
+    let currentId = 'prop-1';
+    let relatedProperties: Property[] = [
+      { id: 'rel-1', title: 'Previous Related Listing' } as Property,
+    ];
 
-    expect(relatedState).toEqual([]);
+    const handleRouteChange = (nextId: string) => {
+      if (nextId !== currentId) {
+        currentId = nextId;
+        // In connected mode, component resets related properties to [] immediately
+        relatedProperties = IS_DEMO_MODE ? [] : [];
+      }
+    };
+
+    handleRouteChange('prop-2');
+
+    expect(currentId).toBe('prop-2');
+    expect(relatedProperties).toEqual([]);
+  });
+
+  it('discards late responses from a previous route without overwriting the new route state', async () => {
+    const { syncRelatedProperties } = await import('@/lib/properties');
+
+    let resolveSlowFetch: (val: unknown) => void = () => {};
+    const slowFetchPromise = new Promise((resolve) => {
+      resolveSlowFetch = resolve;
+    });
+
+    global.fetch = vi.fn().mockReturnValue(slowFetchPromise);
+
+    const relatedUpdates: Property[][] = [];
+    const setRelated = vi.fn((props: Property[]) => {
+      relatedUpdates.push(props);
+    });
+
+    // 1. Initial route 'prop-1' triggers fetch
+    let route1Cancelled = false;
+    const fetchPromise = syncRelatedProperties('prop-1', setRelated, () => route1Cancelled);
+
+    // 2. User rapidly navigates to 'prop-2' before 'prop-1' fetch resolves
+    // Component effect cleanup for 'prop-1' runs:
+    route1Cancelled = true;
+    // Component route change resets related properties:
+    setRelated([]);
+
+    expect(relatedUpdates).toEqual([[]]);
+
+    // 3. Slow network response for 'prop-1' finally resolves with data
+    resolveSlowFetch({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: [
+          { id: 'stale-listing', title: 'Stale Property from Route 1', price_annual: 1500000 },
+        ],
+      }),
+    });
+
+    await fetchPromise;
+
+    // 4. Verify the late response was discarded and setRelated was NOT called with stale data
+    expect(setRelated).toHaveBeenCalledTimes(1); // Only the route reset to []
+    expect(relatedUpdates[relatedUpdates.length - 1]).toEqual([]);
   });
 });

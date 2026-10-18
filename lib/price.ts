@@ -78,21 +78,20 @@ export function computeFeeBreakdown(rentAnnual: number, fees: FeeRow[]): FeeBrea
 
   return sorted.map((f) => {
     const amt = Number(f.amount);
-    let calculatedAmount = 0;
+    let add = 0;
     if (f.kind === 'fixed') {
-      calculatedAmount = amt;
+      add = amt;
     } else if (f.kind === 'percent' && f.base === 'rent') {
-      calculatedAmount = (Number(rentAnnual) * amt) / 100;
+      add = (Number(rentAnnual) * amt) / 100;
     } else if (f.kind === 'percent' && f.base === 'subtotal') {
-      calculatedAmount = (subtotal * amt) / 100;
+      add = (subtotal * amt) / 100;
     }
-    calculatedAmount = Math.round(calculatedAmount * 100) / 100;
-    subtotal = Math.round((subtotal + calculatedAmount) * 100) / 100;
+    subtotal += add;
 
     return {
       ...f,
-      calculatedAmount,
-      runningSubtotal: subtotal,
+      calculatedAmount: Math.round(add * 100) / 100,
+      runningSubtotal: Math.round(subtotal * 100) / 100,
     };
   });
 }

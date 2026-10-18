@@ -9,7 +9,7 @@ import { Footer } from '@/components/public/Footer';
 import { NiaWidget } from '@/components/public/NiaWidget';
 import { PropertyCard } from '@/components/public/PropertyCard';
 import { PropertyGallery } from '@/components/public/PropertyGallery';
-import { fetchPropertyById, fetchProperties as fetchAllProperties, IS_DEMO_MODE } from '@/lib/properties';
+import { fetchPropertyById, fetchProperties as fetchAllProperties, syncRelatedProperties, IS_DEMO_MODE } from '@/lib/properties';
 import { PROPERTIES as FIXTURE_PROPERTIES } from '@/lib/fixtures/properties';
 import { computeTotal, computeFeeBreakdown, formatPrice } from '@/lib/price';
 import type { Property } from '@/lib/types';
@@ -70,18 +70,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
         }
       });
 
-    fetchAllProperties()
-      .then((rows) => {
-        if (!c) {
-          const list = Array.isArray(rows) ? rows : [];
-          setRelatedProperties(list.filter((r) => r.id !== resolvedParams.id).slice(0, 3));
-        }
-      })
-      .catch(() => {
-        if (!c) {
-          setRelatedProperties([]);
-        }
-      });
+    syncRelatedProperties(resolvedParams.id, setRelatedProperties, () => c, fetchAllProperties);
     return () => { c = true; };
   }, [resolvedParams.id, reloadTrigger]);
 

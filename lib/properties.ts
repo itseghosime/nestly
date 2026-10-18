@@ -145,4 +145,28 @@ export async function fetchPropertyById(id: string): Promise<Property | null> {
   }
 }
 
+/**
+ * Synchronizes related properties for a given route ID, guarding against stale/late responses.
+ * Clears related properties when the API returns an empty array or throws an error.
+ */
+export async function syncRelatedProperties(
+  routeId: string,
+  setRelated: (properties: Property[]) => void,
+  isCancelled: () => boolean,
+  fetchFn: () => Promise<Property[]> = fetchProperties
+): Promise<void> {
+  try {
+    const rows = await fetchFn();
+    if (!isCancelled()) {
+      const list = Array.isArray(rows) ? rows : [];
+      setRelated(list.filter((r) => r.id !== routeId).slice(0, 3));
+    }
+  } catch {
+    if (!isCancelled()) {
+      setRelated([]);
+    }
+  }
+}
+
 export { FIXTURES as FIXTURE_PROPERTIES };
+
