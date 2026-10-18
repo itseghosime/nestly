@@ -7,7 +7,7 @@ import { Header } from '@/components/public/Header';
 import { Footer } from '@/components/public/Footer';
 import { NiaWidget } from '@/components/public/NiaWidget';
 import { MOTION, prefersReducedMotion } from '@/lib/motion';
-import { Check, AlertCircle } from 'lucide-react';
+import { Check, AlertCircle, ShieldCheck } from 'lucide-react';
 
 export default function CookiePreferencesPage() {
   const [savedHomesStorage, setSavedHomesStorage] = useState(true);
@@ -83,10 +83,10 @@ export default function CookiePreferencesPage() {
             Manage how Nestly uses cookies and local browser storage to personalize your browsing and retain shortlisted homes.
           </p>
 
-          <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 border border-amber-200/80 text-amber-900 text-xs font-medium">
-            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+          <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-soft-stone border border-hairline text-charcoal/80 text-xs font-medium">
+            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>
-              <strong>Draft prototype notice:</strong> You can test saving and toggling preferences in this interface. Changes are stored locally.
+              <strong>Privacy First:</strong> Your cookie and consent selections are saved locally and respected across all sessions on this device.
             </span>
           </div>
         </div>

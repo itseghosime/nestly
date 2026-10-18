@@ -48,10 +48,10 @@ export default function TermsPage() {
 
           <section className="space-y-3">
             <h2 className="font-headline text-xl sm:text-2xl font-bold text-charcoal">
-              2. Demonstration &amp; Live Boundary
+              2. Verification &amp; Tenancy Binding Principles
             </h2>
             <p>
-              In simulated prototype environments, sample property cards, customer records, and Nia AI conversational dialogues are presented for UI/UX testing and architectural validation. No automated tenancy bindings, wire payments, or financial transfers occur without physical title deed review and bilateral contract execution.
+              All rental listings, pricing schedules, and conversational consultations provided via Nestly are subject to physical title inspection and bilateral tenancy agreement execution. Nestly does not execute binding financial transfers, caution deposits, or tenancy contracts online without physical title deed review and bilateral contract execution.
             </p>
           </section>
 

@@ -14,7 +14,6 @@ import {
   MessageSquare,
   ChevronRight,
   UserCheck,
-  Eye,
 } from 'lucide-react';
 
 export default function CustomerDirectoryPage() {
@@ -22,13 +21,10 @@ export default function CustomerDirectoryPage() {
   const [locationFilter, setLocationFilter] = useState('ALL');
   const [statusFilter] = useState('ALL');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(CUSTOMERS[0].id);
-  const [isSimulatingEmpty, setIsSimulatingEmpty] = useState(false);
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
-  const filteredCustomers = isSimulatingEmpty
-    ? []
-    : CUSTOMERS.filter((cust) => {
+  const filteredCustomers = CUSTOMERS.filter((cust) => {
         const matchesSearch =
           cust.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           cust.phone.includes(searchQuery) ||
@@ -62,7 +58,7 @@ export default function CustomerDirectoryPage() {
         { y: 0, opacity: 1, duration: 0.18, stagger: 0.022, ease: MOTION.ease.crispOut, overwrite: 'auto', clearProps: 'transform,opacity' }
       );
     },
-    { dependencies: [searchQuery, locationFilter, isSimulatingEmpty], scope: tableBodyRef }
+    { dependencies: [searchQuery, locationFilter], scope: tableBodyRef }
   );
 
   useGSAP(
@@ -81,16 +77,6 @@ export default function CustomerDirectoryPage() {
     <div className="flex-1 flex flex-col min-h-screen bg-warm">
       <StaffHeader
         breadcrumbs={[{ label: 'Customer Directory' }]}
-        actions={
-          <button
-            type="button"
-            onClick={() => setIsSimulatingEmpty(!isSimulatingEmpty)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-soft-stone hover:bg-hairline text-charcoal text-xs font-semibold transition-colors border border-hairline shadow-2xs"
-          >
-            <Eye className="w-3.5 h-3.5 text-muted-ink" />
-            <span>{isSimulatingEmpty ? 'Show Active Directory' : 'Simulate Empty Search'}</span>
-          </button>
-        }
       />
 
       <div className="p-4 sm:p-8 max-w-7xl mx-auto w-full space-y-6">
@@ -205,7 +191,7 @@ export default function CustomerDirectoryPage() {
                 <Users className="w-10 h-10 text-muted-ink mx-auto" />
                 <h3 className="font-headline text-base font-bold text-charcoal">No Customer Records Found</h3>
                 <p className="text-xs text-charcoal/70 max-w-sm mx-auto">
-                  No records match your active search filter. Clear your query or exit empty simulation.
+                  No records match your active search filter. Adjust or clear your search query.
                 </p>
               </div>
             ) : (

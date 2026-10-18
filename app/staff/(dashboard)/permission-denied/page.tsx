@@ -186,8 +186,7 @@ export default function PermissionDeniedPage() {
                 <div className="p-3.5 rounded-2xl bg-[#202320]/5 text-xs text-[#202320]/70 flex items-center gap-2.5">
                   <ShieldAlert className="w-4 h-4 text-[#ED572E] shrink-0" />
                   <span>
-                    Simulated request will dispatch to the coordinator dispatch
-                    log.
+                    Access request will be logged and submitted to the compliance administrator for review.
                   </span>
                 </div>
 

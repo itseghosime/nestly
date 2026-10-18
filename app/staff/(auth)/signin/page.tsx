@@ -18,8 +18,6 @@ import {
   Info,
 } from 'lucide-react';
 
-const SIMULATION_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
-
 export default function StaffSignInPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -27,7 +25,6 @@ export default function StaffSignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [showErrorAlert, setShowErrorAlert] = useState(false);
 
   const pageRef = useRef<HTMLDivElement>(null);
   const formCardRef = useRef<HTMLDivElement>(null);
@@ -57,7 +54,6 @@ export default function StaffSignInPage() {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
       setAuthError('Enter your work email and password.');
-      setShowErrorAlert(true);
       if (formCardRef.current && !prefersReducedMotion()) {
         gsap.fromTo(formCardRef.current, { x: -6 }, { x: 0, duration: 0.32, ease: 'elastic.out(1.2, 0.3)' });
       }
@@ -65,7 +61,6 @@ export default function StaffSignInPage() {
     }
     setIsLoading(true);
     setAuthError(null);
-    setShowErrorAlert(false);
     try {
       const res = await fetch('/api/auth/signin', {
         method: 'POST',
@@ -75,7 +70,6 @@ export default function StaffSignInPage() {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         setAuthError(body.error || 'Invalid credentials or invitation pending confirmation');
-        setShowErrorAlert(true);
         if (formCardRef.current && !prefersReducedMotion()) {
           gsap.fromTo(formCardRef.current, { x: -6 }, { x: 0, duration: 0.32, ease: 'elastic.out(1.2, 0.3)' });
         }
@@ -84,7 +78,6 @@ export default function StaffSignInPage() {
       router.push('/staff/dashboard');
     } catch {
       setAuthError('Network error. Try again.');
-      setShowErrorAlert(true);
     } finally {
       setIsLoading(false);
     }
@@ -104,7 +97,7 @@ export default function StaffSignInPage() {
             <div className="flex flex-col gap-2 items-start">
               <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-persimmon/10 text-persimmon text-[11px] font-bold tracking-wider uppercase">
                 <span className="w-1.5 h-1.5 rounded-full bg-persimmon"></span>
-                Invite-Only Access · {SIMULATION_MODE ? 'Simulation Mode' : 'Staff Portal'}
+                Invite-Only Access · Staff Portal
               </div>
               <span className="text-xs font-bold text-muted-ink tracking-widest uppercase mt-1">
                 Nestly Operations Desk
@@ -122,11 +115,9 @@ export default function StaffSignInPage() {
               <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
               <p className="text-xs text-charcoal/80 leading-relaxed">
                 <strong className="font-bold text-charcoal">
-                  {SIMULATION_MODE ? 'Simulation Mode:' : 'Staff access:'}
+                  Staff access:
                 </strong>{' '}
-                {SIMULATION_MODE
-                  ? 'Fixture data may be shown in the interface; protected staff actions still require a real Supabase staff session.'
-                  : 'No public registration is available. Accounts are provisioned through authorized invitations.'}
+                No public registration is available. Accounts are provisioned through authorized administrative invitations.
               </p>
             </div>
 
@@ -227,39 +218,6 @@ export default function StaffSignInPage() {
               </div>
             )}
 
-            {SIMULATION_MODE && <div className="pt-4 border-t border-hairline flex flex-col gap-2.5 bg-soft-stone/70 -mx-6 sm:-mx-8 -mb-6 sm:-mb-8 p-4 sm:p-6 rounded-b-3xl">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-muted-ink uppercase tracking-wider">
-                  Validation &amp; Error States (Simulation preview)
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = !showErrorAlert;
-                    setShowErrorAlert(next);
-                    if (next && formCardRef.current && !prefersReducedMotion()) {
-                      gsap.fromTo(
-                        formCardRef.current,
-                        { x: -5 },
-                        { x: 0, duration: 0.28, ease: 'elastic.out(1.2, 0.3)' }
-                      );
-                    }
-                  }}
-                  className="text-xs font-bold text-persimmon hover:underline"
-                >
-                  {showErrorAlert ? 'Hide alert' : 'Toggle alert'}
-                </button>
-              </div>
-
-              {showErrorAlert && !authError && (
-                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-red-50 text-red-800 border border-red-200">
-                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-                  <span className="text-xs font-semibold leading-tight">
-                    {authError || 'Invalid credentials or invitation pending confirmation'}
-                  </span>
-                </div>
-              )}
-            </div>}
           </div>
 
           {/* Quick Operational Metrics Card */}

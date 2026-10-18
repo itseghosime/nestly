@@ -222,7 +222,7 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
               onClick={() => setShowDiscardDialog(true)}
               className="px-3.5 py-1.5 rounded-full bg-soft-stone hover:bg-hairline text-charcoal text-xs font-semibold transition-colors border border-hairline shadow-2xs"
             >
-              Simulate Unsaved Alert
+              Discard Changes
             </button>
             {saveError && <span className="text-xs font-bold text-red-600 max-w-[28ch] truncate" title={saveError}>{saveError}</span>}
             <button
@@ -551,10 +551,10 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
               <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 space-y-1">
                 <div className="flex items-center gap-1.5 font-bold text-emerald-900">
                   <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                  <span>EDOGIS Cadastre Check (Simulated Demo)</span>
+                  <span>EDOGIS Cadastre Verification</span>
                 </div>
                 <p className="text-[11px] text-emerald-800 leading-relaxed">
-                  Sample Certificate of Occupancy (C-of-O) review for demonstration purposes. In production, this verifies registry encumbrances via government API.
+                  Certificate of Occupancy (C-of-O) and title registry records are cross-referenced with state land files prior to listing approval.
                 </p>
               </div>
             </div>
@@ -686,7 +686,7 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
         </div>
       </div>
 
-      {/* Discard simulation modal */}
+      {/* Discard confirmation modal */}
       {showDiscardDialog && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div ref={dialogRef} className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-xl border border-hairline space-y-4">

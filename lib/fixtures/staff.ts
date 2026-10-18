@@ -124,7 +124,7 @@ export const AUDIT_LOGS: AuditLogEntry[] = [
 export interface IntegrationService {
   name: string;
   category: string;
-  status: 'Operational' | 'Degraded' | 'Configured (Simulation)';
+  status: 'Operational' | 'Degraded' | 'Configured (Sandbox)' | 'Configured (Simulation)';
   latency: string;
   description: string;
   lastHeartbeat: string;
@@ -158,7 +158,7 @@ export const INTEGRATIONS: IntegrationService[] = [
   {
     name: 'Demo Staff 16',
     category: 'Land Registry',
-    status: 'Configured (Simulation)',
+    status: 'Configured (Sandbox)',
     latency: '850ms',
     description: 'Government cadastre validation for Edo State Certificate of Occupancy (C-of-O).',
     lastHeartbeat: '12 mins ago (14:11 WAT)',

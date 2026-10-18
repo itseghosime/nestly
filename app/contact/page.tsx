@@ -13,7 +13,8 @@ import {
   AlertCircle,
   Send,
   Building,
-  RotateCcw
+  RotateCcw,
+  Loader2,
 } from 'lucide-react';
 
 export default function ContactPage() {
@@ -23,6 +24,8 @@ export default function ContactPage() {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [isNiaOpen, setIsNiaOpen] = useState(false);
 
@@ -52,8 +55,9 @@ export default function ContactPage() {
     }
   }, [submitted]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     const newErrors: Record<string, string> = {};
 
     if (!fullName.trim()) newErrors.fullName = 'Please enter your full name';
@@ -75,7 +79,34 @@ export default function ContactPage() {
       return;
     }
 
-    setSubmitted(true);
+    setIsSubmitting(true);
+    setSubmitError('');
+    try {
+      const response = await fetch('/api/leads/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': crypto.randomUUID(),
+        },
+        body: JSON.stringify({
+          name: fullName.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          message: `[${category}] ${message.trim()}`,
+        }),
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error || 'Unable to submit inquiry at this time. Please try again.');
+      }
+
+      setSubmitted(true);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Unable to submit inquiry at this time.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleReset = () => {
@@ -85,6 +116,7 @@ export default function ContactPage() {
     setEmail('');
     setMessage('');
     setErrors({});
+    setSubmitError('');
   };
 
   return (
@@ -195,10 +227,10 @@ export default function ContactPage() {
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
                 <h3 className="font-headline text-2xl font-bold text-charcoal">
-                  Message Dispatched Locally
+                  Inquiry Received
                 </h3>
                 <p className="text-xs sm:text-sm text-muted-ink max-w-md mx-auto leading-relaxed">
-                  Thank you, <span className="font-bold text-charcoal">{fullName}</span>. Your inquiry regarding <span className="font-bold text-charcoal">{category}</span> has been simulated successfully. An operations officer will review your notes.
+                  Thank you, <span className="font-bold text-charcoal">{fullName}</span>. Your inquiry regarding <span className="font-bold text-charcoal">{category}</span> has been received by our operations team. An officer will review your notes and contact you.
                 </p>
                 <div className="pt-4 flex justify-center">
                   <button
@@ -317,16 +349,33 @@ export default function ContactPage() {
                   )}
                 </div>
 
+                {submitError && (
+                  <div role="alert" className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                    <span>{submitError}</span>
+                  </div>
+                )}
+
                 <div>
                   <button
                     type="submit"
-                    className="w-full py-4 px-6 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md nestly-press cursor-pointer"
+                    disabled={isSubmitting}
+                    className="w-full py-4 px-6 rounded-full bg-persimmon hover:bg-persimmon-hover disabled:opacity-60 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md nestly-press cursor-pointer transition-all"
                   >
-                    <Send className="w-4 h-4" />
-                    <span>Submit Inquiry</span>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                        <span>Submitting Inquiry...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 shrink-0" />
+                        <span>Submit Inquiry</span>
+                      </>
+                    )}
                   </button>
                   <p className="text-[11px] text-center text-muted-ink mt-3">
-                    Frontend simulation mode. No external network request will be fired.
+                    Your inquiry is securely routed to Nestly Benin City &amp; Delta operations desks.
                   </p>
                 </div>
               </form>

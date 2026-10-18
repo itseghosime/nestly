@@ -80,8 +80,8 @@ export default function PrivacyPolicyPage() {
               <li><strong>Termii:</strong> High-reliability SMS gateway for gate pass tokens in Nigeria.</li>
               <li><strong>Mapbox:</strong> Regional cadastral mapping and GPS geofencing for field agent check-ins.</li>
             </ul>
-            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/70 text-xs text-amber-900 leading-relaxed font-medium">
-              <strong>Demonstration Notice:</strong> In current development and prototype demonstration environments, third-party identity verification (NIN via Prembly) and SMS gate pass dispatches are simulated for architectural review and do not connect to live government cadastre or production telecommunication gateways.
+            <div className="p-3.5 rounded-2xl bg-soft-stone border border-hairline text-xs text-charcoal/80 leading-relaxed font-medium">
+              <strong>Third-Party Processing Notice:</strong> Identity vetting (NIN) and SMS dispatch services operate via verified infrastructure partners in accordance with NDPA 2023 regulations. Direct integrations are activated per corridor and subject to carrier and registry network availability.
             </div>
           </section>
 

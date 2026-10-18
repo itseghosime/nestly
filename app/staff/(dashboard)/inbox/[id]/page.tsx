@@ -570,8 +570,10 @@ export default function ConversationDetailPage({
                 </div>
                 <div className="flex justify-between items-center text-charcoal/70">
                   <span>Assigned:</span>
-                  <span className="font-semibold text-persimmon">
-                    {conversation.assignedStaff}
+                  <span className={`font-semibold ${conversation.isAssignedToCurrentStaff ? 'text-emerald-700' : conversation.assignedStaff === 'Unassigned' ? 'text-muted-ink' : 'text-persimmon'}`}>
+                    {conversation.isAssignedToCurrentStaff
+                      ? 'Assigned to you'
+                      : conversation.assignedStaff}
                   </span>
                 </div>
               </div>
@@ -589,15 +591,25 @@ export default function ConversationDetailPage({
                   disabled={saving || triageMode === 'CLOSED'}
                   className={`nestly-press w-full flex items-center justify-between px-4 py-2.5 rounded-full text-xs font-bold transition-all ${
                     triageMode === 'HUMAN'
-                      ? 'bg-persimmon text-white shadow-xs'
+                      ? conversation.isAssignedToCurrentStaff
+                        ? 'bg-emerald-700 text-white shadow-xs'
+                        : 'bg-persimmon text-white shadow-xs'
                       : 'bg-soft-stone hover:bg-hairline text-charcoal'
                   }`}
                 >
                   <span className="flex items-center gap-2">
                     <User className="w-3.5 h-3.5" />
-                    <span>Human Active</span>
+                    <span>
+                      {triageMode === 'HUMAN'
+                        ? conversation.isAssignedToCurrentStaff
+                          ? 'Assigned to You'
+                          : conversation.assignedStaff === 'Unassigned'
+                            ? 'Assign to Me'
+                            : 'Reassign to Me'
+                        : 'Take Over / Assign to Me'}
+                    </span>
                   </span>
-                  {triageMode === 'HUMAN' && (
+                  {triageMode === 'HUMAN' && conversation.isAssignedToCurrentStaff && (
                     <CheckCircle2 className="w-3.5 h-3.5" />
                   )}
                 </button>
@@ -640,7 +652,22 @@ export default function ConversationDetailPage({
 
               {conversation?.mode === 'AI_ACTIVE' && (
                 <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-900 border border-emerald-200 text-[11px] leading-relaxed">
-                  <strong>AI ownership recorded.</strong> {getAiOwnershipNotice(conversation.channel)}
+                  <strong>AI ownership active.</strong> {getAiOwnershipNotice(conversation.channel)}
+                </div>
+              )}
+              {conversation?.mode === 'HUMAN_ACTIVE' && (
+                <div className={`p-3 rounded-2xl border text-[11px] leading-relaxed ${
+                  conversation.isAssignedToCurrentStaff
+                    ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                    : 'bg-amber-50 text-amber-900 border-amber-200'
+                }`}>
+                  {conversation.isAssignedToCurrentStaff ? (
+                    <><strong>Assigned to you.</strong> You have active ownership of this conversation and are authorized to reply.</>
+                  ) : conversation.assignedStaff === 'Unassigned' ? (
+                    <><strong>Unassigned conversation.</strong> Human triage is active. Click &ldquo;Assign to Me&rdquo; above to take ownership and reply.</>
+                  ) : (
+                    <><strong>Assigned to {conversation.assignedStaff}.</strong> Only the assigned staff member can send replies. Click &ldquo;Reassign to Me&rdquo; above if you need to take over.</>
+                  )}
                 </div>
               )}
             </div>
@@ -879,7 +906,9 @@ export default function ConversationDetailPage({
                         : !conversation.telegramSendConfigured
                           ? 'Telegram bot token is missing or invalid. No external message was sent.'
                           : !conversation.isAssignedToCurrentStaff
-                            ? `This conversation is assigned to ${conversation.assignedStaff}. Only the assigned staff member can send a Telegram reply.`
+                            ? conversation.assignedStaff === 'Unassigned'
+                              ? 'This conversation is unassigned. Click "Assign to Me" above to take ownership before replying.'
+                              : `This conversation is assigned to ${conversation.assignedStaff}. Only the assigned staff member can send a Telegram reply.`
                             : 'Your staff role is not authorized to send Telegram replies.'
                     : triageMode === 'CLOSED'
                       ? 'This conversation is closed. Reopen or take over only through the authorized staff workflow before replying.'
@@ -893,7 +922,9 @@ export default function ConversationDetailPage({
                         : !conversation.whatsappSendConfigured
                           ? 'Twilio staff send configuration is incomplete. No external message was sent.'
                         : !conversation.isAssignedToCurrentStaff
-                          ? `This conversation is assigned to ${conversation.assignedStaff}. Only the assigned staff member can send a WhatsApp reply.`
+                          ? conversation.assignedStaff === 'Unassigned'
+                            ? 'This conversation is unassigned. Click "Assign to Me" above to take ownership before replying.'
+                            : `This conversation is assigned to ${conversation.assignedStaff}. Only the assigned staff member can send a WhatsApp reply.`
                         : 'Your staff role is not authorized to send WhatsApp replies.'
                     : triageMode === 'CLOSED'
                       ? 'This conversation is closed. Reopen or take over only through the authorized staff workflow before replying.'

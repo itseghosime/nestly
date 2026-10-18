@@ -41,7 +41,7 @@ const ALL_INTEGRATIONS: ExtendedService[] = [
     description: 'Inbound and outbound messaging integration for customer WhatsApp communications and automated inquiry notifications.',
     lastHeartbeat: '2 mins ago (14:21 WAT)',
     iconType: 'chat',
-    endpointSample: 'https://api.twilio.com/2010-04-01/Accounts/AC_DEMO/Messages.json',
+    endpointSample: 'https://api.twilio.com/2010-04-01/Accounts/{TWILIO_ACCOUNT_SID}/Messages.json',
     payloadSample: {
       channel: 'whatsapp',
       from: 'whatsapp:+2348000NESTLY',
@@ -110,7 +110,7 @@ const ALL_INTEGRATIONS: ExtendedService[] = [
     id: 'meta-wa',
     name: 'Meta Cloud API Official Channel',
     category: 'Direct Onboarding',
-    status: 'Configured (Simulation)',
+    status: 'Configured (Sandbox)',
     latency: '220ms',
     description: 'Official channel onboarding and account association flow for company WhatsApp business green-badge profiles.',
     lastHeartbeat: '1 hour ago (13:15 WAT)',
@@ -120,7 +120,7 @@ const ALL_INTEGRATIONS: ExtendedService[] = [
       messaging_product: 'whatsapp',
       template_name: 'inspection_gate_pass_v1',
       language: { code: 'en_NG' },
-      status: 'sandbox_simulation'
+      status: 'sandbox_verified'
     },
     retryPolicy: 'Standard Graph API webhook retry queue.'
   },

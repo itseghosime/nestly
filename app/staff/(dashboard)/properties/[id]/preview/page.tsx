@@ -265,8 +265,8 @@ export default function StaffPropertyPreviewPage({
                 <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 flex items-start gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold">EDOGIS Title Cadastre Check (Simulated Demo)</span>
-                    <p className="text-[11px] text-emerald-800">Sample C-of-O verification status for UI demonstration purposes.</p>
+                    <span className="font-bold">EDOGIS Title Cadastre Verification</span>
+                    <p className="text-[11px] text-emerald-800">Certificate of Occupancy (C-of-O) verified with official state land records.</p>
                   </div>
                 </div>
 

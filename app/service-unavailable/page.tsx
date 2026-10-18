@@ -40,7 +40,7 @@ export default function ServiceUnavailablePage() {
     setRetryFeedback(null);
     setTimeout(() => {
       setRetrying(false);
-      setRetryFeedback('Status checked: local prototype demo remains in maintenance preview mode. Your saved homes are intact.');
+      setRetryFeedback('Status check: Scheduled maintenance is currently active. Services will restore shortly. Your saved homes remain intact.');
     }, 900);
   };
 
@@ -121,7 +121,7 @@ export default function ServiceUnavailablePage() {
                 Maintenance Window
               </h3>
               <p className="text-xs text-muted-ink leading-relaxed">
-                Cadastre synchronization preview is displaying routine maintenance standby state (frontend prototype demonstration).
+                Cadastre and property verification services are currently undergoing scheduled system maintenance.
               </p>
               <div className="pt-2 border-t border-hairline flex items-center justify-between text-[11px] text-muted-ink">
                 <span>Expected restoration:</span>

@@ -540,7 +540,7 @@ export default function ConversationInboxPage() {
                   )}
                   <div className="flex items-center justify-between pt-1 text-[11px] text-charcoal/70">
                     <span>Channel: {selectedConversation.channel}</span>
-                    <span>Assigned: {selectedConversation.assignedStaff}</span>
+                    <span>{selectedConversation.assignedStaff === 'Unassigned' ? 'Unassigned' : `Assigned: ${selectedConversation.assignedStaff}`}</span>
                   </div>
                 </div>
 

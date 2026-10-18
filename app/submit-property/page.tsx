@@ -15,7 +15,8 @@ import {
   Upload,
   ArrowRight,
   X,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Loader2,
 } from 'lucide-react';
 
 const SAMPLE_UPLOAD_PREVIEWS = [
@@ -41,6 +42,8 @@ export default function SubmitPropertyPage() {
   const [ownerName, setOwnerName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const [uploadedPhotos, setUploadedPhotos] = useState<Array<{ id: string; label: string; src: string }>>([
     SAMPLE_UPLOAD_PREVIEWS[0],
   ]);
@@ -103,8 +106,9 @@ export default function SubmitPropertyPage() {
     setUploadedPhotos((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     const newErrors: Record<string, string> = {};
 
     if (!propertyTitle.trim()) newErrors.propertyTitle = 'Please enter a property title';
@@ -128,7 +132,44 @@ export default function SubmitPropertyPage() {
       return;
     }
 
-    setSubmitted(true);
+    setIsSubmitting(true);
+    setSubmitError('');
+    try {
+      const numericRent = Number(rent.replace(/[^0-9]/g, '')) || 0;
+      const numericBeds = Math.min(30, Math.max(0, parseInt(bedrooms, 10) || 1));
+
+      const response = await fetch('/api/leads/landlord', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': crypto.randomUUID(),
+        },
+        body: JSON.stringify({
+          name: ownerName.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          propertyType,
+          state,
+          city,
+          neighborhood: neighborhood.trim() || city,
+          address: address.trim(),
+          bedrooms: numericBeds,
+          expectedAnnualRent: numericRent,
+          description: `[${propertyTitle.trim()}] Type: ${propertyType}, Power: ${powerType}, Water: ${waterType}, Title: ${titleType}.`,
+        }),
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error || 'Unable to submit property particulars. Please try again.');
+      }
+
+      setSubmitted(true);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Unable to submit property particulars.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleReset = () => {
@@ -140,6 +181,7 @@ export default function SubmitPropertyPage() {
     setPhone('');
     setEmail('');
     setErrors({});
+    setSubmitError('');
   };
 
   return (
@@ -229,7 +271,7 @@ export default function SubmitPropertyPage() {
                   Property Submission Received
                 </h2>
                 <p className="text-xs sm:text-sm text-muted-ink max-w-md mx-auto leading-relaxed">
-                  Thank you, <span className="font-bold text-charcoal">{ownerName}</span>. Your listing for <span className="font-bold text-charcoal">{propertyTitle}</span> ({city}) has been logged in simulation mode. A field vetting officer will coordinate the physical daylight audit.
+                  Thank you, <span className="font-bold text-charcoal">{ownerName}</span>. Your listing for <span className="font-bold text-charcoal">{propertyTitle}</span> ({city}) has been received. Our operations desk and field vetting team will review the particulars and contact you to schedule the daylight physical audit.
                 </p>
                 <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
                   <button
@@ -595,13 +637,30 @@ export default function SubmitPropertyPage() {
                   </div>
                 </div>
 
+                {submitError && (
+                  <div role="alert" className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                    <span>{submitError}</span>
+                  </div>
+                )}
+
                 <div className="pt-4">
                   <button
                     type="submit"
-                    className="w-full py-4 px-6 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md nestly-press cursor-pointer"
+                    disabled={isSubmitting}
+                    className="w-full py-4 px-6 rounded-full bg-persimmon hover:bg-persimmon-hover disabled:opacity-60 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md nestly-press cursor-pointer transition-all"
                   >
-                    <span>Submit Property for Field Verification</span>
-                    <ArrowRight className="w-4 h-4" />
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                        <span>Submitting for Field Verification...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Submit Property for Field Verification</span>
+                        <ArrowRight className="w-4 h-4 shrink-0" />
+                      </>
+                    )}
                   </button>
                   <p className="text-[11px] text-center text-muted-ink mt-3">
                     Every listing is physically visited by an authorized Nestly officer before appearance on the platform.
