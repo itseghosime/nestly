@@ -99,6 +99,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   }, [annualRent, propertyFees]);
 
   const saved = property ? isSaved(property.id) : false;
+  const verificationStatusRecorded = property?.verificationBadge !== 'Verification status not provided';
 
   const handleSaveProperty = () => {
     if (!property) return;
@@ -233,14 +234,14 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
               Property Not Found
             </h1>
             <p className="text-xs sm:text-sm text-muted-ink leading-relaxed mb-6">
-              Listing reference &ldquo;{resolvedParams.id}&rdquo; was not found in our verified database or may have been archived following a confirmed lease.
+              Listing reference &ldquo;{resolvedParams.id}&rdquo; could not be found. It may have moved or been removed.
             </p>
             <Link
               href="/browse"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold uppercase tracking-wider shadow-sm nestly-press"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Browse Verified Homes</span>
+              <span>Browse Homes</span>
             </Link>
           </div>
         </main>
@@ -264,7 +265,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
             className="inline-flex items-center gap-1.5 text-xs font-bold text-charcoal/70 hover:text-persimmon transition-colors group"
           >
             <ArrowLeft className="w-4 h-4 transition-transform duration-150 group-hover:-translate-x-0.5" />
-            <span>Back to all verified listings</span>
+            <span>Back to all listings</span>
           </Link>
 
           <div className="flex items-center gap-2">
@@ -295,8 +296,8 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
         {/* Title, Badge & Location Header */}
         <div data-property-meta className="mb-8">
           <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span className={`px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${verificationStatusRecorded ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-soft-stone text-muted-ink border-hairline'}`}>
+              <ShieldCheck className={`w-3.5 h-3.5 ${verificationStatusRecorded ? 'text-emerald-600' : 'text-muted-ink'}`} />
               <span>{property.verificationBadge}</span>
             </span>
             <span className="px-3 py-1 rounded-full bg-soft-stone text-muted-ink text-xs font-semibold">
@@ -330,7 +331,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
             >
               <div>
                 <span className="text-[11px] uppercase tracking-wider text-muted-ink font-bold block mb-1">Bedrooms</span>
-                <p className="font-headline text-xl font-extrabold text-charcoal">{property.bedrooms} En-Suite</p>
+                <p className="font-headline text-xl font-extrabold text-charcoal">{property.bedrooms} Bedrooms</p>
               </div>
               <div>
                 <span className="text-[11px] uppercase tracking-wider text-muted-ink font-bold block mb-1">Bathrooms</span>
@@ -339,13 +340,13 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
               <div>
                 <span className="text-[11px] uppercase tracking-wider text-muted-ink font-bold block mb-1">Power</span>
                 <p className="font-headline text-sm font-extrabold text-charcoal truncate" title={property.powerRating || 'Not provided'}>
-                  {property.powerRating ? `${property.powerRating.split(' ')[0]} Daily` : 'Not provided'}
+                  {property.powerRating || 'Not provided'}
                 </p>
               </div>
               <div>
                 <span className="text-[11px] uppercase tracking-wider text-muted-ink font-bold block mb-1">Water Supply</span>
                 <p className="font-headline text-sm font-extrabold text-charcoal truncate" title={property.waterSupply || 'Not provided'}>
-                  {property.waterSupply ? 'Treated Borehole' : 'Not provided'}
+                  {property.waterSupply || 'Not provided'}
                 </p>
               </div>
             </div>
@@ -363,11 +364,14 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
               </p>
             </div>
 
-            {/* Verified Amenities */}
+            {/* Listed Features */}
             <div data-property-section>
               <h2 className="font-headline text-2xl font-extrabold text-charcoal mb-4">
-                Verified Building Features
+                Listed Features
               </h2>
+              <p className="text-xs text-muted-ink mb-4">
+                These details are listing information and have not necessarily been independently checked.
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {property.features.map((feature, i) => (
                   <div
@@ -381,19 +385,19 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
               </div>
             </div>
 
-            {/* 100% Itemized Upfront Costs */}
+            {/* Listing Fees */}
             <div data-property-section className="bg-white rounded-3xl p-6 sm:p-8 border border-hairline shadow-sm">
               <div className="flex items-center justify-between pb-4 mb-6 border-b border-hairline">
                 <div>
                   <h2 className="font-headline text-2xl font-extrabold text-charcoal">
-                    100% Itemized Upfront Costs
+                    Rent and Fee Details
                   </h2>
                   <p className="text-xs text-muted-ink mt-0.5">
-                    Clear transparent breakdown with zero undisclosed agency mobilizations.
+                    Review disclosed charges. Required fees may remain unconfirmed, so a final total may not be available.
                   </p>
                 </div>
                 <span className="text-xs font-bold text-emerald-700 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200">
-                  {property.verificationBadge}
+                  Listing status: {property.verificationBadge}
                 </span>
               </div>
 
@@ -452,7 +456,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                     </span>
                     <span className="text-[11px] text-muted-ink">
                       {totalMoveIn !== null
-                        ? 'Excludes optional furniture package. Paid directly upon title verification.'
+                        ? 'Estimate only; confirm payment arrangements separately.'
                         : 'One or more required fees are pending landlord/agent confirmation.'}
                     </span>
                   </div>
@@ -497,7 +501,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                   <span className="text-sm font-normal text-muted-ink"> / year</span>
                 </p>
                 <p className="text-[11px] text-emerald-700 font-bold mt-1">
-                  ✓ Title Verified &amp; Ready for Viewing
+                  Rental status: {property.status || 'Not specified'}
                 </p>
               </div>
 
@@ -521,37 +525,22 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
               </div>
 
               <div className="mt-6 pt-5 border-t border-hairline space-y-2.5 text-xs text-muted-ink">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Accompanied inspection with real staff</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Key handover coordinated directly with landlord</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>No blind deposits required before viewing</span>
-                </div>
+                <p>Submitting a viewing request does not confirm an appointment.</p>
+                <p>Nestly does not collect rent or deposits through this site.</p>
+                <p>Confirm ownership, availability, charges, and terms before paying.</p>
               </div>
             </div>
 
-            {/* Landlord & Agent Trust Card */}
-            {property.landlordContact && (
-              <div className="bg-soft-stone rounded-3xl p-5 border border-hairline text-xs">
-                <h4 className="font-bold text-charcoal mb-1">Landlord Instruction</h4>
-                <p className="text-muted-ink">
-                  Vetted Landlord: <span className="font-bold text-charcoal">{property.landlordContact.name}</span>
-                </p>
-                <p className="text-muted-ink mt-0.5">
-                  Verified with Nestly since {property.landlordContact.verifiedSince}. Direct instruction with physical title confirmation.
-                </p>
-              </div>
-            )}
+            <div className="bg-soft-stone rounded-3xl p-5 border border-hairline text-xs">
+              <h4 className="font-bold text-charcoal mb-1">Listing Information</h4>
+              <p className="text-muted-ink">
+                This page does not independently verify ownership, title, or property condition. Confirm important details before proceeding.
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Related Verified Homes (Supports Signature Card-to-Detail Transition) */}
+        {/* Related Homes (Supports Signature Card-to-Detail Transition) */}
         <section className="mt-20 pt-14 border-t border-hairline">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
             <div>
@@ -559,14 +548,14 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                 Continue Exploring
               </span>
               <h2 className="font-headline text-2xl sm:text-3xl font-extrabold text-charcoal mt-1">
-                Similar Verified Homes in Edo &amp; Delta
+                Similar Homes in Edo &amp; Delta
               </h2>
             </div>
             <Link
               href="/browse"
               className="text-xs font-bold text-persimmon hover:text-charcoal transition-colors"
             >
-              View all verified listings →
+              View all listings →
             </Link>
           </div>
 

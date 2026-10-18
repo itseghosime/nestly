@@ -12,41 +12,31 @@ import {
   CheckCircle2,
   ShieldCheck,
   AlertCircle,
-  Upload,
   ArrowRight,
-  X,
   Image as ImageIcon,
   Loader2,
 } from 'lucide-react';
-
-const SAMPLE_UPLOAD_PREVIEWS = [
-  { id: 'sample-1', label: 'Compound Exterior (Daylight)', src: '/images/generated/img_790f21b75f6c4829b0e7c145c8ca6112.png' },
-  { id: 'sample-2', label: 'Living Area & Natural Light', src: '/images/generated/img_182f9d8fffd242df93d3c53e9b4abbc0.png' },
-  { id: 'sample-3', label: 'Balcony & Meter Box', src: '/images/generated/img_b16cbd4db4884a038e93243e9b975b81.png' },
-];
+import { getPendingFormSubmission, isLeadSubmissionReceipt, parseExpectedAnnualRent, type PendingFormSubmission } from '@/lib/public-form-submission';
 
 export default function SubmitPropertyPage() {
   const [activeStep, setActiveStep] = useState(1);
   const [propertyTitle, setPropertyTitle] = useState('');
-  const [propertyType, setPropertyType] = useState('Apartment');
-  const [state, setState] = useState('Edo');
-  const [city, setCity] = useState('Benin City');
-  const [neighborhood, setNeighborhood] = useState('GRA Benin City');
+  const [propertyType, setPropertyType] = useState('');
+  const [state, setState] = useState('');
+  const [city, setCity] = useState('');
+  const [neighborhood, setNeighborhood] = useState('');
   const [address, setAddress] = useState('');
   const [rent, setRent] = useState('');
-  const [bedrooms, setBedrooms] = useState('2');
-  const [bathrooms, setBathrooms] = useState('2');
-  const [powerType, setPowerType] = useState('Dedicated Transformer');
-  const [waterType, setWaterType] = useState('Industrial Borehole');
-  const [titleType, setTitleType] = useState('Certificate of Occupancy (C-of-O)');
+  const [bedrooms, setBedrooms] = useState('');
+  const [bathrooms, setBathrooms] = useState('');
+  const [powerType, setPowerType] = useState('');
+  const [waterType, setWaterType] = useState('');
+  const [titleType, setTitleType] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const [uploadedPhotos, setUploadedPhotos] = useState<Array<{ id: string; label: string; src: string }>>([
-    SAMPLE_UPLOAD_PREVIEWS[0],
-  ]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [isNiaOpen, setIsNiaOpen] = useState(false);
@@ -54,6 +44,7 @@ export default function SubmitPropertyPage() {
   const mainRef = useRef<HTMLElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const successRef = useRef<HTMLDivElement>(null);
+  const pendingSubmissionRef = useRef<PendingFormSubmission | null>(null);
   const sec1Ref = useRef<HTMLDivElement>(null);
   const sec2Ref = useRef<HTMLDivElement>(null);
   const sec3Ref = useRef<HTMLDivElement>(null);
@@ -91,29 +82,23 @@ export default function SubmitPropertyPage() {
     }
   };
 
-  const handleAddSamplePhoto = () => {
-    const nextSample = SAMPLE_UPLOAD_PREVIEWS.find(
-      (s) => !uploadedPhotos.some((u) => u.id === s.id)
-    ) || {
-      id: `sample-${Date.now()}`,
-      label: `Daylight Interior #${uploadedPhotos.length + 1}`,
-      src: '/images/generated/img_0c79e160286544189f5f68168d230479.png',
-    };
-    setUploadedPhotos((prev) => [...prev, nextSample]);
-  };
-
-  const handleRemovePhoto = (id: string) => {
-    setUploadedPhotos((prev) => prev.filter((p) => p.id !== id));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
     const newErrors: Record<string, string> = {};
 
+    if (!propertyType || !state || !city.trim() || !neighborhood.trim() || !bedrooms || !bathrooms) {
+      setSubmitError('Select the property type and complete its location and room details before submitting.');
+      return;
+    }
     if (!propertyTitle.trim()) newErrors.propertyTitle = 'Please enter a property title';
     if (!address.trim()) newErrors.address = 'Please specify the compound address';
-    if (!rent.trim()) newErrors.rent = 'Please state the annual rent expected';
+    const expectedAnnualRent = parseExpectedAnnualRent(rent);
+    if (expectedAnnualRent === null) {
+      newErrors.rent = rent.trim()
+        ? 'Enter a valid annual rent amount with up to two decimal places.'
+        : 'Please state the annual rent expected';
+    }
     if (!ownerName.trim()) newErrors.ownerName = 'Please provide the owner or estate manager name';
     if (!phone.trim()) newErrors.phone = 'Please provide a valid phone or WhatsApp number';
 
@@ -132,38 +117,54 @@ export default function SubmitPropertyPage() {
       return;
     }
 
+    if (expectedAnnualRent === null) return;
+
     setIsSubmitting(true);
     setSubmitError('');
     try {
-      const numericRent = Number(rent.replace(/[^0-9]/g, '')) || 0;
-      const numericBeds = Math.min(30, Math.max(0, parseInt(bedrooms, 10) || 1));
+      const numericBeds = Number.parseInt(bedrooms, 10);
+      const numericBathrooms = Number.parseInt(bathrooms, 10);
+      const payload = {
+        name: ownerName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        propertyType,
+        state,
+        city: city.trim(),
+        neighborhood: neighborhood.trim(),
+        address: address.trim(),
+        bedrooms: numericBeds,
+        expectedAnnualRent,
+        description: [
+          `Property title: ${propertyTitle.trim()}`,
+          `Bathrooms: ${numericBathrooms}`,
+          powerType ? `Reported power setup: ${powerType}` : '',
+          waterType ? `Reported water supply: ${waterType}` : '',
+          titleType ? `Reported title document type: ${titleType}` : '',
+        ].filter(Boolean).join('. '),
+      };
+      const pendingSubmission = getPendingFormSubmission(pendingSubmissionRef.current, payload);
+      pendingSubmissionRef.current = pendingSubmission;
 
       const response = await fetch('/api/leads/landlord', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Idempotency-Key': crypto.randomUUID(),
+          'Idempotency-Key': pendingSubmission.key,
         },
-        body: JSON.stringify({
-          name: ownerName.trim(),
-          email: email.trim(),
-          phone: phone.trim(),
-          propertyType,
-          state,
-          city,
-          neighborhood: neighborhood.trim() || city,
-          address: address.trim(),
-          bedrooms: numericBeds,
-          expectedAnnualRent: numericRent,
-          description: `[${propertyTitle.trim()}] Type: ${propertyType}, Power: ${powerType}, Water: ${waterType}, Title: ${titleType}.`,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(result.error || 'Unable to submit property particulars. Please try again.');
+      const result: unknown = await response.json().catch(() => null);
+      if (!response.ok || !isLeadSubmissionReceipt(response.status, result)) {
+        const errorMessage = result && typeof result === 'object'
+          && 'error' in result && typeof result.error === 'string'
+          ? result.error
+          : 'The server did not confirm receipt. Please retry your property submission.';
+        throw new Error(errorMessage);
       }
 
+      pendingSubmissionRef.current = null;
       setSubmitted(true);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Unable to submit property particulars.');
@@ -173,13 +174,24 @@ export default function SubmitPropertyPage() {
   };
 
   const handleReset = () => {
+    pendingSubmissionRef.current = null;
     setSubmitted(false);
     setPropertyTitle('');
+    setPropertyType('');
+    setState('');
+    setCity('');
+    setNeighborhood('');
     setAddress('');
     setRent('');
+    setBedrooms('');
+    setBathrooms('');
+    setPowerType('');
+    setWaterType('');
+    setTitleType('');
     setOwnerName('');
     setPhone('');
     setEmail('');
+    setActiveStep(1);
     setErrors({});
     setSubmitError('');
   };
@@ -204,7 +216,7 @@ export default function SubmitPropertyPage() {
                 </h1>
 
                 <p className="text-sm sm:text-base text-muted-ink max-w-2xl leading-relaxed font-normal">
-                  We partner with landlords in Benin City and Delta State who value clear pricing and vetted tenants. Every property undergoes physical field verification before publishing.
+                  Property owners can submit listing details for review. Details remain owner-reported until reviewed; this form does not verify title, condition, availability, or publication.
                 </p>
               </div>
 
@@ -214,8 +226,8 @@ export default function SubmitPropertyPage() {
                     <ShieldCheck className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="font-bold text-xs sm:text-sm text-charcoal">100% In-Person Audited</p>
-                    <p className="text-[11px] text-muted-ink">Zero phantom listings permitted</p>
+                    <p className="font-bold text-xs sm:text-sm text-charcoal">Submission for Review</p>
+                    <p className="text-[11px] text-muted-ink">Submitting does not publish a listing</p>
                   </div>
                 </div>
               </div>
@@ -226,7 +238,7 @@ export default function SubmitPropertyPage() {
               {[
                 { num: 1, label: 'Step 1', title: 'Details & Location' },
                 { num: 2, label: 'Step 2', title: 'Utilities & Specs' },
-                { num: 3, label: 'Step 3', title: 'Physical Verification' },
+                { num: 3, label: 'Step 3', title: 'Ownership & Reported Details' },
               ].map((st) => {
                 const isActive = activeStep === st.num;
                 return (
@@ -271,7 +283,7 @@ export default function SubmitPropertyPage() {
                   Property Submission Received
                 </h2>
                 <p className="text-xs sm:text-sm text-muted-ink max-w-md mx-auto leading-relaxed">
-                  Thank you, <span className="font-bold text-charcoal">{ownerName}</span>. Your listing for <span className="font-bold text-charcoal">{propertyTitle}</span> ({city}) has been received. Our operations desk and field vetting team will review the particulars and contact you to schedule the daylight physical audit.
+                  The server recorded your property submission for <span className="font-bold text-charcoal">{propertyTitle}</span> ({city}). Receipt does not mean the property is accepted, vetted, or published.
                 </p>
                 <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
                   <button
@@ -323,17 +335,19 @@ export default function SubmitPropertyPage() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="sub-type" className="block text-xs font-bold text-charcoal mb-1">
-                        Property Type
+                        Property Type *
                       </label>
                       <select
                         id="sub-type"
+                        required
                         value={propertyType}
                         onChange={(e) => setPropertyType(e.target.value)}
                         className="w-full px-3 py-2.5 rounded-xl border border-hairline text-xs font-bold text-charcoal bg-white focus:outline-none"
                       >
+                        <option value="">Select property type</option>
                         <option value="Apartment">Apartment</option>
                         <option value="Self-Contained">Self-Contained / Mini Flat</option>
                         <option value="Terrace Duplex">Terrace Duplex</option>
@@ -344,30 +358,43 @@ export default function SubmitPropertyPage() {
 
                     <div>
                       <label htmlFor="sub-state" className="block text-xs font-bold text-charcoal mb-1">
-                        State
+                        State *
                       </label>
                       <select
                         id="sub-state"
+                        required
                         value={state}
-                        onChange={(e) => {
-                          const s = e.target.value;
-                          setState(s);
-                          setCity(s === 'Edo' ? 'Benin City' : 'Sapele');
-                        }}
+                        onChange={(e) => setState(e.target.value)}
                         className="w-full px-3 py-2.5 rounded-xl border border-hairline text-xs font-bold text-charcoal bg-white focus:outline-none"
                       >
+                        <option value="">Select state</option>
                         <option value="Edo">Edo State</option>
                         <option value="Delta">Delta State</option>
                       </select>
                     </div>
 
                     <div>
+                      <label htmlFor="sub-city" className="block text-xs font-bold text-charcoal mb-1">
+                        City *
+                      </label>
+                      <input
+                        id="sub-city"
+                        type="text"
+                        required
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-xl border border-hairline text-xs text-charcoal bg-white focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
                       <label htmlFor="sub-neighborhood" className="block text-xs font-bold text-charcoal mb-1">
-                        Neighborhood
+                        Neighborhood *
                       </label>
                       <input
                         id="sub-neighborhood"
                         type="text"
+                        required
                         value={neighborhood}
                         onChange={(e) => setNeighborhood(e.target.value)}
                         className="w-full px-3 py-2.5 rounded-xl border border-hairline text-xs text-charcoal bg-white focus:outline-none"
@@ -435,14 +462,17 @@ export default function SubmitPropertyPage() {
 
                     <div>
                       <label htmlFor="sub-beds" className="block text-xs font-bold text-charcoal mb-1">
-                        Bedrooms
+                        Bedrooms *
                       </label>
                       <select
                         id="sub-beds"
+                        required
                         value={bedrooms}
                         onChange={(e) => setBedrooms(e.target.value)}
                         className="w-full px-3 py-2.5 rounded-xl border border-hairline text-xs font-bold text-charcoal bg-white focus:outline-none"
                       >
+                        <option value="">Select bedroom count</option>
+                        <option value="0">Studio / 0 Bedrooms</option>
                         <option value="1">1 Bedroom</option>
                         <option value="2">2 Bedrooms</option>
                         <option value="3">3 Bedrooms</option>
@@ -453,14 +483,17 @@ export default function SubmitPropertyPage() {
 
                     <div>
                       <label htmlFor="sub-baths" className="block text-xs font-bold text-charcoal mb-1">
-                        Bathrooms
+                        Bathrooms *
                       </label>
                       <select
                         id="sub-baths"
+                        required
                         value={bathrooms}
                         onChange={(e) => setBathrooms(e.target.value)}
                         className="w-full px-3 py-2.5 rounded-xl border border-hairline text-xs font-bold text-charcoal bg-white focus:outline-none"
                       >
+                        <option value="">Select bathroom count</option>
+                        <option value="0">0 Bathrooms</option>
                         <option value="1">1 Bathroom</option>
                         <option value="2">2 Bathrooms</option>
                         <option value="3">3 Bathrooms</option>
@@ -480,6 +513,7 @@ export default function SubmitPropertyPage() {
                         onChange={(e) => setPowerType(e.target.value)}
                         className="w-full px-3 py-2.5 rounded-xl border border-hairline text-xs text-charcoal bg-white focus:outline-none"
                       >
+                        <option value="">Power setup (optional)</option>
                         <option value="Dedicated Transformer">Dedicated Community Transformer</option>
                         <option value="Solar Inverter Pre-Cabled">Solar Inverter Pre-Cabled</option>
                         <option value="Standalone Prepaid Meter">Standalone Prepaid BEDC Meter</option>
@@ -497,6 +531,7 @@ export default function SubmitPropertyPage() {
                         onChange={(e) => setWaterType(e.target.value)}
                         className="w-full px-3 py-2.5 rounded-xl border border-hairline text-xs text-charcoal bg-white focus:outline-none"
                       >
+                        <option value="">Water supply (optional)</option>
                         <option value="Industrial Borehole">Industrial Borehole with Filtration</option>
                         <option value="Deep Well Overhead Tank">Deep Well Overhead Tank</option>
                         <option value="Public Municipal Line">Public Municipal Line</option>
@@ -505,10 +540,10 @@ export default function SubmitPropertyPage() {
                   </div>
                 </div>
 
-                {/* Section 3: Ownership, Title & Sample Photos */}
+                {/* Section 3: Ownership and Property Details */}
                 <div ref={sec3Ref} onFocus={() => setActiveStep(3)} className="space-y-4 pt-4 border-t border-hairline">
                   <h3 className="font-headline text-xl font-bold text-charcoal pb-2 border-b border-hairline">
-                    3. Ownership, Title &amp; Daylight Photos
+                    3. Ownership &amp; Reported Details
                   </h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -566,7 +601,7 @@ export default function SubmitPropertyPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="sub-title-doc" className="block text-xs font-bold text-charcoal mb-1">
-                        Physical Title Documentation
+                        Reported Title Document Type (Optional)
                       </label>
                       <select
                         id="sub-title-doc"
@@ -574,6 +609,7 @@ export default function SubmitPropertyPage() {
                         onChange={(e) => setTitleType(e.target.value)}
                         className="w-full px-3 py-2.5 rounded-xl border border-hairline text-xs font-bold text-charcoal bg-white focus:outline-none"
                       >
+                        <option value="">Select reported document type</option>
                         <option value="Certificate of Occupancy (C-of-O)">Certificate of Occupancy (C-of-O)</option>
                         <option value="Deed of Conveyance / Assignment">Deed of Conveyance / Assignment</option>
                         <option value="Registered Survey Plan">Registered Survey Plan</option>
@@ -596,43 +632,12 @@ export default function SubmitPropertyPage() {
                     </div>
                   </div>
 
-                  {/* Interactive Photo Upload Preview */}
                   <div className="pt-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-charcoal flex items-center gap-1.5">
-                        <ImageIcon className="w-3.5 h-3.5 text-persimmon" />
-                        <span>Daylight Reference Photos ({uploadedPhotos.length})</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleAddSamplePhoto}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-soft-stone hover:bg-stone-card text-charcoal text-xs font-bold border border-hairline nestly-press cursor-pointer"
-                      >
-                        <Upload className="w-3.5 h-3.5 text-persimmon" />
-                        <span>Attach Sample Photo</span>
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {uploadedPhotos.map((ph) => (
-                        <div
-                          key={ph.id}
-                          className="relative rounded-2xl overflow-hidden border border-hairline bg-soft-stone h-28 group"
-                        >
-                          <img src={ph.src} alt={ph.label} className="w-full h-full object-cover" />
-                          <div className="absolute inset-x-0 bottom-0 bg-charcoal/75 text-white text-[10px] font-medium px-2.5 py-1 truncate">
-                            {ph.label}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemovePhoto(ph.id)}
-                            aria-label={`Remove ${ph.label}`}
-                            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-charcoal/80 hover:bg-red-600 text-white flex items-center justify-center cursor-pointer"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
+                    <div className="rounded-2xl border border-dashed border-hairline bg-soft-stone p-4 flex items-start gap-3">
+                      <ImageIcon className="w-4 h-4 text-muted-ink shrink-0 mt-0.5" />
+                      <p className="text-xs text-muted-ink leading-relaxed">
+                        Photo upload is unavailable in this form. No photos will be attached, and this form does not verify title documents.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -653,17 +658,17 @@ export default function SubmitPropertyPage() {
                     {isSubmitting ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                        <span>Submitting for Field Verification...</span>
+                        <span>Submitting request...</span>
                       </>
                     ) : (
                       <>
-                        <span>Submit Property for Field Verification</span>
+                        <span>Submit Property for Review</span>
                         <ArrowRight className="w-4 h-4 shrink-0" />
                       </>
                     )}
                   </button>
                   <p className="text-[11px] text-center text-muted-ink mt-3">
-                    Every listing is physically visited by an authorized Nestly officer before appearance on the platform.
+                    Submission confirms receipt only. Review, publication, and verification are not confirmed.
                   </p>
                 </div>
               </form>

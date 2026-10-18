@@ -97,9 +97,8 @@ export function StaffHeader({ breadcrumbs, actions }: StaffHeaderProps) {
           <span className="text-xs font-semibold text-charcoal">{identityLabel}</span>
           <span className="text-[10px] text-muted-ink">{roleLabel}</span>
         </div>
-        <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-800 text-[11px] font-bold uppercase tracking-wider">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-          <span>Operations Online</span>
+        <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-full border border-hairline bg-soft-stone text-muted-ink text-[11px] font-bold uppercase tracking-wider">
+          <span>Staff Workspace</span>
         </span>
 
         <Link
@@ -108,7 +107,6 @@ export function StaffHeader({ breadcrumbs, actions }: StaffHeaderProps) {
           className="w-9 h-9 rounded-full bg-white border border-hairline hover:bg-soft-stone text-charcoal flex items-center justify-center relative transition-colors shadow-2xs"
         >
           <Bell className="w-4 h-4 text-muted-ink" />
-          <span className="w-2 h-2 rounded-full bg-persimmon absolute top-2 right-2"></span>
         </Link>
 
         {actions && <div className="flex items-center gap-2">{actions}</div>}

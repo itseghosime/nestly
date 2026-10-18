@@ -27,7 +27,6 @@ export default function StaffPropertyPreviewPage({
   const [activePhoto, setActivePhoto] = useState(0);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [showRevisionModal, setShowRevisionModal] = useState(false);
-  const [isApproved, setIsApproved] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
   const approvalRef = useRef<HTMLDivElement>(null);
   const revisionRef = useRef<HTMLDivElement>(null);
@@ -43,7 +42,6 @@ export default function StaffPropertyPreviewPage({
           return;
         }
         setProperty(row);
-        setIsApproved(row.status === 'Available');
       })
       .catch((error: unknown) => {
         if (active) setLoadError(error instanceof Error ? error.message : 'Failed to load');
@@ -74,7 +72,7 @@ export default function StaffPropertyPreviewPage({
   useGSAP(() => {
     if (!bannerRef.current || prefersReducedMotion()) return;
     gsap.fromTo(bannerRef.current, { y: -4, opacity: 0 }, { y: 0, opacity: 1, duration: 0.18, ease: MOTION.ease.crispOut, clearProps: 'transform,opacity' });
-  }, { dependencies: [isApproved] });
+  }, { dependencies: [property?.publicationState, property?.rentalAvailability] });
 
   if (!property) {
     return (
@@ -88,6 +86,20 @@ export default function StaffPropertyPreviewPage({
 
   const allImages = [property.featuredImage, ...(property.galleryImages || [])].filter(Boolean);
   const featuresList = property.features || property.amenities || [];
+  const publicListingEligible = property.publicationState === 'published'
+    && property.rentalAvailability === 'available'
+    && (property.verificationBadge === 'Vetted Landlord' || property.verificationBadge === 'Verified Physical Title');
+  const publicationLabel = publicListingEligible
+    ? `PUBLISHED & ${property.verificationBadge === 'Verified Physical Title' ? 'VERIFIED' : 'VETTED'} — ELIGIBLE FOR PUBLIC CATALOG`
+    : property.publicationState === 'published'
+      ? 'PUBLISHED — NOT CURRENTLY ELIGIBLE FOR PUBLIC CATALOG'
+      : property.publicationState === 'review'
+        ? 'IN REVIEW — NOT PUBLISHED'
+        : property.publicationState === 'draft'
+          ? 'DRAFT — NOT PUBLISHED'
+          : property.publicationState === 'archived'
+            ? 'ARCHIVED — NOT PUBLIC'
+            : 'PUBLICATION STATE UNAVAILABLE';
 
   return (
     <div className="flex-1 flex flex-col min-h-screen bg-warm">
@@ -103,7 +115,7 @@ export default function StaffPropertyPreviewPage({
         <div
           ref={bannerRef}
           className={`w-full px-5 py-3 rounded-full flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs border ${
-            isApproved
+            publicListingEligible
               ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
               : 'bg-amber-50 text-amber-900 border-amber-200'
           }`}
@@ -111,13 +123,11 @@ export default function StaffPropertyPreviewPage({
           <div className="flex items-center gap-2.5">
             <span
               className={`w-2.5 h-2.5 rounded-full ${
-                isApproved ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
+                publicListingEligible ? 'bg-emerald-500' : 'bg-amber-500'
               }`}
             ></span>
             <span className="text-xs font-bold uppercase tracking-wide">
-              {isApproved
-                ? `PUBLISHED & ${property.verificationBadge === 'Verified Physical Title' ? 'VERIFIED' : 'VETTED'} — LIVE ON PUBLIC CATALOG`
-                : 'INTERNAL PREVIEW — AWAITING OPERATIONS LEAD AUDIT SIGN-OFF'}
+              {publicationLabel}
             </span>
           </div>
           <span className="text-xs font-mono font-semibold opacity-80">
@@ -150,7 +160,7 @@ export default function StaffPropertyPreviewPage({
               onClick={() => setShowRevisionModal(true)}
               className="px-4 py-2 rounded-full bg-soft-stone hover:bg-hairline text-charcoal text-xs font-bold transition-all border border-hairline"
             >
-              Request Revisions
+              Return to review
             </button>
             <button
               type="button"
@@ -170,11 +180,17 @@ export default function StaffPropertyPreviewPage({
             {/* Gallery Showcase */}
             <div className="space-y-3">
               <div className="relative rounded-3xl overflow-hidden aspect-[16/10] bg-soft-stone border border-hairline shadow-sm">
-                <img
-                  src={allImages[activePhoto] || allImages[0] || '/images/hero-home.png'}
-                  alt={property.title}
-                  className="w-full h-full object-cover"
-                />
+                {allImages.length > 0 ? (
+                  <img
+                    src={allImages[activePhoto] || allImages[0] || ''}
+                    alt={property.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-sm text-muted-ink">
+                    No listing photos are available.
+                  </div>
+                )}
                 <div className="absolute top-4 left-4 px-3 py-1 rounded-full bg-charcoal/80 text-white text-[11px] font-bold">
                   {property.neighborhood} · {property.city}
                 </div>
@@ -253,62 +269,49 @@ export default function StaffPropertyPreviewPage({
             </div>
           </div>
 
-          {/* Right 4 Cols: Staff Physical Audit Checklist */}
+          {/* Right 4 Cols: Review information */}
           <div className="lg:col-span-4 space-y-6 sticky top-24">
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-hairline space-y-5">
               <div className="pb-3 border-b border-hairline">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-ink">
-                  Internal Vetting Audit
+                  Review information
                 </span>
                 <h3 className="font-headline text-base font-bold text-charcoal mt-0.5">
-                  Physical Inspection Sign-Off
+                  Verification evidence
                 </h3>
               </div>
 
-              {/* Checklist items */}
               <div className="space-y-3 text-xs">
-                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 flex items-start gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold">GPS Geotagged Photography</span>
-                    <p className="text-[11px] text-emerald-800">Coordinates validated within 50m of perimeter gate.</p>
+                    <span className="font-bold">Photo metadata</span>
+                    <p className="text-[11px] text-amber-900">This preview does not check GPS metadata or inspection time.</p>
                   </div>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 flex items-start gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold">EDOGIS Title Cadastre Verification</span>
-                    <p className="text-[11px] text-emerald-800">Certificate of Occupancy (C-of-O) verified with official state land records.</p>
+                    <span className="font-bold">Title documents</span>
+                    <p className="text-[11px] text-amber-900">No external land-registry verification is performed here.</p>
                   </div>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 flex items-start gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold">Dedicated Feeder & Transformer</span>
-                    <p className="text-[11px] text-emerald-800">33kVA priority line verified with estate transformer committee.</p>
+                    <span className="font-bold">Power supply</span>
+                    <p className="text-[11px] text-amber-900">Details shown are reported listing information, not independently verified here.</p>
                   </div>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 flex items-start gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold">Water Quality & Borehole Pressure</span>
-                    <p className="text-[11px] text-emerald-800">Reverse osmosis filter tested; zero iron contamination.</p>
+                    <span className="font-bold">Water supply</span>
+                    <p className="text-[11px] text-amber-900">Details shown are reported listing information, not independently verified here.</p>
                   </div>
-                </div>
-              </div>
-
-              {/* Assigned field agent */}
-              <div className="pt-2 border-t border-hairline text-xs space-y-1">
-                <div className="flex justify-between text-charcoal/70">
-                  <span>Field Inspector:</span>
-                  <span className="font-bold text-charcoal">Osasere I. (Field Agent)</span>
-                </div>
-                <div className="flex justify-between text-charcoal/70">
-                  <span>Inspection Date:</span>
-                  <span className="font-semibold text-charcoal">14 Oct 2026 WAT</span>
                 </div>
               </div>
             </div>
@@ -352,11 +355,18 @@ export default function StaffPropertyPreviewPage({
                 onClick={async () => {
                   try {
                     setIsMutating(true);
-                    const r = await fetch(`/api/properties/${encodeURIComponent(property.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ publication_state: 'published', verification_state: 'vetted', rental_availability: 'available' }) });
+                  setLoadError(null);
+                  const r = await fetch(`/api/properties/${encodeURIComponent(property.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ publication_state: 'published', verification_state: 'vetted', rental_availability: 'available' }) });
                     if (!r.ok) { const j = await r.json().catch(() => ({})); setLoadError(j.error || 'Publish failed'); return; }
-                    setProperty((current) => current ? { ...current, status: 'Available', verificationBadge: 'Vetted Landlord' } : current);
-                    setIsApproved(true);
+                    const updatedProperty = await fetchPropertyById(property.id);
+                    if (!updatedProperty || updatedProperty.publicationState !== 'published') {
+                      setLoadError('Publication was accepted, but the updated listing state could not be confirmed.');
+                      return;
+                    }
+                    setProperty(updatedProperty);
                     setShowApprovalModal(false);
+                  } catch (error: unknown) {
+                    setLoadError(error instanceof Error ? error.message : 'Unable to confirm publication.');
                   } finally {
                     setIsMutating(false);
                   }
@@ -375,7 +385,7 @@ export default function StaffPropertyPreviewPage({
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Request Field Re-Inspection"
+          aria-label="Return Listing to Review"
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
         >
           <div
@@ -385,16 +395,12 @@ export default function StaffPropertyPreviewPage({
           <div ref={revisionRef} className="relative z-10 bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-xl border border-hairline space-y-4">
             <AlertTriangle className="w-10 h-10 text-amber-600" />
             <h3 className="font-headline text-lg font-bold text-charcoal">
-              Request Field Re-Inspection
+              Return Listing to Review
             </h3>
             <p className="text-xs text-charcoal/70 leading-relaxed">
-              Dispatch notes to field agent Osasere I. specifying required updates (e.g., retake master bathroom daylight photo).
+              This changes the publication state to review. It does not create a revision task or send a notification.
             </p>
-            <textarea
-              rows={3}
-              placeholder="Enter revision notes for field agent..."
-              className="w-full bg-warm rounded-2xl p-3 text-xs text-charcoal border border-hairline"
-            ></textarea>
+            {loadError && <p role="alert" className="text-xs font-semibold text-red-700">{loadError}</p>}
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
@@ -410,17 +416,25 @@ export default function StaffPropertyPreviewPage({
                 onClick={async () => {
                   try {
                     setIsMutating(true);
+                    setLoadError(null);
                     const r = await fetch(`/api/properties/${encodeURIComponent(property.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ publication_state: 'review' }) });
                     if (!r.ok) { const j = await r.json().catch(() => ({})); setLoadError(j.error || 'Request failed'); return; }
-                    setIsApproved(false);
+                    const updatedProperty = await fetchPropertyById(property.id);
+                    if (!updatedProperty || updatedProperty.publicationState !== 'review') {
+                      setLoadError('The review-state update was accepted, but could not be confirmed.');
+                      return;
+                    }
+                    setProperty(updatedProperty);
                     setShowRevisionModal(false);
+                  } catch (error: unknown) {
+                    setLoadError(error instanceof Error ? error.message : 'Unable to confirm the review-state update.');
                   } finally {
                     setIsMutating(false);
                   }
                 }}
                 className="min-h-[36px] px-5 py-2 rounded-full bg-charcoal hover:bg-black disabled:opacity-50 text-white text-xs font-bold shrink-0 transition-colors"
               >
-                {isMutating ? 'Submitting…' : 'Send Revisions'}
+                {isMutating ? 'Updating…' : 'Return to review'}
               </button>
             </div>
           </div>

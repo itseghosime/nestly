@@ -33,15 +33,15 @@ if (typeof window !== "undefined") {
 const HOME_FAQS = [
   {
     q: "Do I need an account to browse or contact Nia?",
-    a: "No account or registration is required. You can freely explore verified listings, save properties locally to your browser shortlist, and speak with Nia. You only provide contact details when scheduling an in-person physical viewing.",
+    a: "No account or registration is required to browse public listings or save them locally in your browser. Contact details are requested when you submit an inquiry or inspection request.",
   },
   {
     q: "Are properties on Nestly physically verified?",
-    a: "Yes. Our field operations team visits every home in person in Benin City, Sapele, and Warri. We inspect plumbing pressure, verify electrical wiring phase stability, cross-check landlord identity, and confirm the property is vacant and ready for immediate occupation.",
+    a: "Not every listing detail is independently verified. Review the information shown and confirm ownership, utilities, condition, availability, and terms before making arrangements.",
   },
   {
-    q: "Do I have to pay an upfront inspection fee?",
-    a: "Nestly eliminates arbitrary 'mobility' charges and unverified agency fees. Viewing appointments are coordinated with designated field staff who meet you directly at the property gate.",
+    q: "Does an inspection request confirm a visit or fee?",
+    a: "No. Submitting a request does not confirm an appointment or payment. Wait for an explicit response and clarify any charges before visiting.",
   },
   {
     q: "Which neighborhoods are currently supported?",
@@ -305,7 +305,7 @@ export default function HomePage() {
               <span>BENIN CITY · SAPELE · DELTA</span>
             </div>
             <p className="text-[13px] font-medium text-muted-ink hidden sm:block">
-              Verified residential property discovery · No sign-up required
+              Residential property discovery · No sign-up required
             </p>
           </div>
 
@@ -323,9 +323,9 @@ export default function HomePage() {
             </div>
             <div data-hero-text className="lg:col-span-4 lg:pb-3">
               <p className="text-base sm:text-lg lg:text-[20px] leading-relaxed text-muted-ink font-normal max-w-[360px]">
-                Find a home that fits your life. Browse verified daylight
-                details, ask Nia, and arrange an in-person viewing with a real
-                person.
+                Find a home that fits your life. Browse listing details, ask
+                Nia about available information, and request an in-person
+                viewing.
               </p>
             </div>
           </div>
@@ -482,11 +482,11 @@ export default function HomePage() {
                 <div className="p-1.5 flex items-center justify-end">
                   <button
                     type="submit"
-                    aria-label="Search verified homes"
+                    aria-label="Search homes"
                     className="w-full lg:w-12 h-12 rounded-full bg-persimmon hover:bg-persimmon-hover text-white flex items-center justify-center shadow-sm font-bold text-sm gap-2 nestly-press cursor-pointer"
                   >
                     <Search className="w-5 h-5 stroke-[2.2]" />
-                    <span className="lg:hidden">Search verified homes</span>
+                    <span className="lg:hidden">Search homes</span>
                   </button>
                 </div>
               </form>
@@ -800,9 +800,8 @@ export default function HomePage() {
                     </div>
                     <div data-nia-bubble className="flex justify-start">
                       <div className="max-w-[85%] bg-soft-stone text-charcoal rounded-2xl rounded-tl-xs px-3.5 py-2.5 font-normal">
-                        I found 2 verified options off Boundary Road. Both
-                        feature dedicated transformers and inverter wiring.
-                        Would you like a field inspection slot for Monday?
+                        I can search published listings by location, bedrooms,
+                        and budget. What would you like me to look for?
                       </div>
                     </div>
                   </div>
@@ -870,7 +869,7 @@ export default function HomePage() {
                     Browse &amp; save freely
                   </h3>
                   <p className="text-xs sm:text-sm text-muted-ink mt-0.5">
-                    Compare verified daylight photos and itemized fee sheets
+                    Compare listing photos and disclosed fee details
                     without creating an account.
                   </p>
                 </div>
@@ -905,8 +904,8 @@ export default function HomePage() {
                     Clarify the fine print with Nia
                   </h3>
                   <p className="text-xs sm:text-sm text-muted-ink mt-0.5">
-                    Get instant answers on water pressure, meter independence,
-                    caution deposits, and security staff.
+                    Review reported details on utilities, fees, and security,
+                    then confirm anything important before proceeding.
                   </p>
                 </div>
               </div>
@@ -1031,8 +1030,8 @@ export default function HomePage() {
                     Understanding tenancy agreements: Caution vs legal fees
                   </h4>
                   <p className="text-xs text-muted-ink leading-relaxed">
-                    A breakdown of standard statutory rates in Southern Nigeria
-                    and how refundable caution balances must be documented.
+                    Review rent and listed fees, including amounts that still
+                    need confirmation before you proceed.
                   </p>
                 </div>
                 <Link
@@ -1085,8 +1084,8 @@ export default function HomePage() {
                   Have a place someone could call home?
                 </h3>
                 <p className="text-xs sm:text-sm text-muted-ink mt-0.5">
-                  Share property details with our operations team for physical
-                  verification. Every home is checked before listing.
+                  Submit property details for review. A submission does not
+                  confirm publication or independent verification.
                 </p>
               </div>
             </div>
@@ -1196,7 +1195,7 @@ export default function HomePage() {
                   href="/browse"
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-base font-bold tracking-tight shadow-xl nestly-press"
                 >
-                  <span>Browse verified homes</span>
+                  <span>Browse homes</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
                 <button

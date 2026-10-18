@@ -120,7 +120,7 @@ export default function AboutPage() {
                 Renting shouldn’t feel like navigating a maze blindfolded.
               </h1>
               <p className="text-base sm:text-lg text-muted-ink leading-relaxed max-w-2xl font-normal">
-                In Benin City and Delta State, finding a good apartment traditionally meant paying mobilization fees to three separate roadside agents just to inspect a compound with no running water. We built Nestly to replace extortion with institutional clarity.
+                Finding a rental involves comparing locations, prices, and terms. Nestly brings listing information together so people can review available details before making arrangements.
               </p>
             </div>
 
@@ -128,14 +128,14 @@ export default function AboutPage() {
               <div className="p-6 sm:p-8 rounded-3xl bg-soft-stone border border-hairline shadow-2xs space-y-4">
                 <div className="flex items-center gap-2 text-primary font-bold text-lg">
                   <ShieldCheck className="w-6 h-6 text-emerald-600" />
-                  <span>Zero Extortion Guarantee</span>
+                  <span>Clear Listing Information</span>
                 </div>
                 <p className="text-xs sm:text-sm text-muted-ink leading-relaxed">
-                  By eliminating informal gatekeepers, unverified WhatsApp forwards, and multiple middleman commission markups, every seeker gains verified institutional trust.
+                  Review the information shown on each listing and confirm fees, ownership, and terms directly with the relevant parties before making a commitment.
                 </p>
                 <div className="pt-2 border-t border-hairline flex items-center justify-between text-xs text-muted-ink">
-                  <span>Physical Inspections</span>
-                  <span className="font-bold text-charcoal">100% Daylight Checked</span>
+                  <span>Property details</span>
+                  <span className="font-bold text-charcoal">Confirm independently</span>
                 </div>
               </div>
             </div>
@@ -179,10 +179,10 @@ export default function AboutPage() {
                 <FileText className="w-6 h-6" />
               </div>
               <h3 className="font-headline text-xl font-bold text-charcoal">
-                Transparent Upfront Ledgers
+                Listing Fee Details
               </h3>
               <p className="text-xs sm:text-sm text-muted-ink leading-relaxed">
-                Before you even visit, every listing specifies base rent, refundable caution deposits, legal drafting percentages, and compound service fees. Zero surprise charges at the gate.
+                Listings may include rent and fee details. Required fees can remain unconfirmed; review the stated calculation basis and clarify all charges before proceeding.
               </p>
             </div>
 
@@ -191,10 +191,10 @@ export default function AboutPage() {
                 <Eye className="w-6 h-6" />
               </div>
               <h3 className="font-headline text-xl font-bold text-charcoal">
-                Physical Verification over Rumors
+                Property Information
               </h3>
               <p className="text-xs sm:text-sm text-muted-ink leading-relaxed">
-                We physically test borehole pumping pressure, check BEDC prepaid meter phase stability, confirm access roads during rainy seasons, and verify land registry documentation.
+                Property and utility details are listing information. This site does not independently test utilities, check flood history, or query land-title records.
               </p>
             </div>
 
@@ -203,10 +203,10 @@ export default function AboutPage() {
                 <Users className="w-6 h-6" />
               </div>
               <h3 className="font-headline text-xl font-bold text-charcoal">
-                Nia AI + Human Accompaniment
+                Nia + Staff Support
               </h3>
               <p className="text-xs sm:text-sm text-muted-ink leading-relaxed">
-                Technology handles initial discovery and rapid answers 24/7. When it comes time to inspect, real authorized Nestly field agents meet you at the compound gate.
+                Nia can help search available listing information. Inspection requests are not confirmed appointments; wait for an explicit response before visiting a property.
               </p>
             </div>
           </div>

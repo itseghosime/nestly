@@ -105,9 +105,9 @@ export default function ServiceUnavailablePage() {
             <div className="pt-6 border-t border-hairline w-full text-xs text-muted-ink flex items-center justify-between">
               <span className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Field operations in Benin City &amp; Sapele operational</span>
+                <span>Live service status is unavailable</span>
               </span>
-              <span className="font-mono text-[11px]">HTTP 503 · Gateway Standby</span>
+              <span className="font-mono text-[11px]">No live health check</span>
             </div>
           </div>
 
@@ -118,14 +118,14 @@ export default function ServiceUnavailablePage() {
                 <AlertTriangle className="w-6 h-6" />
               </div>
               <h3 className="font-headline text-lg font-bold text-charcoal">
-                Maintenance Window
+                Service status unavailable
               </h3>
               <p className="text-xs text-muted-ink leading-relaxed">
-                Cadastre and property verification services are currently undergoing scheduled system maintenance.
+                This page does not perform a live health check or confirm a maintenance window. Try again later or return to browsing.
               </p>
               <div className="pt-2 border-t border-hairline flex items-center justify-between text-[11px] text-muted-ink">
-                <span>Expected restoration:</span>
-                <span className="font-bold text-charcoal">Under 5 minutes</span>
+                <span>Current status:</span>
+                <span className="font-bold text-charcoal">Not checked</span>
               </div>
             </div>
           </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Header } from '@/components/public/Header';
 import { Footer } from '@/components/public/Footer';
 import { NiaWidget } from '@/components/public/NiaWidget';
@@ -18,7 +19,7 @@ export default function TermsPage() {
         <div className="mb-10 pb-6 border-b border-hairline">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-soft-stone border border-hairline text-xs font-bold uppercase tracking-wider text-muted-ink mb-3">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>Statutory Tenancy Framework · Edo &amp; Delta</span>
+            <span>Terms &amp; Service Information</span>
           </div>
 
           <h1 className="font-headline text-3xl sm:text-5xl font-extrabold tracking-tight text-charcoal leading-[1.06]">
@@ -42,25 +43,25 @@ export default function TermsPage() {
               1. Service Scope &amp; Platform Role
             </h2>
             <p>
-              Nestly Technologies Nigeria Ltd (“Nestly”, “we”, “our”) provides an architectural real estate discovery and physical inspection coordination platform. Nestly serves as an intermediary connecting verified prospective tenants with verified residential property owners in Southern Nigeria, with initial primary focus on Edo State (Benin City) and Delta State (Sapele and Warri).
+              Nestly Technologies Nigeria Ltd (“Nestly”, “we”, “our”) provides a residential property discovery website and related inquiry features, with an initial focus on Edo State (Benin City) and Delta State (Sapele and Warri). Listing records do not by themselves verify a tenant, owner, or property.
             </p>
           </section>
 
           <section className="space-y-3">
             <h2 className="font-headline text-xl sm:text-2xl font-bold text-charcoal">
-              2. Verification &amp; Tenancy Binding Principles
+              2. Listing and Transaction Boundaries
             </h2>
             <p>
-              All rental listings, pricing schedules, and conversational consultations provided via Nestly are subject to physical title inspection and bilateral tenancy agreement execution. Nestly does not execute binding financial transfers, caution deposits, or tenancy contracts online without physical title deed review and bilateral contract execution.
+              Listing, pricing, and conversational information may be incomplete or outdated and does not verify ownership, condition, availability, or suitability. Nestly does not collect rent or deposits, process financial transfers, or execute tenancy agreements through this site. Confirm all details and terms directly with the relevant parties before making a commitment.
             </p>
           </section>
 
           <section className="space-y-3">
             <h2 className="font-headline text-xl sm:text-2xl font-bold text-charcoal">
-              3. Listing Accuracy &amp; Daylight Monograph
+              3. Listing Information
             </h2>
             <p>
-              All published property photography is captured during natural daylight hours to illustrate authentic plastering, natural cross-ventilation, and compound surroundings. Amenities indicated as “Verified” (e.g. Dedicated Transformer, 5kVA Solar Inverter, Industrial Borehole) have undergone physical inspection check-in by authorized field staff.
+              Listing photos and amenity details are provided for information and may not reflect current conditions. A label or description is not a guarantee of independent inspection. Confirm important details in person and through appropriate records before proceeding.
             </p>
           </section>
 
@@ -69,7 +70,7 @@ export default function TermsPage() {
               4. Inspection Requests (Pending Confirmation)
             </h2>
             <p>
-              Submission of an inspection request via Nestly reserves a provisional viewing window. All physical inspections are subject to compound custodian access and landlord authorization. Prospective tenants must not attempt unauthorized entry without being met by an authorized Nestly field representative.
+              Submitting an inspection request does not reserve a viewing window or confirm an appointment. Wait for explicit confirmation before visiting. Do not enter a property without permission from the relevant owner or authorized representative.
             </p>
           </section>
 
@@ -78,14 +79,12 @@ export default function TermsPage() {
               5. Property-Specific Costs &amp; Fee Transparency
             </h2>
             <p>
-              In compliance with professional standards, Nestly strictly items all transaction components:
+              Charges and calculation bases vary by listing. Review each disclosed item and clarify unconfirmed details before proceeding:
             </p>
             <ul className="list-disc pl-5 space-y-1.5">
-              <li><strong>Base Annual Rent:</strong> Settled annually in advance to the confirmed landlord or direct estate manager.</li>
-              <li><strong>Refundable Caution Deposit:</strong> Escrowed or designated to cover tenant repairs, returnable within 14 business days post-vacation.</li>
-              <li><strong>Legal Drafting &amp; Stamping Fee:</strong> Standardized at 10% of annual rent.</li>
-              <li><strong>Agency &amp; Handover Fee:</strong> Standardized at 10% of annual rent.</li>
-              <li><strong>Zero Upfront Viewing Fees:</strong> Nestly prohibits extortionate roadside mobilization charges.</li>
+              <li>Required fees may remain unconfirmed; a final total is withheld until required details are confirmed.</li>
+              <li>No rent, deposit, or other payment is collected through this site.</li>
+              <li>Confirm the payee, amount, calculation basis, and written terms directly before paying.</li>
             </ul>
           </section>
 
@@ -103,7 +102,7 @@ export default function TermsPage() {
               7. Legal Queries &amp; Operator Contact
             </h2>
             <p>
-              For legal inquiries regarding tenancy contracts or landlord instructions, reach our legal desk at <span className="font-bold text-charcoal">compliance@nestly.ng</span> or visit our Edo State Central Hub off Boundary Road, GRA, Benin City.
+              Use the <Link href="/contact" className="font-bold text-charcoal underline">contact form</Link> for questions. No physical legal office address is confirmed on this site.
             </p>
           </section>
         </article>

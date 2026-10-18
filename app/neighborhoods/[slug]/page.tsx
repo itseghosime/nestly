@@ -334,7 +334,7 @@ export default function NeighborhoodGuideDetailPage({ params }: { params: Promis
           </div>
         </div>
 
-        {/* Local Verified Listings in this neighborhood */}
+        {/* Local Listings in this neighborhood */}
         <section data-nhdetail-enter className="pt-10 border-t border-hairline">
           <div className="flex items-center justify-between mb-8">
             <div>
@@ -342,7 +342,7 @@ export default function NeighborhoodGuideDetailPage({ params }: { params: Promis
                 Available Homes in {neighborhood.name}
               </h2>
               <p className="text-xs sm:text-sm text-muted-ink mt-0.5">
-                Verified daylight listings ready for accompanied walkthroughs.
+                Listings shown here are based on recorded availability; confirm viewing details before visiting.
               </p>
             </div>
             <Link
@@ -363,12 +363,12 @@ export default function NeighborhoodGuideDetailPage({ params }: { params: Promis
           ) : (
             <div className="bg-white rounded-3xl p-8 border border-hairline text-center max-w-md mx-auto">
               <p className="text-sm font-bold text-charcoal mb-1">No active listings in this pocket yet</p>
-              <p className="text-xs text-muted-ink mb-4">New properties are verified weekly by our field operations team.</p>
+              <p className="text-xs text-muted-ink mb-4">No matching listings are currently shown for this neighborhood.</p>
               <Link
                 href="/browse"
                 className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold uppercase tracking-wider nestly-press"
               >
-                <span>Browse all verified listings</span>
+                <span>Browse all listings</span>
               </Link>
             </div>
           )}

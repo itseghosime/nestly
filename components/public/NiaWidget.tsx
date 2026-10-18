@@ -76,7 +76,7 @@ const STATE_LABELS: Record<
   },
   error: {
     badge: 'Search Unavailable',
-    subtext: 'Current listings could not be verified · Retry ready',
+    subtext: 'Could not load listing results · Retry available',
     dotClass: 'bg-rose-400',
   },
 };
@@ -435,7 +435,7 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
 
   const handleCopyShortlist = () => {
     if (savedProperties.length === 0) {
-      navigator.clipboard.writeText('Nestly Verified Shortlist: Browse homes at https://nestly.ng/browse');
+      navigator.clipboard.writeText('Nestly Saved Shortlist: Browse homes at https://nestly.ng/browse');
     } else {
       const summary = savedProperties
         .map(
@@ -444,7 +444,7 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
         )
         .join('\n');
       navigator.clipboard.writeText(
-        `Nestly Shortlist (${savedProperties.length} verified homes):\n${summary}\n\nBook inspection on Nestly`
+        `Nestly Shortlist (${savedProperties.length} saved homes):\n${summary}\n\nRequest an inspection on Nestly`
       );
     }
     setCopiedText(true);

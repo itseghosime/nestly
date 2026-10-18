@@ -120,7 +120,7 @@ export default function SavedHomesPage() {
     const text = savedProperties
       .map((p, i) => `${i + 1}. ${p.title} (${p.neighborhood}, ${p.city}) - ${p.priceFormatted}/yr [Ref: ${p.id}]`)
       .join('\n');
-    navigator.clipboard.writeText(`Nestly Shortlist (${savedProperties.length} verified homes):\n${text}\n\nBook physical inspections at https://nestly.ng`);
+    navigator.clipboard.writeText(`Nestly Saved Homes (${savedProperties.length}):\n${text}\n\nBrowse listings at https://nestly.ng/browse`);
     setCopiedCodes(true);
     setTimeout(() => setCopiedCodes(false), 2500);
   };
@@ -253,7 +253,7 @@ export default function SavedHomesPage() {
               className="inline-flex items-center gap-2 px-7 py-3 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold uppercase tracking-wider shadow-sm nestly-press"
             >
               <Home className="w-4 h-4" />
-              <span>Browse Verified Homes</span>
+              <span>Browse Homes</span>
             </Link>
           </div>
         )}

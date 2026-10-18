@@ -84,11 +84,11 @@ export default function NeighborhoodsPage() {
           </h1>
 
           <p className="text-sm sm:text-lg text-muted-ink leading-relaxed font-normal">
-            Discover residential pockets across Benin City and the Sapele corridor. Real local perspectives on water infrastructure, electrical transformer stability, and compound living.
+            Explore residential neighborhoods across Benin City and the Sapele corridor. Local descriptions are general information; confirm utilities, access, and other details independently.
           </p>
 
           <div className="mt-4 inline-block px-3.5 py-1.5 rounded-full bg-persimmon-soft text-persimmon text-xs font-semibold border border-persimmon/20">
-            Note: Curated guide for design review; local descriptions verified by field staff.
+            Neighborhood descriptions may be incomplete and are not independently verified.
           </div>
         </div>
 

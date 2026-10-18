@@ -16,7 +16,7 @@ export function Footer({ onOpenNia }: FooterProps) {
               nestly<span className="text-persimmon">.</span>
             </span>
             <p className="text-sm font-medium text-muted-ink mt-3 max-w-md">
-              Curated, verified residential rental discovery for Benin City, Sapele, Warri, and Southern Nigeria.
+              Residential rental listings for Benin City, Sapele, Warri, and Southern Nigeria.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -157,7 +157,7 @@ export function Footer({ onOpenNia }: FooterProps) {
 
         {/* Bottom Disclaimer & Staff Link */}
         <div className="pt-8 border-t border-hairline flex flex-col sm:flex-row items-center justify-between text-xs text-muted-ink gap-4">
-          <p>© 2026 Nestly Technologies Nigeria Ltd · Curated, verified residential rentals in Edo and Delta States.</p>
+          <p>© 2026 Nestly Technologies Nigeria Ltd · Residential rental listings in Edo and Delta States.</p>
           <Link
             href="/staff/signin"
             className="font-bold text-charcoal hover:text-persimmon transition-colors flex items-center gap-1 shrink-0"

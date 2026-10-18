@@ -211,7 +211,7 @@ function BrowseContent() {
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-ink mb-3">
             <Link href="/" className="hover:text-charcoal transition-colors">Home</Link>
             <span>/</span>
-            <span className="text-charcoal font-bold">Browse Verified Homes</span>
+            <span className="text-charcoal font-bold">Browse Homes</span>
           </div>
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
             <div>
@@ -219,13 +219,13 @@ function BrowseContent() {
                 Explore Homes in Edo &amp; Delta
               </h1>
               <p className="text-sm sm:text-base text-muted-ink mt-2 max-w-xl">
-                Every listing is visited and vetted by our authorized field operations team. Verified C-of-O/deed status, independent prepaid power, and treated borehole water.
+                Browse listing information for homes in Edo and Delta. Property, title, utility, and availability details should be confirmed directly before making arrangements.
               </p>
             </div>
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-soft-stone text-xs font-bold text-charcoal border border-hairline">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>Zero Upfront Registration Fee</span>
+                <span>No Account Required</span>
               </span>
               <button
                 type="button"
@@ -381,7 +381,7 @@ function BrowseContent() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 mt-4 border-t border-hairline">
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="font-bold text-charcoal bg-soft-stone px-3 py-1 rounded-full border border-hairline">
-                {filteredProperties.length} {filteredProperties.length === 1 ? 'verified home' : 'verified homes'}
+                {filteredProperties.length} {filteredProperties.length === 1 ? 'listing' : 'listings'}
               </span>
 
               {locationFilter !== 'all' && (
@@ -479,7 +479,7 @@ function BrowseContent() {
         {loading && properties.length === 0 ? (
           <div className="py-20 flex flex-col items-center justify-center text-center space-y-3">
             <div className="w-9 h-9 border-3 border-persimmon border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs font-bold text-muted-ink uppercase tracking-wider">Loading verified listings...</p>
+            <p className="text-xs font-bold text-muted-ink uppercase tracking-wider">Loading listings...</p>
           </div>
         ) : propertiesError && properties.length === 0 ? (
           <div className="bg-white rounded-3xl p-10 sm:p-14 border border-hairline max-w-lg mx-auto text-center shadow-sm my-8">
@@ -519,7 +519,7 @@ function BrowseContent() {
               <Search className="w-8 h-8 stroke-[1.5]" />
             </div>
             <h3 className="font-headline text-2xl font-bold text-charcoal mb-2">
-              No matching verified homes
+              No matching listings
             </h3>
             <p className="text-xs sm:text-sm text-muted-ink leading-relaxed mb-6">
               We couldn&apos;t find any listings matching your specific combination of location, bedroom count, and budget. Try loosening the filters or ask Nia.
@@ -639,7 +639,7 @@ function BrowseContent() {
 
 export default function BrowseHomesPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-warm flex items-center justify-center text-sm font-bold text-muted-ink">Loading verified listings...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-warm flex items-center justify-center text-sm font-bold text-muted-ink">Loading listings...</div>}>
       <BrowseContent />
     </Suspense>
   );

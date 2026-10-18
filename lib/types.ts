@@ -5,7 +5,7 @@ export interface Property {
   slug: string;
   title: string;
   tagline: string;
-  propertyType: 'Apartment' | 'Self-Contained' | 'Terrace Duplex' | 'Detached House' | 'Penthouse';
+  propertyType: 'Apartment' | 'Self-Contained' | 'Terrace Duplex' | 'Detached House' | 'Penthouse' | 'apartment' | 'house' | 'duplex' | 'studio' | 'land' | 'commercial';
   priceAnnual: number;
   priceFormatted: string;
   serviceCharge?: string;
@@ -20,12 +20,12 @@ export interface Property {
   addressShort: string;
   bedrooms: number;
   bathrooms: number;
-  toilets: number;
+  toilets?: number;
   powerRating: string; // e.g. '20-24 hrs (Solar Backed)' or '16-18 hrs daily'
   waterSupply: string; // e.g. 'Treated Industrial Borehole'
   securityRating: string; // e.g. '24/7 Gated Uniform Guard'
-  verificationBadge: 'Verified Physical Title' | 'Vetted Landlord' | 'Direct Instruction';
-  inspectionStatus: 'Instant Booking' | 'Slots Available' | 'Waitlist';
+  verificationBadge: 'Verified Physical Title' | 'Vetted Landlord' | 'Verification status not provided';
+  inspectionStatus: 'Instant Booking' | 'Slots Available' | 'Waitlist' | 'Availability not listed';
   featuredImage: string;
   galleryImages: string[];
   description: string;
@@ -33,6 +33,8 @@ export interface Property {
   nearbyLandmarks: string[];
   code?: string;
   status?: string;
+  publicationState?: 'draft' | 'review' | 'published' | 'archived';
+  rentalAvailability?: 'unknown' | 'available' | 'reserved' | 'rented' | 'unavailable';
   address?: string;
   pricePerYear?: number;
   powerProfile?: string;

@@ -135,7 +135,7 @@ export default function HowItWorksPage() {
             <div className="property-card-hover lg:col-span-7 h-[280px] sm:h-[360px] rounded-3xl overflow-hidden bg-soft-stone border border-hairline shadow-sm">
               <img
                 src="/images/generated/img_21d26ecda7f74e63a2b5a318df70b1f1.png"
-                alt="Browse verified homes"
+                alt="Browse residential listings"
                 className="property-card-img w-full h-full object-cover"
               />
             </div>
@@ -228,7 +228,7 @@ export default function HowItWorksPage() {
                 href="/browse"
                 className="nestly-press px-8 py-3.5 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold uppercase tracking-wider shadow-sm transition-all"
               >
-                Browse Verified Homes
+                Browse Homes
               </Link>
               <Link
                 href="/inspection-request"

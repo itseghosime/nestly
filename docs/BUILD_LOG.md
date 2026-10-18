@@ -152,80 +152,27 @@ In earlier draft notes, `Session Expired` was described in both authentication a
 
 ---
 
-## 4. Strict Frontend Boundaries & Claim Disclaimers
+## 4. Current Operational Boundaries
 
-### Architectural Boundaries
-1. **Zero Backend Code**:
-   - Zero API routes (`app/api/` does not exist).
-   - Zero Server Actions (`'use server'` directive is not used anywhere).
-   - Zero database ORMs, migrations, or database connection strings.
-   - Zero external HTTP/network calls (`fetch`, `axios`, etc.) to third-party services.
-2. **Local State & Storage Persistence**:
-   - Saved Homes: stored in the browser's `localStorage` (`nestly_saved_homes`).
-   - Shortlist sharing: generates a formatted text payload copied to the clipboard for manual sharing.
-   - Forms (Contact, Submit Property, Inspection Booking, Team Invite): validate client-side and trigger simulated success/confirmation views without dispatching network requests.
-3. **Third-Party Service & Verification Disclaimers**:
-   - **NIN Verification**: Explicitly labeled in the UI as *"Simulated Identity Verification for Prototype Demonstration"*. No real National Identity Management Commission (NIMC) API is contacted.
-   - **EDOGIS Cadastral Check**: Explicitly labeled as *"Simulated Cadastre Query for Prototype Demonstration"*. Does not connect to Edo State Geographic Information Service database.
-   - **Hardware WebAuthn / MFA**: Presented as a frontend simulation demonstrating the UX flow; no cryptographic hardware tokens are enrolled.
-   - **Termii SMS Gate Pass & WhatsApp Nia Bot**: The UI displays simulated message templates and payloads; no telecom SMS or Meta WhatsApp messages are transmitted.
+- The application has API-backed authentication, property, lead, inspection, conversation, and staff workflows. The earlier statement that no backend/API existed is obsolete and is removed from this log.
+- Contact and landlord forms submit to their APIs. A `202` receipt means the request was received; it does not mean a booking, listing, or other downstream action was confirmed.
+- Saved Homes remain browser-local. This is an intentional anonymous-user behavior.
+- Property-media upload is available in the staff property editor through its API. The public landlord form does not upload photos. Neither image presence nor listing details prove GPS, title, utility, or physical-inspection verification.
+- Integration health, audit history, escalation dispatch, and other operations are reported only when supported by live evidence; otherwise the UI shows an unavailable state.
 
 ---
 
-## 5. Verification Results
+## 5. Verification Evidence Policy
 
-### Route Health & Response Codes
-- Tested all 43 routes on running Next.js server (`http://localhost:3000`).
-- **42 operational routes** return HTTP 200 OK.
-- **/404 route** returns HTTP 404 Not Found as expected.
-
-### ESLint & Linting
-```bash
-npx eslint . --quiet
-# Result: 0 errors, 0 warnings (Exit code 0)
-```
-- Resolved React 19 `react-hooks/set-state-in-effect` issues in `Header.tsx`, `saved-homes-context.tsx`, and `app/browse/page.tsx` using proper render-time state derivation.
-- Removed all `any` types in dashboard pages (`team/page.tsx`, `integrations/page.tsx`, `browse/page.tsx`, `audit-log/page.tsx`).
-- Escaped all HTML entities (`&apos;`, `&quot;`) in compliance with React JSX rules.
-
-### TypeScript Type-Checking
-```bash
-npx tsc --noEmit
-# Result: 0 errors (Exit code 0)
-```
-- Strict type definitions across all data fixtures (`lib/fixtures/properties.ts`, `customers.ts`, `conversations.ts`, `inspections.ts`, `staff.ts`).
-
-### Production Build
-```bash
-npm run build
-# Result:
-# ▲ Next.js 16.4.2 (Turbopack)
-# ✓ Compiled successfully in 700ms
-# ✓ Finished TypeScript in 2.2s
-# ✓ Generating static pages using 9 workers (39/39) in 283ms
-# Finalizing page optimization in 13ms
-# Exit code: 0
-```
+Route inventories and feature descriptions are not test results. A rendered route is not proof of its API, authorization, provider, or persistence behavior. Skipped live tests are not passing tests, and no whole-site route or viewport pass is asserted here. Current local checks, browser observations, and deployment status are recorded separately in the latest dated section below.
 
 ---
 
-## 6. Remaining Prototype Limitations & Backend Integration Roadmap
+## 6. Current Verification Boundaries
 
-When transitioning from this validated frontend prototype to a live production service, the following backend integrations are required:
-
-1. **Authentication & Session Management**:
-   - Replace simulated credentials in `/staff/signin` with NextAuth.js or Supabase Auth.
-   - Implement real HTTP-only cookies, session refresh, and CSRF protection.
-2. **Database & Persistent Storage**:
-   - Replace fixtures in `lib/fixtures/` with PostgreSQL tables (e.g., via Prisma or Supabase).
-   - Store property image assets in Cloud Storage (AWS S3 or Supabase Storage) rather than static files.
-3. **Messaging & Webhooks**:
-   - Connect Twilio WhatsApp or Meta Cloud API to `/staff/inbox` for bi-directional messaging with Nia AI.
-   - Implement real webhooks for incoming landlord messages and tenant inquiries.
-4. **Telecom & SMS Gateways**:
-   - Connect Termii Nigeria or Africa's Talking API to dispatch real gate passes and SMS OTPs.
-5. **Cadastre & Land Title Integration**:
-   - Integrate with EDOGIS (Edo State Geographic Information Service) for live deed verification.
+- This log does not certify the entire production system or every route, role, viewport, workflow, or third-party integration.
+- External property verification (including GPS metadata and land-title checks) is not performed by the editor or preview page.
+- Production state is changed only when a dated entry records a specific live operation and its evidence. The PR #3 review entry records local evidence only unless explicitly stated otherwise.
 
 ---
 
@@ -1095,3 +1042,11 @@ Phase A replaces the simulated `setTimeout`→`router.push` in `app/staff/(auth)
 - **Local verification:** Focused Telegram and Nia public-search tests passed **32/32**. Application typecheck, test typecheck, targeted ESLint, and production build passed; Next.js generated 80/80 routes. Provider calls in route tests are mocked.
 - **Production deployment:** Commit `aca4c882582d0327aa8b21e7e7a84468032c0d29` was pushed to `main`; its Vercel check completed successfully. This confirms deployment status only, not a live Telegram rendering/delivery test.
 - **Live verification and safety:** No user update was replayed and no provider message was sent by the operator. A deliberate new inbound user search is still needed to verify the rendered reply on Telegram; API acceptance must not be described as handset receipt. Telegram configuration, context, WF01/WF03, migrations, and the separate production-readiness audit worktree were not changed.
+
+## 65. Removing fictional landlord defaults and ungrounded listing statuses (2026-10-18)
+
+- **Landlord form correction:** Removed prefilled apartment/Edo/Benin City/GRA/room/utility/title values and the state-to-city inference. Property type, state, city, neighborhood, bedrooms, and bathrooms must be supplied; submit another resets all form values. Bathrooms are included in the persisted submission description because the current landlord API does not have a structured bathroom field. Utility and title-document selections are optional and explicitly owner-reported. The page states that submitted details are not independently verified, and the photo-upload-unavailable disclosure remains; no file input was added.
+- **Public listing claims:** Property API responses no longer default missing verification to “Direct Instruction” or inspection availability to “Slots Available”; missing values now render as “Verification status not provided” and “Availability not listed.” Property detail no longer derives ensuite status, daily power hours, or treated-borehole claims from unrelated fields; supplied power/water values are rendered as provided. The fee total disclaimer now describes an estimate and does not claim payment follows title verification. The mobile navigation accessible name changes while the menu is open.
+- **Local tests:** Focused public form tests passed **12/12**. A new property-status mapping regression passed. Full Vitest suite passed **198 tests** across 26 files; **16 tests in 2 files were skipped** and are not counted as passes. Application and test typechecks passed. Changed-path ESLint returned **0 errors / 26 warnings**. Next.js 16.4.2 production build generated **80/80 routes** with no parent-directory Turbopack root override.
+- **Local browser verification:** Fresh production server built in the isolated review worktree. Eight public routes at 320, 390, and 1280px (24 combinations) had headings, no horizontal overflow, and no application-error indicators. A dynamic demo property detail showed “Availability not listed” and withheld the move-in total for unconfirmed fees. The landlord form had blank required fields, an explicit empty city input, no file input, and the upload-unavailable notice. The mobile menu opened and exposed the correct “Close mobile navigation” accessible name. No form was submitted.
+- **Verification limits:** An earlier browser process served a stale build until restarted; only the fresh server results above count. No authenticated staff browser flow, Preview deployment, production behavior, or landlord/contact receipt was verified. No production mutation, provider send, n8n change, or migration occurred. `npm ci` previously reported five high-severity dependency advisories; no dependency files were changed. PR #3 remains draft/unmerged pending push and Preview review.

@@ -32,8 +32,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Nestly — Verified Residential Rentals in Benin City & Delta State",
-  description: "Curated, verified homes and seamless property inspections in Southern Nigeria.",
+  title: "Nestly — Residential Rentals in Benin City & Delta State",
+  description: "Browse residential rental listings and request property information in Southern Nigeria.",
 };
 
 export default function RootLayout({

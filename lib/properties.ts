@@ -88,12 +88,12 @@ function mapApiRow(row: ApiPropertyRow): Property {
     addressShort: row.addressShort || row.address_short || '',
     bedrooms: row.bedrooms ?? 0,
     bathrooms: row.bathrooms ?? 0,
-    toilets: row.toilets ?? 0,
+    toilets: row.toilets ?? undefined,
     powerRating: row.powerRating || row.power_rating || '',
     waterSupply: row.waterSupply || row.water_supply || '',
     securityRating: row.securityRating || row.security_rating || '',
-    verificationBadge: row.verificationBadge || (row.verification_state === 'verified' ? 'Verified Physical Title' : row.verification_state === 'vetted' ? 'Vetted Landlord' : 'Direct Instruction'),
-    inspectionStatus: row.inspectionStatus || 'Slots Available',
+    verificationBadge: row.verificationBadge || (row.verification_state === 'verified' ? 'Verified Physical Title' : row.verification_state === 'vetted' ? 'Vetted Landlord' : 'Verification status not provided'),
+    inspectionStatus: row.inspectionStatus || 'Availability not listed',
     featuredImage: row.featuredImage || row.featured_image || '',
     galleryImages: row.galleryImages || row.gallery_images || row.media?.map((media) => media.url) || [],
     description: row.description || '',
@@ -101,6 +101,12 @@ function mapApiRow(row: ApiPropertyRow): Property {
     nearbyLandmarks: row.nearbyLandmarks || row.nearby_landmarks || [],
     landlordContact: row.landlordContact || row.landlord_contact || undefined,
     status: listingStatus,
+    publicationState: ['draft', 'review', 'published', 'archived'].includes(row.publication_state || '')
+      ? row.publication_state as Property['publicationState']
+      : undefined,
+    rentalAvailability: ['unknown', 'available', 'reserved', 'rented', 'unavailable'].includes(row.rental_availability || '')
+      ? row.rental_availability as Property['rentalAvailability']
+      : undefined,
     fees: Array.isArray(row.fees) ? row.fees : undefined,
     computedTotal: typeof row.computedTotal === 'number' || row.computedTotal === null ? row.computedTotal : undefined,
     unconfirmedFeeCount: typeof row.unconfirmedFeeCount === 'number' ? row.unconfirmedFeeCount : undefined,
@@ -169,4 +175,3 @@ export async function syncRelatedProperties(
 }
 
 export { FIXTURES as FIXTURE_PROPERTIES };
-

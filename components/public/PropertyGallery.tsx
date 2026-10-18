@@ -434,7 +434,7 @@ export function PropertyGallery({ property, morphing }: PropertyGalleryProps) {
                 </button>
               )}
               <div className="px-3 py-1.5 rounded-full bg-charcoal/80 text-white text-xs font-medium backdrop-blur-xs tabular-nums">
-                Photo {displayIndex} of {validCount} · Daylight verified
+                Photo {displayIndex} of {validCount}
               </div>
             </div>
 
@@ -621,7 +621,7 @@ function GalleryLightbox({ title, photos, activeUrl, onNavigate, onClose }: Gall
           <div>
             <h3 className="font-headline text-sm sm:text-base font-bold">{title}</h3>
             <p className="text-xs text-white/70 tabular-nums" aria-live="polite">
-              Photo {current + 1} of {photos.length} · Daylight verified
+              Photo {current + 1} of {photos.length}
             </p>
           </div>
           <button

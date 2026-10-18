@@ -23,6 +23,7 @@ export function PropertyCard({
   const { isSaved, toggleSave } = useSavedHomes();
   const { triggerPropertyTransition } = usePropertyTransition();
   const saved = isSaved(property.id);
+  const verificationStatusRecorded = property.verificationBadge !== 'Verification status not provided';
 
   const cardRef = useRef<HTMLElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
@@ -116,7 +117,7 @@ export function PropertyCard({
 
           {/* Top Left Badge: Verification Status */}
           <div className="pointer-events-none absolute top-3 left-3 px-3 py-1 rounded-full bg-white/95 backdrop-blur-sm text-[11px] font-extrabold tracking-wider uppercase text-charcoal flex items-center gap-1.5 shadow-2xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span className={`w-1.5 h-1.5 rounded-full ${verificationStatusRecorded ? 'bg-emerald-500' : 'bg-muted-ink/50'}`}></span>
             <span>{property.verificationBadge}</span>
           </div>
 
