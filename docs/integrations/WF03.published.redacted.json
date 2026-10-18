@@ -1,0 +1,103 @@
+{
+  "name": "NESTLY — WF03 — Available Property Search",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "public_properties",
+        "returnAll": true,
+        "orderBy": "id.asc",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": []
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "0673c652-fb99-473f-bf69-0f08260f44da",
+      "name": "Get many rows",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "search_filters",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "2ec8a0f1-2796-467a-ac8e-2d6165f888ac",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst input = $(\"When Executed by Another Workflow\")\n  .first().json;\n\nconst filters = input.search_filters ?? {};\n\nconst properties = $input.all().map(item => item.json);\n\nconst location = String(filters.location ?? \"\")\n  .trim().toLowerCase();\n\nconst bedrooms = filters.bedrooms == null ||\n  filters.bedrooms === \"\"\n  ? null : Number(filters.bedrooms);\n\nconst maxPrice = filters.max_price_ngn == null ||\n  filters.max_price_ngn === \"\"\n  ? null : Number(filters.max_price_ngn);\n\nconst propertyType = String(filters.property_type ?? \"\")\n  .trim().toLowerCase();\n\nconst matches = properties.filter(property => {\n  if (property.publication_state !== \"published\" ||\n      property.rental_availability !== \"available\" ||\n      ![\"vetted\", \"verified\"].includes(property.verification_state)) return false;\n\n  if (location) {\n    const searchableLocation = [\n      property.location,\n      property.neighborhood\n    ].filter(Boolean).join(\" \").toLowerCase();\n\n    if (!searchableLocation.includes(location)) return false;\n  }\n\n  if (bedrooms !== null &&\n      (!Number.isFinite(bedrooms) ||\n       Number(property.bedrooms) !== bedrooms)) return false;\n\n  if (maxPrice !== null &&\n      (!Number.isFinite(maxPrice) ||\n       Number(property.price_ngn) > maxPrice)) return false;\n\n  if (propertyType &&\n      String(property.property_type).toLowerCase() !==\n      propertyType) return false;\n\n  return true;\n});\n\nreturn [{\n  json: {\n    count: matches.length,\n    matches: matches.map(property => Object.fromEntries(\n      [\"id\",\"slug\",\"reference\",\"title\",\"tagline\",\"description\",\"property_type\",\"price_ngn\",\"price_period\",\"rent_annual\",\"currency\",\"state\",\"city\",\"location\",\"neighborhood\",\"address_short\",\"bedrooms\",\"bathrooms\",\"toilets\",\"power_rating\",\"water_supply\",\"security_rating\",\"verification_state\",\"publication_state\",\"rental_availability\",\"featured_image\",\"features\",\"nearby_landmarks\",\"created_at\",\"updated_at\"].map(key => [key, property[key]])\n    )),\n    message: matches.length\n      ? \"Matching verified properties found.\"\n      : \"No matching verified properties found.\"\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "ef6ac132-eb81-4d09-8019-eff65affb9ae",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Get many rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "any",
+    "availableInMCP": true,
+    "errorWorkflow": "tFWk4Y8mf2DCalpv",
+    "timezone": "Africa/Lagos"
+  },
+  "versionId": "bf64542e-b215-417e-9878-0f6150915bf4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "cf5ee675b8cbe978684b9a83c48c0b3adc7008f91a612143027d4a4ca8ff9993"
+  },
+  "nodeGroups": [],
+  "id": "rj6M7r9YLI0jZudK",
+  "tags": []
+}

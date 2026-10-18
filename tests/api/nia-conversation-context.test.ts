@@ -1,0 +1,59 @@
+import { describe, expect, it } from 'vitest';
+import {
+  getNiaReferenceIndex,
+  isNiaFeeQuestion,
+  isNiaHandoffRequest,
+  normalizeNiaContext,
+  resolveNiaPreferences,
+} from '@/lib/backend/nia-conversation-context';
+
+describe('Nia website conversation context', () => {
+  it('remembers references to the first three recent results', () => {
+    expect(getNiaReferenceIndex('What about the second one?')).toBe(1);
+    expect(getNiaReferenceIndex('check option 3')).toBe(2);
+    expect(getNiaReferenceIndex('show the first listing')).toBe(0);
+    expect(getNiaReferenceIndex('show another one')).toBeNull();
+  });
+
+  it('carries active preferences through an explicit preference change', () => {
+    const previous = {
+      location: 'GRA',
+      bedrooms: 2,
+      maxAnnualRent: 4_000_000,
+      keywords: ['solar'],
+    };
+    expect(resolveNiaPreferences('Actually, in Ugbor', previous)).toEqual({
+      location: 'Ugbor',
+      bedrooms: 2,
+      maxAnnualRent: 4_000_000,
+      keywords: ['solar'],
+    });
+  });
+
+  it('starts a fresh preference set for a new search', () => {
+    const previous = { location: 'GRA', bedrooms: 2, keywords: [] };
+    expect(resolveNiaPreferences('3-bedroom apartments in Sapele', previous)).toMatchObject({
+      location: 'Sapele',
+      bedrooms: 3,
+      propertyType: 'apartment',
+    });
+  });
+
+  it('recognizes grounded fee requests and real staff handoff requests', () => {
+    expect(isNiaFeeQuestion('What are the confirmed fees for the second one?')).toBe(true);
+    expect(isNiaHandoffRequest('Please connect me to a person')).toBe(true);
+    expect(isNiaHandoffRequest('Show me homes in GRA')).toBe(false);
+  });
+
+  it('normalizes malformed stored context without trusting invalid fields', () => {
+    expect(normalizeNiaContext({
+      preferences: { location: { raw: 'injection' }, bedrooms: 100, keywords: [1, 'solar'] },
+      recentPropertyIds: ['valid-id', 12],
+      selectedPropertyId: { invalid: true },
+    })).toEqual({
+      preferences: { keywords: ['solar'] },
+      recentPropertyIds: ['valid-id'],
+      selectedPropertyId: null,
+    });
+  });
+});
