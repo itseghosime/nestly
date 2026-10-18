@@ -183,6 +183,125 @@ async function readProviderJson(response: Response): Promise<unknown | null> {
   }
 }
 
+export const TELEGRAM_WEBHOOK_DESTINATION =
+  'https://nestly-sigma.vercel.app/api/telegram/webhook';
+
+type TelegramWebhookInfo = {
+  url: string;
+  maxConnections: number | null;
+  allowedUpdates: string[] | null;
+  pendingUpdateCount: number | null;
+};
+
+export type TelegramWebhookSetupResult =
+  | {
+    status: 'registered';
+    pendingUpdateCount: number;
+  }
+  | {
+    status: 'different_webhook';
+    currentHost: string | null;
+  }
+  | {
+    status: 'provider_unavailable' | 'verification_failed';
+  };
+
+function parseTelegramWebhookInfo(value: unknown): TelegramWebhookInfo | null {
+  if (!isRecord(value) || typeof value.url !== 'string') return null;
+  const maxConnections = value.max_connections;
+  const allowedUpdates = value.allowed_updates;
+  const pendingUpdateCount = value.pending_update_count;
+  return {
+    url: value.url,
+    maxConnections: typeof maxConnections === 'number' && Number.isSafeInteger(maxConnections)
+      ? maxConnections
+      : null,
+    allowedUpdates: Array.isArray(allowedUpdates)
+      && allowedUpdates.every((item): item is string => typeof item === 'string')
+      ? allowedUpdates
+      : null,
+    pendingUpdateCount: typeof pendingUpdateCount === 'number'
+      && Number.isSafeInteger(pendingUpdateCount)
+      && pendingUpdateCount >= 0
+      ? pendingUpdateCount
+      : null,
+  };
+}
+
+async function callTelegramAdminApi(
+  token: string,
+  method: 'getWebhookInfo' | 'setWebhook',
+  body: Record<string, unknown> | undefined,
+  fetcher: typeof fetch,
+): Promise<unknown | null> {
+  try {
+    const response = await fetcher(`https://api.telegram.org/bot${token}/${method}`, {
+      method: 'POST',
+      redirect: 'error',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+      signal: AbortSignal.timeout(10_000),
+    });
+    const payload = await readProviderJson(response);
+    if (!response.ok || !isRecord(payload) || payload.ok !== true) return null;
+    return payload.result;
+  } catch {
+    return null;
+  }
+}
+
+function safeWebhookHost(url: string): string | null {
+  try {
+    return new URL(url).hostname || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setupTelegramWebhook(
+  token: string,
+  webhookSecret: string,
+  fetcher: typeof fetch = fetch,
+): Promise<TelegramWebhookSetupResult> {
+  const beforeValue = await callTelegramAdminApi(token, 'getWebhookInfo', undefined, fetcher);
+  const before = parseTelegramWebhookInfo(beforeValue);
+  if (!before) return { status: 'provider_unavailable' };
+  if (before.url && before.url !== TELEGRAM_WEBHOOK_DESTINATION) {
+    return {
+      status: 'different_webhook',
+      currentHost: safeWebhookHost(before.url),
+    };
+  }
+
+  const setResult = await callTelegramAdminApi(token, 'setWebhook', {
+    url: TELEGRAM_WEBHOOK_DESTINATION,
+    allowed_updates: ['message'],
+    max_connections: 1,
+    drop_pending_updates: false,
+    secret_token: webhookSecret,
+  }, fetcher);
+  if (setResult !== true) return { status: 'provider_unavailable' };
+
+  const afterValue = await callTelegramAdminApi(token, 'getWebhookInfo', undefined, fetcher);
+  const after = parseTelegramWebhookInfo(afterValue);
+  if (
+    !after
+    || after.url !== TELEGRAM_WEBHOOK_DESTINATION
+    || after.maxConnections !== 1
+    || after.allowedUpdates?.length !== 1
+    || after.allowedUpdates[0] !== 'message'
+    || after.pendingUpdateCount === null
+  ) {
+    return { status: 'verification_failed' };
+  }
+
+  return {
+    status: 'registered',
+    pendingUpdateCount: after.pendingUpdateCount,
+  };
+}
+
 export async function sendTelegramText(
   token: string,
   chatId: number,
