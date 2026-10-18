@@ -1,7 +1,9 @@
 import { timingSafeEqual } from 'node:crypto';
+import type { NiaSearchProperty } from '@/lib/backend/nia-property-search';
 
 const TELEGRAM_TOKEN_PATTERN = /^([1-9]\d{4,19}):[A-Za-z0-9_-]{20,}$/;
 const MAX_WEBHOOK_BODY_BYTES = 64 * 1024;
+const MAX_TELEGRAM_TEXT_LENGTH = 4096;
 
 export interface TelegramServerSettings {
   token: string | null;
@@ -28,6 +30,70 @@ export type ParsedTelegramUpdate =
 export type TelegramSendResult =
   | { outcome: 'accepted'; telegramMessageId: number }
   | { outcome: 'rejected' | 'unknown'; errorCode: string };
+
+function cleanTelegramListingField(value: string, maxLength: number): string {
+  const normalized = value
+    .replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const characters = Array.from(normalized);
+  return characters.length > maxLength
+    ? `${characters.slice(0, maxLength - 1).join('')}…`
+    : normalized;
+}
+
+export function formatTelegramPropertySearchReply(
+  count: number,
+  properties: readonly NiaSearchProperty[],
+  siteUrl: string,
+): string {
+  if (!Number.isSafeInteger(count) || count < 1 || count < properties.length || !properties.length) {
+    throw new Error('Invalid Telegram property search results');
+  }
+
+  let siteOrigin: string;
+  try {
+    const site = new URL(siteUrl);
+    if (site.protocol !== 'http:' && site.protocol !== 'https:') {
+      throw new Error('Unsupported site URL protocol');
+    }
+    siteOrigin = site.origin;
+  } catch {
+    throw new Error('Invalid public site URL for Telegram listing links');
+  }
+
+  const summary = `I found ${count} current published listing${count === 1 ? '' : 's'} matching your preferences.`;
+  const sections = [summary];
+  let includedCount = 0;
+
+  for (const [index, property] of properties.entries()) {
+    const propertyId = property.id.trim();
+    if (!propertyId || propertyId.length > 128) {
+      throw new Error('Invalid public property ID for Telegram listing link');
+    }
+    const link = new URL(`/property/${encodeURIComponent(propertyId)}`, siteOrigin).toString();
+    const section = [
+      `${index + 1}. ${cleanTelegramListingField(property.title, 180) || 'Title not listed publicly'}`,
+      `   Location: ${cleanTelegramListingField(property.location, 120) || 'Not listed publicly'}`,
+      `   Rent: ${cleanTelegramListingField(property.priceLabel, 120) || 'Not listed publicly'}`,
+      `   Link: ${link}`,
+    ].join('\n');
+    const candidate = [...sections, section].join('\n\n');
+    if (candidate.length > MAX_TELEGRAM_TEXT_LENGTH) break;
+    sections.push(section);
+    includedCount += 1;
+  }
+
+  if (includedCount < properties.length) {
+    const moreLink = new URL('/browse', siteOrigin).toString();
+    const note = `More matching listings are available at ${moreLink}.`;
+    if ([...sections, note].join('\n\n').length <= MAX_TELEGRAM_TEXT_LENGTH) {
+      sections.push(note);
+    }
+  }
+
+  return sections.join('\n\n');
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

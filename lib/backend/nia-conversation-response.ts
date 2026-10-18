@@ -24,6 +24,7 @@ export interface NiaConversationAnswer {
   message: string;
   properties: NiaSearchProperty[];
   context: NiaConversationContext;
+  searchResultCount?: number;
 }
 
 const PROPERTY_FIELDS = 'id, title, price_ngn, price_period, currency, state, city, location, neighborhood, rent_annual';
@@ -281,6 +282,7 @@ export async function answerNiaConversationMessage(
       recentPropertyIds: result.properties.map((property) => property.id),
       selectedPropertyId: null,
     },
+    searchResultCount: result.count,
   };
 }
 

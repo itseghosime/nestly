@@ -4,6 +4,7 @@ import { answerNiaConversationMessage } from '@/lib/backend/nia-conversation-res
 import { isNiaHandoffRequest } from '@/lib/backend/nia-conversation-context';
 import {
   getTelegramServerSettings,
+  formatTelegramPropertySearchReply,
   isTelegramWebhookSecretValid,
   parseTelegramUpdate,
   readBoundedWebhookBody,
@@ -344,11 +345,19 @@ export async function POST(request: Request) {
   }
 
   let answer: Awaited<ReturnType<typeof answerNiaConversationMessage>>;
+  let responseText: string;
   try {
     const publicClient = createSupabaseClient(supabaseUrl, anonKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
     answer = await answerNiaConversationMessage(publicClient, parsed.text, inbound.nia_context);
+    responseText = answer.searchResultCount && answer.properties.length
+      ? formatTelegramPropertySearchReply(
+        answer.searchResultCount,
+        answer.properties,
+        process.env.NEXT_PUBLIC_SITE_URL || '',
+      )
+      : answer.message;
   } catch (answerError) {
     const code = answerError instanceof Error ? answerError.message : 'unknown';
     console.error('Telegram Nia response failed', code);
@@ -359,7 +368,7 @@ export async function POST(request: Request) {
   const { data: replyData, error: replyError } = await admin.rpc('claim_telegram_ai_reply', {
     p_bot_id: settings.botId,
     p_update_id: parsed.updateId,
-    p_content: answer.message,
+    p_content: responseText,
     p_context: answer.context,
   });
   if (replyError) {
@@ -374,6 +383,6 @@ export async function POST(request: Request) {
     }
     return acceptedSendResult('Nia response suppressed after staff takeover');
   }
-  if (reply.should_dispatch) await dispatchClaim(admin, settings, reply, answer.message);
+  if (reply.should_dispatch) await dispatchClaim(admin, settings, reply, responseText);
   return acceptedSendResult('Telegram update processed');
 }
