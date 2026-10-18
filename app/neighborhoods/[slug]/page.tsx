@@ -41,6 +41,7 @@ export default function NeighborhoodGuideDetailPage({ params }: { params: Promis
     setNeighborhood(nextN);
     setLoading(!nextN);
     setNeighborhoodError(null);
+    setRelatedProperties(IS_DEMO_MODE ? FIXTURE_PROPERTIES : []);
   }
 
   useEffect(() => {
@@ -59,14 +60,23 @@ export default function NeighborhoodGuideDetailPage({ params }: { params: Promis
         }
       });
     fetchProperties()
-      .then((rows) => { if (!c && rows.length) setRelatedProperties(rows); })
-      .catch(() => {});
+      .then((rows) => {
+        if (!c) {
+          setRelatedProperties(Array.isArray(rows) ? rows : []);
+        }
+      })
+      .catch(() => {
+        if (!c) {
+          setRelatedProperties([]);
+        }
+      });
     return () => { c = true; };
   }, [resolvedParams.slug, reloadTrigger]);
 
   const handleRetry = () => {
     setLoading(true);
     setNeighborhoodError(null);
+    setRelatedProperties([]);
     setReloadTrigger((t) => t + 1);
   };
 

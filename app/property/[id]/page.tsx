@@ -11,7 +11,7 @@ import { PropertyCard } from '@/components/public/PropertyCard';
 import { PropertyGallery } from '@/components/public/PropertyGallery';
 import { fetchPropertyById, fetchProperties as fetchAllProperties, IS_DEMO_MODE } from '@/lib/properties';
 import { PROPERTIES as FIXTURE_PROPERTIES } from '@/lib/fixtures/properties';
-import { computeTotal, formatPrice } from '@/lib/price';
+import { computeTotal, computeFeeBreakdown, formatPrice } from '@/lib/price';
 import type { Property } from '@/lib/types';
 import { useSavedHomes } from '@/lib/saved-homes-context';
 import { usePropertyTransition } from '@/lib/property-transition-context';
@@ -51,6 +51,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
     setProperty(nextProp);
     setLoading(!nextProp);
     setPropertyError(null);
+    setRelatedProperties(IS_DEMO_MODE ? FIXTURE_PROPERTIES.filter((p) => p.id !== resolvedParams.id).slice(0, 3) : []);
   }
 
   useEffect(() => {
@@ -71,11 +72,16 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
 
     fetchAllProperties()
       .then((rows) => {
-        if (!c && rows.length) {
-          setRelatedProperties(rows.filter((r) => r.id !== resolvedParams.id).slice(0, 3));
+        if (!c) {
+          const list = Array.isArray(rows) ? rows : [];
+          setRelatedProperties(list.filter((r) => r.id !== resolvedParams.id).slice(0, 3));
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!c) {
+          setRelatedProperties([]);
+        }
+      });
     return () => { c = true; };
   }, [resolvedParams.id, reloadTrigger]);
 
@@ -91,16 +97,17 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
 
   // Grounded fee calculation using confirmed per-property fee ledger and existing computeTotal contract
   const propertyFees = property?.fees;
-  const fees = useMemo(() => {
-    if (!propertyFees || !Array.isArray(propertyFees)) return [];
-    return [...propertyFees].sort((a, b) => a.sort_order - b.sort_order);
-  }, [propertyFees]);
-
   const annualRent = property?.priceAnnual;
+
+  const feeBreakdown = useMemo(() => {
+    if (annualRent == null || !propertyFees || !Array.isArray(propertyFees)) return [];
+    return computeFeeBreakdown(annualRent, propertyFees);
+  }, [annualRent, propertyFees]);
+
   const totalMoveIn = useMemo(() => {
-    if (annualRent == null) return null;
-    return computeTotal(annualRent, fees);
-  }, [annualRent, fees]);
+    if (annualRent == null || !propertyFees || !Array.isArray(propertyFees)) return null;
+    return computeTotal(annualRent, propertyFees);
+  }, [annualRent, propertyFees]);
 
   const saved = property ? isSaved(property.id) : false;
 
@@ -125,6 +132,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   const handleRetry = () => {
     setLoading(true);
     setPropertyError(null);
+    setRelatedProperties([]);
     setReloadTrigger((t) => t + 1);
   };
 
@@ -406,13 +414,13 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                   <span className="font-extrabold text-charcoal">{property.priceFormatted}</span>
                 </div>
 
-                {fees.length > 0 ? (
-                  fees.map((fee) => {
+                {feeBreakdown.length > 0 ? (
+                  feeBreakdown.map((fee) => {
                     const isConfirmed = !!fee.confirmed_at;
                     const feeAmountNum = Number(fee.amount);
                     const feeValueDisplay = fee.kind === 'fixed'
                       ? formatPrice(feeAmountNum)
-                      : `${feeAmountNum}% of ${fee.base === 'rent' ? 'Annual Rent' : 'Subtotal'} (${formatPrice((property.priceAnnual * feeAmountNum) / 100)})`;
+                      : `${feeAmountNum}% of ${fee.base === 'rent' ? 'Annual Rent' : 'Subtotal'} (${formatPrice(fee.calculatedAmount)})`;
 
                     const feeLabel = (fee as { label?: string }).label || (
                       fee.fee_key === 'caution_deposit'

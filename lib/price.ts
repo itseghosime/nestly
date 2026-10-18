@@ -60,3 +60,40 @@ export function formatMoveInTotal(rentAnnual: number, fees: FeeRow[], currency: 
   if (total == null) return null;
   return formatPrice(total, currency);
 }
+
+export type FeeBreakdownItem = FeeRow & {
+  calculatedAmount: number;
+  runningSubtotal: number;
+};
+
+/**
+ * Computes individual fee breakdown amounts in sort_order consistent with computeTotal.
+ * For base=rent: calculates (rentAnnual * amount) / 100.
+ * For base=subtotal: calculates (runningSubtotal * amount) / 100 where runningSubtotal accumulates rent + prior fees.
+ */
+export function computeFeeBreakdown(rentAnnual: number, fees: FeeRow[]): FeeBreakdownItem[] {
+  if (!Number.isFinite(rentAnnual) || rentAnnual < 0 || !Array.isArray(fees)) return [];
+  const sorted = [...fees].sort((a, b) => a.sort_order - b.sort_order);
+  let subtotal = Number(rentAnnual);
+
+  return sorted.map((f) => {
+    const amt = Number(f.amount);
+    let calculatedAmount = 0;
+    if (f.kind === 'fixed') {
+      calculatedAmount = amt;
+    } else if (f.kind === 'percent' && f.base === 'rent') {
+      calculatedAmount = (Number(rentAnnual) * amt) / 100;
+    } else if (f.kind === 'percent' && f.base === 'subtotal') {
+      calculatedAmount = (subtotal * amt) / 100;
+    }
+    calculatedAmount = Math.round(calculatedAmount * 100) / 100;
+    subtotal = Math.round((subtotal + calculatedAmount) * 100) / 100;
+
+    return {
+      ...f,
+      calculatedAmount,
+      runningSubtotal: subtotal,
+    };
+  });
+}
+
