@@ -52,6 +52,13 @@ yarn-error.log*
 /docs/*.pdf
 /docs/*.png
 /stitch_reference/
+# Unused create-next-app assets and local image-source inventory.
+/public/file.svg
+/public/globe.svg
+/public/next.svg
+/public/vercel.svg
+/public/window.svg
+/public/images/url_map.json
 /check_*.mjs
 /record_*.mjs
 /test_video.mjs
