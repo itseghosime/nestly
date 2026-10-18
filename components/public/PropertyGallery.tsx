@@ -310,7 +310,10 @@ export function PropertyGallery({ property, morphing, initialImageSrc }: Propert
     const target = e.target as HTMLElement;
     // Controls inside the carousel should not pause autoplay when focused;
     // otherwise clicking Play immediately re-pauses because focus stays on the button.
-    if (target.closest?.('[data-gallery-controls]')) return;
+    if (target.closest?.('[data-gallery-controls]')) {
+      setFocusWithin(false);
+      return;
+    }
     setFocusWithin(true);
   };
   const onBlurCapture = (e: React.FocusEvent) => {
