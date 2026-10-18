@@ -1077,3 +1077,13 @@ Phase A replaces the simulated `setTimeout`→`router.push` in `app/staff/(auth)
 - **Delivery evidence:** Handset receipt/read remains unconfirmed. No provider message was sent or retried by the assistant during this merge task.
 - **Still-open follow-ups:** Correct the misleading “Human Active” takeover label; make Telegram search replies show matching listing details rather than only a count; complete the remaining hosted acceptance tests.
 - **Scope preserved:** Telegram secrets and outbound settings were not changed. WF01/WF03 and motion were not changed. PR #2 remains open pending the coordinated review and merge.
+
+## 62. Merging and smoke-testing the public release hardening (2026-10-18)
+
+- **Local combined tree:** Latest `main` was merged into PR #2 in a separate detached worktree; its uncommitted audit edit in the existing `Nestly-public-release` checkout was left untouched. The tested tree (`8cdacc51716a548ba8695bc92e1ee703dbb98daa`) and GitHub merge commit (`04c04efa859fa9dc80ae61b18ed3a83d5dd3650a`) have the same tree. Combined Vitest suite: **164 passed, 16 skipped** (skipped hosted/live cases are not counted as passing). App typecheck, test typecheck, ESLint, and production build all passed; the build generated 80/80 routes.
+- **Vercel Preview:** The updated PR preview status completed successfully before the PR was marked ready.
+- **Production revision:** PR #2 was marked ready and merged normally as `04c04efa859fa9dc80ae61b18ed3a83d5dd3650a`. Vercel Production deployment `G5mmgoedpVUQt1VMWBRYEAqobAm1` reached **Ready**, sourced from that merge commit, with `nestly-sigma.vercel.app` assigned.
+- **Read-only Production smoke:** Browse rendered 7 verified-home cards. Public property detail displayed the unconfirmed-fee warning and withheld the move-in total; a one-photo gallery rendered and opened/closed in full-screen mode. Mobile navigation opened and closed at 390×844. The authenticated staff inbox loaded read-only. No forms were submitted, no provider messages were sent, and no records were edited. Browse included pre-existing, visibly marked synthetic QA listings; they were left unchanged.
+- **Live Telegram evidence:** The independently checked user-led results remain in §61. Handset receipt is still unconfirmed.
+- **Open follow-ups:** The “Human Active” takeover label is misleading; Telegram search replies expose a match count without listing details; hosted acceptance tests remain outstanding.
+- **Safety:** Telegram secrets/outbound settings, WF01/WF03, approved designs, GSAP motion, and gallery behavior were preserved. PR #2 is merged; no follow-up was closed by this merge.
