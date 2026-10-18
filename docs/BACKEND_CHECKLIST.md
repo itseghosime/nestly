@@ -2,6 +2,14 @@
 
 > The current evidence summary below supersedes conflicting status statements in the historical implementation inventory that follows. The six reviewed Twilio migrations were applied on 2026-10-18 after an exact linked dry run and verified in linked history. No recordings/screenshots/PDF/hosting changes were made.
 
+## 2026-10-18 delta — Accurate staff takeover ownership labels
+
+- The staff inbox now labels an unassigned `HUMAN_ACTIVE` handoff **“Assign to me”**. Once assigned, it shows **“Assigned to you”** for the current owner or the assigned staff member's name; another staff member sees **“Reassign to me”** through the existing authorized takeover action. AI-owned and closed states remain distinct, and the unassigned composer explains that ownership must be assigned before replying.
+- No backend authorization, assignment, takeover, or Return to AI rules changed. The existing staff PATCH/RPC paths remain authoritative; the inbox labels and status presentation reflect the API's current `assignedStaffId` and `isAssignedToCurrentStaff`.
+- Regression tests cover unassigned handoff, current owner, another owner, AI ownership, and closed state. Combined focused Telegram/search/ownership tests passed **48/48**; application and test typechecks, targeted ESLint, and production build passed (80/80 routes).
+- **Production code revision:** `caa405569d1758ce73b4563eb49467af958ba42f` completed its Vercel Production deployment successfully. The UI was not exercised against a live handoff, and no Telegram or WhatsApp message was sent or replayed.
+- **Audit overlap:** Draft PR #3 also changed this inbox detail page. Its ownership display was compared and reconciled with this fix in an isolated worktree by merging current `main` into the PR branch and preserving its other audit changes. PR #3 remains open and draft; the original `Nestly-production-audit` worktree was not edited. Its Vercel Preview was still deploying at this checkpoint.
+
 ## 2026-10-18 delta — Telegram property-search reply details
 
 - Telegram search replies now render the grounded public search results as numbered listings with the public title, location, formatted rent, and a canonical property-page link. The handler uses the existing `public_properties` search response; the persisted dispatch content and `sendMessage` payload are the same, preserving idempotency and conversation context. Private fields are not passed to the formatter, and the final text is bounded to Telegram's 4096-character limit.
