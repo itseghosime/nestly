@@ -1,0 +1,51 @@
+import { describe, expect, it } from 'vitest';
+import {
+  getAiOwnershipNotice,
+  getConversationChannelNotice,
+  getDeliveryLabel,
+} from '@/lib/staff-conversation-status';
+
+describe('staff conversation status labels', () => {
+  it('keeps website chat status separate from Twilio', () => {
+    expect(getConversationChannelNotice({
+      channel: 'website',
+      whatsappDispatchAvailable: true,
+      whatsappOutboundEnabled: true,
+      whatsappSendConfigured: true,
+      whatsappStatusCallbackConfigured: true,
+    })).toContain('Twilio configuration and provider delivery do not apply');
+  });
+
+  it('reports WhatsApp configuration, feature state, and unverified delivery separately', () => {
+    const notice = getConversationChannelNotice({
+      channel: 'whatsapp',
+      whatsappDispatchAvailable: true,
+      whatsappOutboundEnabled: false,
+      whatsappSendConfigured: true,
+      whatsappStatusCallbackConfigured: true,
+    });
+    expect(notice).toContain('Twilio REST configured');
+    expect(notice).toContain('staff send flag disabled by deployment flag');
+    expect(notice).toContain('status callback URL configured');
+    expect(notice).toContain('Live delivery verification remains unconfirmed');
+  });
+
+  it('does not claim Nia is disconnected or conflate AI ownership with delivery', () => {
+    expect(getAiOwnershipNotice('website')).toContain('ownership does not confirm delivery');
+    expect(getAiOwnershipNotice('whatsapp')).toContain('WF01 handles inbound AI replies');
+  });
+
+  it('requires provider-message evidence before labeling a queued WhatsApp message accepted', () => {
+    expect(getDeliveryLabel('queued', 'whatsapp', 'not_applicable', false))
+      .toBe('WhatsApp queued; provider acceptance unverified');
+    expect(getDeliveryLabel('queued', 'whatsapp', 'accepted', true))
+      .toBe('Twilio accepted; delivery pending');
+  });
+
+  it('preserves explicit pending and unknown no-resend states', () => {
+    expect(getDeliveryLabel('queued', 'whatsapp', 'dispatching', false))
+      .toBe('Twilio outcome pending; do not resend');
+    expect(getDeliveryLabel('queued', 'whatsapp', 'unknown', false))
+      .toBe('Twilio outcome unknown; do not resend');
+  });
+});

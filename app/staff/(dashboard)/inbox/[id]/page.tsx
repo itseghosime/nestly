@@ -8,6 +8,11 @@ import { StaffHeader } from '@/components/staff/StaffHeader';
 import { MOTION, prefersReducedMotion } from '@/lib/motion';
 import { useMessageStreamScroll } from '@/hooks/use-message-stream-scroll';
 import {
+  getAiOwnershipNotice,
+  getConversationChannelNotice,
+  getDeliveryLabel,
+} from '@/lib/staff-conversation-status';
+import {
   ArrowLeft,
   ArrowDown,
   Bot,
@@ -40,6 +45,8 @@ type Conversation = {
   isAssignedToCurrentStaff: boolean;
   whatsappDispatchAvailable: boolean;
   whatsappOutboundEnabled: boolean;
+  whatsappSendConfigured: boolean;
+  whatsappStatusCallbackConfigured: boolean;
   canSendWhatsApp: boolean;
   createdAt: string;
   customer: { displayName: string; email: string; phone: string };
@@ -91,27 +98,6 @@ function localTimestamp(value: string) {
     timeStyle: 'short',
     timeZone: 'Africa/Lagos',
   }).format(new Date(value));
-}
-
-function deliveryLabel(
-  status: string,
-  channel: Conversation['channel'],
-  dispatchStatus: string,
-) {
-  if (channel === 'whatsapp') {
-    if (dispatchStatus === 'unknown') return 'Twilio outcome unknown; do not resend';
-    if (dispatchStatus === 'dispatching') return 'Twilio outcome pending; do not resend';
-    if (dispatchStatus === 'failed') return `Twilio send failed (${status})`;
-    if (status === 'read') return 'WhatsApp: read';
-    if (status === 'delivered') return 'WhatsApp: delivered';
-    if (status === 'sent') return 'Twilio sent; recipient delivery not confirmed';
-    if (status === 'queued') return 'Twilio accepted; delivery pending';
-    return `WhatsApp: ${status}`;
-  }
-  if (status === 'queued') return 'Website chat: saved; awaiting customer receipt';
-  if (status === 'delivered') return 'Website chat: delivered';
-  if (status === 'sent') return 'Website chat: delivery unverified';
-  return `Website chat: ${status}`;
 }
 
 export default function ConversationDetailPage({
@@ -575,9 +561,9 @@ export default function ConversationDetailPage({
                 </button>
               </div>
 
-              {triageMode === 'AI' && (
+              {conversation?.mode === 'AI_ACTIVE' && (
                 <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-900 border border-emerald-200 text-[11px] leading-relaxed">
-                  <strong>AI ownership recorded.</strong> The Nia workflow is not connected in this deployment, so no AI response or external delivery is claimed.
+                  <strong>AI ownership recorded.</strong> {getAiOwnershipNotice(conversation.channel)}
                 </div>
               )}
             </div>
@@ -595,7 +581,9 @@ export default function ConversationDetailPage({
                 </span>
               </div>
               <span className="text-[11px] text-muted-ink font-semibold">
-                Persisted history · outbound delivery disabled pending workflow verification
+                {conversation
+                  ? getConversationChannelNotice(conversation)
+                  : 'Loading conversation status…'}
               </span>
             </div>
 
@@ -649,7 +637,12 @@ export default function ConversationDetailPage({
                       <p>{msg.content || '[Message content unavailable]'}</p>
                       {msg.direction === 'outbound' && (
                         <p className="mt-2 text-[10px] opacity-70">
-                          {deliveryLabel(msg.delivery_status, conversation.channel, msg.dispatch_status)}
+                          {getDeliveryLabel(
+                            msg.delivery_status,
+                            conversation.channel,
+                            msg.dispatch_status,
+                            msg.has_provider_message_id,
+                          )}
                         </p>
                       )}
                       {conversation.channel === 'whatsapp'
@@ -768,13 +761,15 @@ export default function ConversationDetailPage({
                       ? 'Twilio staff replies are unavailable until the additive message-tracking migration is applied to this database. No external message was sent.'
                       : !conversation.whatsappOutboundEnabled
                         ? 'Twilio staff sending is disabled for this deployment. No external message was sent.'
-                      : !conversation.isAssignedToCurrentStaff
-                        ? `This conversation is assigned to ${conversation.assignedStaff}. Only the assigned staff member can send a WhatsApp reply.`
+                        : !conversation.whatsappSendConfigured
+                          ? 'Twilio staff send configuration is incomplete. No external message was sent.'
+                        : !conversation.isAssignedToCurrentStaff
+                          ? `This conversation is assigned to ${conversation.assignedStaff}. Only the assigned staff member can send a WhatsApp reply.`
                         : 'Your staff role is not authorized to send WhatsApp replies.'
                     : triageMode === 'CLOSED'
                       ? 'This conversation is closed. Reopen or take over only through the authorized staff workflow before replying.'
                       : 'Take over this WhatsApp conversation before replying. Nia stays paused while staff owns it.'
-                  : 'Website Nia currently responds through the direct Next.js API using published listings and fee records, not n8n. Live n8n orchestration and Meta delivery are not configured or verified.'}
+                  : 'Website replies use the direct Next.js API. Twilio staff sending and delivery status do not apply to this channel.'}
               </div>
             )}
           </div>

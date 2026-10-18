@@ -4,6 +4,10 @@ import { z } from 'zod';
 import { getIdempotencyKey, assertSameOrigin } from '@/lib/backend/public-request';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { buildTwilioStatusCallbackUrl } from '@/lib/backend/twilio-webhook';
+import {
+  getTwilioStaffSendSettings,
+  normalizeWhatsAppAddress,
+} from '@/lib/backend/twilio-staff-config';
 import { requireStaff } from '@/lib/backend/staff-context';
 
 export const runtime = 'nodejs';
@@ -161,35 +165,17 @@ function sanitizeProviderErrorMessage(error: unknown, sensitiveValues: string[])
   }
 }
 
-function validWhatsAppAddress(value: string): string | null {
-  const phone = value.startsWith('whatsapp:') ? value.slice('whatsapp:'.length) : value;
-  return /^\+[1-9]\d{7,14}$/.test(phone) ? `whatsapp:${phone}` : null;
-}
-
 function twilioConfiguration() {
-  if (process.env.TWILIO_OUTBOUND_ENABLED !== 'true') return null;
-
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const from = process.env.TWILIO_WHATSAPP_FROM;
-  const callbackBase = process.env.TWILIO_STATUS_CALLBACK_URL;
-  const siteUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (
-    !accountSid
-    || !/^AC[0-9A-Fa-f]{32}$/.test(accountSid)
-    || !authToken
-    || !from
-    || !validWhatsAppAddress(from)
-    || !callbackBase
-    || !buildTwilioStatusCallbackUrl(callbackBase, '00000000-0000-4000-8000-000000000000')
-    || !siteUrl
-    || !serviceRoleKey
-  ) return null;
-  return { accountSid, authToken, from, callbackBase };
+  const settings = getTwilioStaffSendSettings();
+  return settings.enabled ? settings.configuration : null;
 }
 
-function apiMessage(row: DispatchRow | RecordedRow, content: string, createdAt: string) {
+function apiMessage(
+  row: DispatchRow | RecordedRow,
+  content: string,
+  createdAt: string,
+  hasProviderMessageId = false,
+) {
   return {
     id: row.message_id,
     direction: 'outbound',
@@ -199,7 +185,7 @@ function apiMessage(row: DispatchRow | RecordedRow, content: string, createdAt: 
     dispatch_status: row.dispatch_status,
     dispatch_error_code: null,
     dispatch_updated_at: createdAt,
-    has_provider_message_id: false,
+    has_provider_message_id: hasProviderMessageId,
     created_at: createdAt,
   };
 }
@@ -389,7 +375,7 @@ export async function POST(
     return NextResponse.json({ data: message }, { headers: { 'Cache-Control': 'no-store' } });
   }
 
-  const recipient = claim.recipient ? validWhatsAppAddress(claim.recipient) : null;
+  const recipient = claim.recipient ? normalizeWhatsAppAddress(claim.recipient) : null;
   const statusCallback = buildTwilioStatusCallbackUrl(config.callbackBase, claim.message_id);
   if (!recipient || !statusCallback) {
     const tracked = await recordDispatch(
@@ -508,7 +494,7 @@ export async function POST(
   }
 
   return NextResponse.json({
-    data: apiMessage(tracked, parsed.data.content, claim.created_at),
+    data: apiMessage(tracked, parsed.data.content, claim.created_at, true),
     notice: 'Twilio accepted the reply. Delivery is not confirmed until a signed status callback arrives.',
   }, { status: 201, headers: { 'Cache-Control': 'no-store' } });
 }

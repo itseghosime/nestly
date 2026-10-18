@@ -332,6 +332,8 @@ describe('staff conversation replies', () => {
     expect(response.status).toBe(200);
     expect(result.data.whatsappDispatchAvailable).toBe(true);
     expect(result.data.whatsappOutboundEnabled).toBe(true);
+    expect(result.data.whatsappSendConfigured).toBe(true);
+    expect(result.data.whatsappStatusCallbackConfigured).toBe(true);
     expect(result.data.canSendWhatsApp).toBe(true);
     expect(result.data.messages[0].dispatch_status).toBe('unknown');
 
@@ -343,7 +345,45 @@ describe('staff conversation replies', () => {
     const disabledResult = await disabledResponse.json();
     expect(disabledResult.data.whatsappDispatchAvailable).toBe(true);
     expect(disabledResult.data.whatsappOutboundEnabled).toBe(false);
+    expect(disabledResult.data.whatsappSendConfigured).toBe(true);
     expect(disabledResult.data.canSendWhatsApp).toBe(false);
+  });
+
+  it('does not enable the composer when the deployment flag is on but send configuration is incomplete', async () => {
+    vi.stubEnv('TWILIO_AUTH_TOKEN', '');
+    const conversationData = {
+      id: CONVERSATION_ID,
+      channel: 'whatsapp',
+      mode: 'HUMAN_ACTIVE',
+      current_property_id: null,
+      assigned_staff_id: STAFF_ID,
+      created_at: '2026-10-19T11:00:00.000Z',
+      updated_at: '2026-10-19T12:00:00.000Z',
+      customer: { display_name: 'Synthetic Customer', email: null, phone: null, whatsapp_phone: 'whatsapp:+15550000001' },
+      property: null,
+    };
+    const conversationQuery = queryFor({ data: conversationData, error: null });
+    const messagesQuery = queryFor({ data: [], error: null });
+    const profileQuery = queryFor({ data: { display_name: 'Synthetic Staff' }, error: null });
+    staffClient.from.mockImplementation((table: string) => (
+      table === 'conversations'
+        ? conversationQuery
+        : table === 'profiles'
+          ? profileQuery
+          : messagesQuery
+    ));
+
+    const response = await getConversation(
+      new Request(`${SITE_URL}/api/staff/conversations/${CONVERSATION_ID}`),
+      staffRouteParams(),
+    );
+    const result = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(result.data.whatsappOutboundEnabled).toBe(true);
+    expect(result.data.whatsappSendConfigured).toBe(false);
+    expect(result.data.whatsappStatusCallbackConfigured).toBe(true);
+    expect(result.data.canSendWhatsApp).toBe(false);
   });
 
   it('keeps staff-initiated WhatsApp sending disabled unless explicitly enabled', async () => {
@@ -429,6 +469,7 @@ describe('staff conversation replies', () => {
       p_error_code: null,
     });
     expect(result.data.delivery_status).toBe('queued');
+    expect(result.data.has_provider_message_id).toBe(true);
     expect(result.notice).toContain('not confirmed');
   });
 

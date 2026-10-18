@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertSameOrigin } from '@/lib/backend/public-request';
 import { requireStaff } from '@/lib/backend/staff-context';
+import { getTwilioStaffSendSettings } from '@/lib/backend/twilio-staff-config';
 
 const CONVERSATION_STAFF_ROLES = [
   'Platform Admin',
@@ -81,7 +82,8 @@ export async function GET(
   const customer = one(data.customer);
   const property = one(data.property);
   const isAssignedToCurrentStaff = data.assigned_staff_id === context.userId;
-  const whatsappOutboundEnabled = process.env.TWILIO_OUTBOUND_ENABLED === 'true';
+  const twilioSendSettings = getTwilioStaffSendSettings();
+  const whatsappOutboundEnabled = twilioSendSettings.enabled;
   return NextResponse.json({
     data: {
       id: data.id,
@@ -92,8 +94,11 @@ export async function GET(
       isAssignedToCurrentStaff,
       whatsappDispatchAvailable: dispatchTrackingAvailable,
       whatsappOutboundEnabled,
+      whatsappSendConfigured: twilioSendSettings.configured,
+      whatsappStatusCallbackConfigured: twilioSendSettings.statusCallbackConfigured,
       canSendWhatsApp: dispatchTrackingAvailable
         && whatsappOutboundEnabled
+        && twilioSendSettings.configured
         && data.channel === 'whatsapp'
         && data.mode === 'HUMAN_ACTIVE'
         && isAssignedToCurrentStaff

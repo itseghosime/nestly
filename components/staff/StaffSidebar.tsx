@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { MOTION, prefersReducedMotion } from '@/lib/motion';
+import { getStaffIdentityLabels, type StaffProfileIdentity } from '@/lib/staff-identity';
 import {
   LayoutDashboard,
   MessageSquare,
@@ -26,10 +27,16 @@ import {
   ExternalLink,
 } from 'lucide-react';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 export function StaffSidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [drawerMounted, setDrawerMounted] = useState(false);
+  const [staffProfile, setStaffProfile] = useState<StaffProfileIdentity | null>(null);
+  const [identityLoaded, setIdentityLoaded] = useState(false);
 
   const backdropRef = useRef<HTMLDivElement>(null);
   const drawerPanelRef = useRef<HTMLDivElement>(null);
@@ -97,6 +104,36 @@ export function StaffSidebar() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [drawerMounted, closeMobileDrawer]);
+
+  useEffect(() => {
+    let active = true;
+    void fetch('/api/auth/me', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Unable to load staff identity');
+        const result: unknown = await response.json();
+        if (!isRecord(result)) throw new Error('Invalid staff identity response');
+        const profile = isRecord(result.profile) ? result.profile : null;
+        if (active) {
+          setStaffProfile(profile
+            ? {
+              display_name: typeof profile.display_name === 'string' ? profile.display_name : '',
+              role: typeof profile.role === 'string' ? profile.role : '',
+            }
+            : null);
+        }
+      })
+      .catch(() => {
+        if (active) setStaffProfile(null);
+      })
+      .finally(() => {
+        if (active) setIdentityLoaded(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const identity = getStaffIdentityLabels(staffProfile, identityLoaded);
 
   const navItems = [
     { label: 'Overview', href: '/staff/dashboard', icon: LayoutDashboard },
@@ -229,16 +266,16 @@ export function StaffSidebar() {
           >
             <div className="relative">
               <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0">
-                VN
+                {identity.initials}
               </div>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 absolute -top-0.5 -right-0.5 ring-2 ring-white"></span>
+              <span className={`w-2 h-2 rounded-full ${staffProfile ? 'bg-emerald-500' : 'bg-hairline'} absolute -top-0.5 -right-0.5 ring-2 ring-white`}></span>
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-bold text-charcoal truncate">
-                Victoria Nosa
+                {identity.displayName}
               </p>
               <p className="text-[10px] text-muted-ink truncate">
-                Operations Lead
+                {identity.role}
               </p>
             </div>
           </Link>
