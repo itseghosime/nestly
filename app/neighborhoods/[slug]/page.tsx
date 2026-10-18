@@ -1,5 +1,7 @@
 'use client';
 
+import { resolveEditorialImage } from '@/lib/editorial-images';
+
 import React, { use, useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import gsap from 'gsap';
@@ -204,8 +206,8 @@ export default function NeighborhoodGuideDetailPage({ params }: { params: Promis
         {/* Panoramic Hero Visual */}
         <div data-nhdetail-enter className="relative w-full h-[320px] sm:h-[420px] rounded-3xl sm:rounded-4xl overflow-hidden bg-soft-stone border border-hairline shadow-sm mb-10">
           <img
-            src={neighborhood.heroImage}
-            alt={neighborhood.name}
+            src={resolveEditorialImage(neighborhood.heroImage)}
+            alt={`Residential architecture accompanying the ${neighborhood.name} guide`}
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent"></div>

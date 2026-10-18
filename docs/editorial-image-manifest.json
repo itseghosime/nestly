@@ -1,0 +1,92 @@
+[
+  {
+    "path": "public/images/editorial/home-terrace.webp",
+    "source": "palms",
+    "width": 1600,
+    "height": 1000,
+    "bytes": 228018,
+    "sha256": "bdf29b222a64554526301141252a5f74fc2e4a41bddd2fa0cb1363bc91e11ae5",
+    "legacyPath": "/images/generated/img_790f21b75f6c4829b0e7c145c8ca6112.png",
+    "name": "home-terrace"
+  },
+  {
+    "path": "public/images/editorial/sunlit-living-room.webp",
+    "source": "room",
+    "width": 1600,
+    "height": 1000,
+    "bytes": 154562,
+    "sha256": "4924add6dd9da76dd54abf15b0e0f7603ba2a593df25920a17f7e1862c9020db",
+    "legacyPath": "/images/generated/img_182f9d8fffd242df93d3c53e9b4abbc0.png",
+    "name": "sunlit-living-room"
+  },
+  {
+    "path": "public/images/editorial/architectural-interior.webp",
+    "source": "villa",
+    "width": 1600,
+    "height": 1000,
+    "bytes": 103228,
+    "sha256": "e0694f29df03f0cff386b771f8e16f5899dfc9960e140c5ff7e27071203f4aea",
+    "legacyPath": "/images/generated/img_5b652e6df80b49e698189b91c2274307.png",
+    "name": "architectural-interior"
+  },
+  {
+    "path": "public/images/editorial/tropical-residence.webp",
+    "source": "trees",
+    "width": 1600,
+    "height": 1000,
+    "bytes": 431262,
+    "sha256": "2effd813f627fedb990129fb0c67ac8566ac071e28812e727868556026c67125",
+    "legacyPath": "/images/generated/img_864608b0ef784f93a2ea34fab3c747f1.png",
+    "name": "tropical-residence"
+  },
+  {
+    "path": "public/images/editorial/garden-entry.webp",
+    "source": "garden",
+    "width": 1600,
+    "height": 1000,
+    "bytes": 247576,
+    "sha256": "af8437d3da96de17f330ce2aa376b8f270322489d2a6edf50cc3dfc9fa3773f9",
+    "legacyPath": "/images/generated/img_319202c571e24bb2bff0a0c8ebecb4df.png",
+    "name": "garden-entry"
+  },
+  {
+    "path": "public/images/editorial/neutral-detail.webp",
+    "source": "living",
+    "width": 1600,
+    "height": 1000,
+    "bytes": 43438,
+    "sha256": "ac69bdf5a4c91580f5b066a308a7f616453631b7bb94767bedb28803dde24c53",
+    "legacyPath": "/images/generated/img_b16cbd4db4884a038e93243e9b975b81.png",
+    "name": "neutral-detail"
+  },
+  {
+    "path": "public/images/editorial/modern-facade.webp",
+    "source": "fence",
+    "width": 1600,
+    "height": 1000,
+    "bytes": 356076,
+    "sha256": "c41678958dc00ab906e913692aba43d6ae70ae7c1356b86abf26b57aa9970a9c",
+    "legacyPath": "/images/generated/img_0c79e160286544189f5f68168d230479.png",
+    "name": "modern-facade"
+  },
+  {
+    "path": "public/images/editorial/warm-living-room.webp",
+    "source": "cozy",
+    "width": 1600,
+    "height": 1000,
+    "bytes": 125078,
+    "sha256": "41d5a1f84c90022beed162c836f52f37af2eac0d5a4d1a191811ac1dbd99348e",
+    "legacyPath": "/images/generated/img_21d26ecda7f74e63a2b5a318df70b1f1.png",
+    "name": "warm-living-room"
+  },
+  {
+    "path": "public/images/editorial/terrace-detail.webp",
+    "source": "palms",
+    "width": 1600,
+    "height": 1000,
+    "bytes": 163096,
+    "sha256": "82802f423b60916c814af214a068a2043f744ff8d1c3f5c593a234be18364187",
+    "legacyPath": "/images/generated/img_cf5daf1e9cf9439499d9088aa14ce3f9.png",
+    "name": "terrace-detail"
+  }
+]

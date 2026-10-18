@@ -19,9 +19,9 @@ import {
 } from 'lucide-react';
 
 const SAMPLE_UPLOAD_PREVIEWS = [
-  { id: 'sample-1', label: 'Compound Exterior (Daylight)', src: '/images/generated/img_790f21b75f6c4829b0e7c145c8ca6112.png' },
-  { id: 'sample-2', label: 'Living Area & Natural Light', src: '/images/generated/img_182f9d8fffd242df93d3c53e9b4abbc0.png' },
-  { id: 'sample-3', label: 'Balcony & Meter Box', src: '/images/generated/img_b16cbd4db4884a038e93243e9b975b81.png' },
+  { id: 'sample-1', label: 'Compound Exterior (Daylight)', src: '/images/editorial/home-terrace.webp' },
+  { id: 'sample-2', label: 'Living Area & Natural Light', src: '/images/editorial/sunlit-living-room.webp' },
+  { id: 'sample-3', label: 'Interior Finishes & Detail', src: '/images/editorial/neutral-detail.webp' },
 ];
 
 export default function SubmitPropertyPage() {
@@ -94,7 +94,7 @@ export default function SubmitPropertyPage() {
     ) || {
       id: `sample-${Date.now()}`,
       label: `Daylight Interior #${uploadedPhotos.length + 1}`,
-      src: '/images/generated/img_0c79e160286544189f5f68168d230479.png',
+      src: '/images/editorial/modern-facade.webp',
     };
     setUploadedPhotos((prev) => [...prev, nextSample]);
   };

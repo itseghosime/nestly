@@ -134,8 +134,8 @@ export default function HowItWorksPage() {
             </div>
             <div className="property-card-hover lg:col-span-7 h-[280px] sm:h-[360px] rounded-3xl overflow-hidden bg-soft-stone border border-hairline shadow-sm">
               <img
-                src="/images/generated/img_21d26ecda7f74e63a2b5a318df70b1f1.png"
-                alt="Browse verified homes"
+                src="/images/editorial/warm-living-room.webp" loading="lazy" decoding="async"
+                alt="Warm living room with comfortable seating"
                 className="property-card-img w-full h-full object-cover"
               />
             </div>
@@ -158,8 +158,8 @@ export default function HowItWorksPage() {
             </div>
             <div className="property-card-hover lg:col-span-7 lg:order-1 h-[280px] sm:h-[360px] rounded-3xl overflow-hidden bg-soft-stone border border-hairline shadow-sm">
               <img
-                src="/images/generated/img_182f9d8fffd242df93d3c53e9b4abbc0.png"
-                alt="Nia conversation preview"
+                src="/images/editorial/sunlit-living-room.webp" loading="lazy" decoding="async"
+                alt="Sunlit living room with plants and natural finishes"
                 className="property-card-img w-full h-full object-cover"
               />
             </div>
@@ -182,8 +182,8 @@ export default function HowItWorksPage() {
             </div>
             <div className="property-card-hover lg:col-span-7 h-[280px] sm:h-[360px] rounded-3xl overflow-hidden bg-soft-stone border border-hairline shadow-sm">
               <img
-                src="/images/generated/img_790f21b75f6c4829b0e7c145c8ca6112.png"
-                alt="Accompanied inspection at the gate"
+                src="/images/editorial/home-terrace.webp" loading="lazy" decoding="async"
+                alt="Modern home with a shaded terrace and lawn"
                 className="property-card-img w-full h-full object-cover"
               />
             </div>
@@ -206,8 +206,8 @@ export default function HowItWorksPage() {
             </div>
             <div className="property-card-hover lg:col-span-7 lg:order-1 h-[280px] sm:h-[360px] rounded-3xl overflow-hidden bg-soft-stone border border-hairline shadow-sm">
               <img
-                src="/images/generated/img_cf5daf1e9cf9439499d9088aa14ce3f9.png"
-                alt="Settled residence"
+                src="/images/editorial/terrace-detail.webp" loading="lazy" decoding="async"
+                alt="Shaded terrace beside a palm-lined garden"
                 className="property-card-img w-full h-full object-cover"
               />
             </div>
