@@ -1,0 +1,318 @@
+'use client';
+
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { MOTION, prefersReducedMotion } from '@/lib/motion';
+import {
+  LayoutDashboard,
+  MessageSquare,
+  Users,
+  Building,
+  Calendar,
+  Clock,
+  Handshake,
+  Shield,
+  History,
+  Network,
+  Settings,
+  LogOut,
+  Bell,
+  Menu,
+  X,
+  ChevronRight,
+  ExternalLink,
+} from 'lucide-react';
+
+export function StaffSidebar() {
+  const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [drawerMounted, setDrawerMounted] = useState(false);
+
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const drawerPanelRef = useRef<HTMLDivElement>(null);
+  const toggleBtnRef = useRef<HTMLButtonElement>(null);
+
+  const openMobileDrawer = () => {
+    setDrawerMounted(true);
+    setMobileOpen(true);
+  };
+
+  const closeMobileDrawer = useCallback(() => {
+    if (prefersReducedMotion() || !drawerPanelRef.current || !backdropRef.current) {
+      setMobileOpen(false);
+      setDrawerMounted(false);
+      toggleBtnRef.current?.focus();
+      return;
+    }
+
+    gsap.to(backdropRef.current, {
+      opacity: 0,
+      duration: 0.18,
+      ease: 'power2.in',
+    });
+    gsap.to(drawerPanelRef.current, {
+      x: -24,
+      opacity: 0,
+      duration: 0.18,
+      ease: 'power2.in',
+      onComplete: () => {
+        setMobileOpen(false);
+        setDrawerMounted(false);
+        toggleBtnRef.current?.focus();
+      },
+    });
+  }, []);
+
+  useGSAP(
+    () => {
+      if (!mobileOpen || !drawerMounted) return;
+      if (prefersReducedMotion()) return;
+
+      if (backdropRef.current) {
+        gsap.fromTo(
+          backdropRef.current,
+          { opacity: 0 },
+          { opacity: 1, duration: 0.2, ease: MOTION.ease.crispOut }
+        );
+      }
+      if (drawerPanelRef.current) {
+        gsap.fromTo(
+          drawerPanelRef.current,
+          { x: -28, opacity: 0 },
+          { x: 0, opacity: 1, duration: 0.24, ease: MOTION.ease.crispOut }
+        );
+      }
+    },
+    { dependencies: [mobileOpen, drawerMounted] }
+  );
+
+  useEffect(() => {
+    if (!drawerMounted) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeMobileDrawer();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [drawerMounted, closeMobileDrawer]);
+
+  const navItems = [
+    { label: 'Overview', href: '/staff/dashboard', icon: LayoutDashboard },
+    {
+      label: 'Conversations',
+      href: '/staff/inbox',
+      icon: MessageSquare,
+      badge: '2',
+    },
+    { label: 'Customer Directory', href: '/staff/customers', icon: Users },
+    { label: 'Property Management', href: '/staff/properties', icon: Building },
+    {
+      label: 'Inspection Calendar',
+      href: '/staff/inspections',
+      icon: Calendar,
+    },
+    {
+      label: 'Availability Slots',
+      href: '/staff/inspections/availability',
+      icon: Clock,
+    },
+    {
+      label: 'Offer Review',
+      href: '/staff/offers',
+      icon: Handshake,
+    },
+    {
+      label: 'Notifications',
+      href: '/staff/notifications',
+      icon: Bell,
+      badge: '3',
+    },
+    { label: 'Team & Roles', href: '/staff/team', icon: Shield },
+    { label: 'Profile & Security', href: '/staff/profile', icon: Shield },
+    { label: 'Workspace Settings', href: '/staff/settings', icon: Settings },
+    { label: 'Audit Log', href: '/staff/audit-log', icon: History },
+    {
+      label: 'Integrations Status',
+      href: '/staff/integrations',
+      icon: Network,
+    },
+  ];
+
+  const renderSidebarContent = (isMobile = false) => (
+    <div className="flex flex-col justify-between h-full py-6 px-4">
+      {/* Brand & Workspace Label */}
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between px-2">
+          <Link
+            href="/staff/dashboard"
+            onClick={() => isMobile && closeMobileDrawer()}
+            className="flex items-center gap-2.5"
+          >
+            <div className="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center font-bold text-sm shadow-xs">
+              N
+            </div>
+            <span className="font-headline text-xl font-bold tracking-tight text-charcoal">
+              nestly
+            </span>
+          </Link>
+          <span className="px-2.5 py-0.5 rounded-full bg-soft-stone text-muted-ink text-[10px] font-bold uppercase tracking-wider border border-hairline">
+            Staff Portal
+          </span>
+        </div>
+
+        {/* Navigation list */}
+        <nav className="flex flex-col gap-1 overflow-y-auto max-h-[calc(100vh-230px)] no-scrollbar pr-1">
+          {navItems.map((item) => {
+            const isActive =
+              pathname === item.href ||
+              (item.href !== '/staff/dashboard' &&
+                item.href !== '/staff/inspections' &&
+                pathname.startsWith(item.href)) ||
+              (item.href === '/staff/inspections' &&
+                pathname.startsWith('/staff/inspections') &&
+                !pathname.startsWith('/staff/inspections/availability'));
+            const Icon = item.icon;
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => isMobile && closeMobileDrawer()}
+                className={`nestly-press flex items-center justify-between px-3.5 py-2.5 rounded-full text-xs font-semibold transition-all duration-150 ${
+                  isActive
+                    ? 'bg-secondary-container text-charcoal font-bold shadow-xs'
+                    : 'text-charcoal/70 hover:bg-soft-stone hover:text-charcoal'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon
+                    className={`w-4 h-4 transition-colors ${
+                      isActive ? 'text-primary' : 'text-muted-ink'
+                    }`}
+                  />
+                  <span>{item.label}</span>
+                </div>
+                {item.badge && (
+                  <span className="px-2 py-0.5 rounded-full bg-persimmon text-white text-[10px] font-bold">
+                    {item.badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+
+          <div className="pt-2 my-2 border-t border-hairline">
+            <Link
+              href="/"
+              target="_blank"
+              className="flex items-center justify-between px-3.5 py-2 rounded-full text-xs font-medium text-muted-ink hover:text-charcoal hover:bg-soft-stone transition-colors"
+            >
+              <span className="flex items-center gap-2.5">
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>View Public Site</span>
+              </span>
+              <ChevronRight className="w-3 h-3" />
+            </Link>
+          </div>
+        </nav>
+      </div>
+
+      {/* Footer Profile & Sign Out */}
+      <div className="pt-4 border-t border-hairline">
+        <div className="flex items-center justify-between p-2 rounded-2xl bg-white border border-hairline shadow-2xs">
+          <Link
+            href="/staff/profile"
+            onClick={() => isMobile && closeMobileDrawer()}
+            className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-80 transition-opacity"
+          >
+            <div className="relative">
+              <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0">
+                VN
+              </div>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 absolute -top-0.5 -right-0.5 ring-2 ring-white"></span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-charcoal truncate">
+                Victoria Nosa
+              </p>
+              <p className="text-[10px] text-muted-ink truncate">
+                Operations Lead
+              </p>
+            </div>
+          </Link>
+          <button
+            type="button"
+            title="Sign out"
+            onClick={async () => { await fetch('/api/auth/signout', { method: 'POST' }); window.location.href = '/staff/signin'; }}
+            className="w-8 h-8 rounded-full hover:bg-soft-stone text-muted-ink hover:text-persimmon flex items-center justify-center transition-colors ml-1"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Mobile Top Toggle Bar */}
+      <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-warm border-b border-hairline sticky top-0 z-30">
+        <Link href="/staff/dashboard" className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-primary text-white flex items-center justify-center font-bold text-xs">
+            N
+          </div>
+          <span className="font-headline font-bold text-charcoal">
+            nestly ops
+          </span>
+        </Link>
+        <button
+          ref={toggleBtnRef}
+          type="button"
+          onClick={openMobileDrawer}
+          aria-label="Open staff navigation menu"
+          aria-expanded={mobileOpen}
+          className="nestly-press p-2 rounded-lg bg-soft-stone text-charcoal"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Desktop Sticky Sidebar */}
+      <aside className="hidden lg:block w-72 shrink-0 h-screen sticky top-0 bg-[#F9F8F3] border-r border-hairline z-30">
+        {renderSidebarContent(false)}
+      </aside>
+
+      {/* Mobile Sidebar Drawer */}
+      {drawerMounted && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Staff navigation drawer"
+          className="fixed inset-0 z-50 lg:hidden flex"
+        >
+          <div
+            ref={backdropRef}
+            className="fixed inset-0 bg-charcoal/40 backdrop-blur-xs"
+            onClick={closeMobileDrawer}
+          />
+          <div
+            ref={drawerPanelRef}
+            className="relative w-72 max-w-[82%] bg-[#F9F8F3] h-full shadow-2xl flex flex-col z-10"
+          >
+            <button
+              type="button"
+              onClick={closeMobileDrawer}
+              aria-label="Close staff navigation menu"
+              className="absolute top-4 right-4 p-1.5 rounded-full bg-soft-stone text-charcoal hover:bg-stone-card transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            {renderSidebarContent(true)}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
