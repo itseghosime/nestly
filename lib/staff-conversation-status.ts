@@ -10,6 +10,27 @@ export type StaffConversationStatus = {
   telegramWebhookSecretConfigured?: boolean;
 };
 
+export function getTakeoverControlState(conversation: {
+  mode: 'AI_ACTIVE' | 'HUMAN_ACTIVE' | 'CLOSED';
+  assignedStaffId: string | null;
+  assignedStaff: string;
+  isAssignedToCurrentStaff: boolean;
+}): { label: string; disabled: boolean } {
+  if (conversation.mode === 'CLOSED') {
+    return { label: 'Conversation closed', disabled: true };
+  }
+  if (conversation.mode === 'AI_ACTIVE') {
+    return { label: 'Take over', disabled: false };
+  }
+  if (!conversation.assignedStaffId) {
+    return { label: 'Assign to me', disabled: false };
+  }
+  if (conversation.isAssignedToCurrentStaff) {
+    return { label: 'Assigned to you', disabled: true };
+  }
+  return { label: 'Reassign to me', disabled: false };
+}
+
 export function getAiOwnershipNotice(channel: StaffConversationStatus['channel']): string {
   if (channel === 'website') {
     return 'Nia ownership is active for website chat. The app handles website responses; ownership does not confirm delivery.';
