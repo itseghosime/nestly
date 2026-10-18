@@ -31,7 +31,7 @@ It reports only configuration readiness and never prints values or constructs/lo
 
 ## Migration and verification
 
-Local-only additive migration: `supabase/migrations/20261019120000_nestly_telegram_channel.sql`. It:
+Additive migration `supabase/migrations/20261019120000_nestly_telegram_channel.sql`, applied to the existing linked Supabase project on 2026-10-18 after an exact single-pending migration dry-run. A seed-disabled disposable database also applied all 21 ordered migrations. The Telegram migration:
 
 - admits `telegram` as a conversation channel and adds private identity, update-deduplication, and outbound-dispatch ledgers;
 - scopes Telegram identities and provider IDs by channel/bot, with uniqueness and durable processing state;
@@ -39,7 +39,7 @@ Local-only additive migration: `supabase/migrations/20261019120000_nestly_telegr
 - requires an assigned authorized staff member for staff dispatch, and enforces fresh AI ownership checks/blocks takeover during an active send;
 - preserves existing channels, rows, WF01/WF03, and the existing messages provider-ID/idempotency behavior.
 
-The migration preserves the existing `nestly.website_handoff_conversation` transaction-local authorization used by `request_website_handoff`; Telegram uses a separate transaction-local setting. The disposable SQL suite exercises the website anonymous handoff and staff reply after loading the migration. The live WF01 instance was not independently inspected or changed in this pass.
+The migration preserves the existing `nestly.website_handoff_conversation` transaction-local authorization and adds a separate Telegram setting. Read-only linked-schema verification confirmed the live `nestly_handoff_notifications` guard retains the website check and that the existing conversation triggers/data remain present. The user reports WF01 remains active at version `41d0a037-4706-4899-b18c-5756be24fb7b`; its WhatsApp-only, inbound-validating handoff query was not edited or independently retrieved in this session. The disposable SQL suite exercises website anonymous handoff and staff replies after loading the migration.
 
 The expiry sweep uses row locks with `SKIP LOCKED`, updates dispatch/message/update state atomically to `unknown`, and returns the number of dispatches changed. The protected cron route calls it on a daily schedule. `acknowledge_telegram_unknown_send` is limited to an assigned staff member on a human-owned Telegram conversation, records an audit event and review row, and leaves the original outcome unknown. A repeated acknowledgement is idempotent.
 
@@ -57,13 +57,13 @@ npm run typecheck
 npm run typecheck:tests
 ```
 
-## Future cutover order (not performed)
+## Deployment and later channel activation
 
-1. Review the linked migration history and dry-run; confirm `20261019120000_nestly_telegram_channel.sql` is the only intended pending migration and reconcile compatibility before applying. Do not reset, seed, or repair remote history.
-2. Apply the reviewed migration through the normal linked migration process; verify grants/RLS and the website/WhatsApp regressions read-only.
-3. Configure `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, and `CRON_SECRET` as server-only production secrets, leave `TELEGRAM_OUTBOUND_ENABLED=false`, then deploy to a public HTTPS origin. Verify the scheduled route with an authorized synthetic request and confirm the cron is active before relying on it.
-4. Register Telegram's webhook through a trusted non-browser client with the HTTPS endpoint and secret header. Verify the webhook configuration without printing its token-bearing API URL or secret.
-5. Exercise unauthorized/unsupported/duplicate-update handling with synthetic tests, then use an explicitly approved Telegram test chat to verify private inbound persistence, grounded answer, handoff, assigned staff reply, and Return to AI. API acceptance is the strongest send evidence; do not call it delivered/read.
-6. Enable outbound sending only after a separately approved controlled test and rollback plan. On timeout/unknown, do not automatically resend. Disable the feature flag to stop new sends; preserve durable records for operator review.
+1. **Completed:** Confirmed the linked migration history and dry-run; applied only `20261019120000_nestly_telegram_channel.sql`, without reset, seed, or history repair. Read-only checks verified aligned history, RLS/grants, safe RPC search paths, and existing channel compatibility.
+2. **Current deployment gate:** Authenticate to Vercel through its secure login flow, then confirm Production explicitly has `TELEGRAM_OUTBOUND_ENABLED=false` and check only the presence of `TELEGRAM_WEBHOOK_SECRET` and `CRON_SECRET` (never display their values). The current session is logged out of Vercel, so these settings and secret-presence states remain unverified. Do not mark PR #1 ready or merge until the false outbound setting is confirmed.
+3. After that gate, mark PR #1 ready and merge normally; verify the resulting production revision/deployment and test an unauthorized webhook request, confirming rejection before any database write or provider call.
+4. Register Telegram's webhook only in a separately approved step, using a trusted non-browser client with the HTTPS endpoint and secret header. Verify configuration without printing its token-bearing API URL or secret.
+5. Use an explicitly approved Telegram test chat for any later inbound/send validation. API acceptance is the strongest send evidence; do not call it delivered/read.
+6. Enable outbound sending only after a separately approved controlled test and rollback plan. On timeout/unknown, do not automatically resend. Preserve durable records for operator review.
 
-For this pass the migration remains local-only and outbound remains disabled by default. The daily recovery schedule and operator review path are implemented but not deployed. Webhook registration, linked migration application, production configuration/deployment, and live Telegram verification are pending.
+The linked migration is applied. The Next.js code is not yet merged/deployed to Production; outbound configuration is not verified, the webhook is not registered, and no Telegram sends or live webhook requests have been made. The daily recovery route and operator review path are in code but not yet deployed/verified in Production.
