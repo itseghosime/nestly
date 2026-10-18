@@ -177,3 +177,26 @@ details[open] summary .faq-icon {
     transform: none !important;
   }
 }
+
+
+/* Retain Nia's existing 12px visual text and 36px field height.
+   A 16px native field is scaled inside a layout-sized wrapper on touch screens.
+   User pinch zoom stays unrestricted. */
+@media (max-width: 767px), (hover: none) and (pointer: coarse) {
+  .nia-compact-field {
+    position: relative;
+    height: 36px;
+  }
+  .nia-compact-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 133.333333%;
+    height: 48px;
+    padding: 13.333333px 18.666667px;
+    font-size: 16px;
+    line-height: 21.333333px;
+    transform: scale(0.75);
+    transform-origin: top left;
+  }
+}
