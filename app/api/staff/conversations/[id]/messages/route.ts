@@ -420,8 +420,10 @@ export async function POST(
     const statusCode = providerStatusCode(sendError);
     const code = providerErrorCode(sendError);
     console.error('Twilio staff reply provider error', {
-      httpStatus: statusCode,
-      twilioErrorCode: code,
+      httpStatus: statusCode !== null && statusCode >= 100 && statusCode <= 599
+        ? statusCode
+        : null,
+      twilioErrorCode: code !== null && /^\d{1,8}$/.test(code) ? code : null,
       redactedErrorMessage: sanitizeProviderErrorMessage(sendError, [
         config.authToken,
         config.accountSid,
