@@ -169,3 +169,11 @@
 
 ## Phase C / D status (historical checkpoint; current status above)
 - Existing WF01/Meta ingress was not available for inspection and was not changed. Durable conversations, outbox, takeover/return-to-AI, Nia grounding, provider callbacks, persistent notifications, integration health, audit export, retention redaction/pruning, and permission requests remain **Not implemented** or externally blocked; do not report them as complete.
+
+
+## Nia conversational AI integration — 2026-10-19
+- [x] Authenticated WF02/Gemini response path added and synthetic manual executions passed.
+- [x] Telegram bridge, bounded same-conversation history, grounded fact preservation and safe fallback prepared; 65 focused local tests passed.
+- [x] Detailed personality, truthfulness, privacy and action boundaries documented.
+- [ ] Vercel revision build/merge/deployment verification (pending at preparation checkpoint).
+- [ ] New deliberate Telegram inbound confirms deployed backend→n8n→Telegram path; no automatic replay/send.

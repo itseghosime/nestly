@@ -46,6 +46,7 @@ export function formatTelegramPropertySearchReply(
   count: number,
   properties: readonly NiaSearchProperty[],
   siteUrl: string,
+  introduction?: string,
 ): string {
   if (!Number.isSafeInteger(count) || count < 1 || count < properties.length || !properties.length) {
     throw new Error('Invalid Telegram property search results');
@@ -62,8 +63,8 @@ export function formatTelegramPropertySearchReply(
     throw new Error('Invalid public site URL for Telegram listing links');
   }
 
-  const summary = `I found ${count} current published listing${count === 1 ? '' : 's'} matching your preferences.`;
-  const sections = [summary];
+  const summary = `I found ${count} available home${count === 1 ? '' : 's'} matching your preferences.`;
+  const sections = introduction ? [cleanTelegramListingField(introduction, 240), summary] : [summary];
   let includedCount = 0;
 
   for (const [index, property] of properties.entries()) {
@@ -92,6 +93,10 @@ export function formatTelegramPropertySearchReply(
     }
   }
 
+  const followUp = "Which one catches your eye? Say \"the first one\" or ask about a listing's fees.";
+  if ([...sections, followUp].join('\n\n').length <= MAX_TELEGRAM_TEXT_LENGTH) {
+    sections.push(followUp);
+  }
   return sections.join('\n\n');
 }
 
