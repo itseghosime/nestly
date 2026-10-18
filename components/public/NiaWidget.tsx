@@ -821,6 +821,7 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
             }}
             className="p-3 bg-white border-t border-hairline flex items-center gap-2"
           >
+            <div className="nia-compact-field min-w-0 flex-1">
             <input
               ref={inputRef}
               type="text"
@@ -836,8 +837,9 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
                     ? 'Message the Nestly team...'
                     : 'Ask Nia about listings, rent, or visits...'
               }
-              className="flex-1 px-3.5 py-2.5 rounded-full bg-soft-stone text-xs text-charcoal placeholder-muted-ink focus:outline-none focus:ring-1 focus:ring-primary"
+              className="nia-compact-input w-full px-3.5 py-2.5 rounded-full bg-soft-stone text-xs text-charcoal placeholder-muted-ink focus:outline-none focus:ring-1 focus:ring-primary"
             />
+            </div>
             {isReplyPending ? (
               <button
                 type="button"
