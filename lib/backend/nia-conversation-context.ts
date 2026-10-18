@@ -1,4 +1,5 @@
 import {
+  normalizeNiaSearchKeywords,
   parseNiaPropertySearch,
   type NiaPropertyType,
   type NiaPropertySearchCriteria,
@@ -50,9 +51,11 @@ export function normalizeNiaContext(value: unknown): NiaConversationContext {
         ? { maxAnnualRent: value.maxAnnualRent }
         : {}),
       ...(type ? { propertyType: type } : {}),
-      keywords: Array.isArray(value.keywords)
-        ? value.keywords.filter((word): word is string => typeof word === 'string' && word.length <= 64).slice(0, 4)
-        : [],
+      keywords: normalizeNiaSearchKeywords(
+        Array.isArray(value.keywords)
+          ? value.keywords.filter((word): word is string => typeof word === 'string' && word.length <= 64)
+          : [],
+      ),
     };
     if (
       normalized.location
@@ -97,12 +100,16 @@ export function resolveNiaPreferences(
   const bedrooms = parsed.bedrooms ?? previous.bedrooms;
   const maxAnnualRent = parsed.maxAnnualRent ?? previous.maxAnnualRent;
   const propertyType = parsed.propertyType ?? previous.propertyType;
+  const keywords = normalizeNiaSearchKeywords([
+    ...previous.keywords,
+    ...parsed.keywords,
+  ]);
   return {
     ...(location ? { location } : {}),
     ...(bedrooms ? { bedrooms } : {}),
     ...(maxAnnualRent ? { maxAnnualRent } : {}),
     ...(propertyType ? { propertyType } : {}),
-    keywords: parsed.keywords.length ? parsed.keywords : previous.keywords,
+    keywords,
   };
 }
 
