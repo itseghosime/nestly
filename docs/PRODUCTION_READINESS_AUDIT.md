@@ -1,10 +1,11 @@
 # PR #3 Production-Readiness Review Evidence
 
-**Review date:** 2026-10-18
+**Review date:** 2026-10-19
 **Branch under review:** `feature/production-readiness-audit`
-**Reviewed PR head:** `8bed5e0c6695fdb6b33c9e4e86a89fc51defa4de`
-**Environment:** Isolated local worktree. No production data, provider, n8n workflow, migration, or hosting configuration was changed during this review.
-**Status:** Local review corrections and checks are complete; this is not a production-readiness certification.
+**Reviewed implementation commit:** `4d784245965a6dd645b33c9ead5d76d2160e0c0d`
+**Main integration commit:** `b63f03a98c046b1313378aadb0f31ee950175764` (includes PR #6)
+**Environment:** Isolated PR worktree. Production data, provider, n8n workflow, migrations, and hosting configuration were not changed.
+**Status:** Local tests/build passed; authenticated staff and Preview app behavior remain blocked. This is not a production-readiness certification.
 
 ## Scope and evidence limits
 
@@ -14,7 +15,7 @@ No public form was submitted. No staff mutation, provider message, webhook repla
 
 ## Findings addressed in this worktree
 
-- Contact and landlord submissions reuse an idempotency key for unchanged retries, rotate it when the payload changes, and show receipt only for the exact API response `{ requestReceived: true, confirmed: false }`. The key is page-session scoped; refresh persistence is not implemented.
+- Contact and landlord submissions reuse an idempotency key for unchanged retries, rotate it when the payload changes, and show receipt only for the exact API response `{ requestReceived: true, confirmed: false }`. The key and SHA-256 payload digest are persisted in `sessionStorage`, so same-payload retries after a refresh reuse the key; raw form values are not stored. Storage failures stop submission and surface an error.
 - Annual-rent parsing preserves decimal values up to two places and rejects malformed input.
 - Public landlord submissions no longer present sample imagery as uploaded photos; the interface says that public photo upload is unavailable.
 - The landlord form starts without fictional property, location, room, utility, or title-document selections. City is entered explicitly instead of inferred from state; required details are checked before submission. Bathrooms are included in the submitted description because the current API has no structured bathroom field. Utility/title selections are optional and labeled as owner-reported; the page states that the submission does not verify the details. The form still has no photo-upload control.
@@ -23,6 +24,8 @@ No public form was submitted. No staff mutation, provider message, webhook repla
 - The permission-denied page no longer claims that an escalation was sent. The staff header no longer reports unsupported online/unread status.
 - New property fields no longer start with fictional listing values. The editor collects the selected type and explicit city/state, and reports that entered utilities are unverified.
 - Property preview no longer asserts GPS, title, power, water, inspector, or inspection-date checks. An empty gallery shows an empty state instead of a generic property photo. The review action is labeled for its actual effect: setting publication state to review; it does not claim to create or send revision work.
+- Live staff customer pages show an explicit unavailable state instead of fictional fixture records. Demo records are labeled, fabricated Prembly/NIN results and local-only note success were removed, and placeholder conversation IDs are no longer linked to customers. Historical WhatsApp conversations remain in their original channel and replies remain unavailable.
+- The staff property list is fixture-gated by explicit demo mode, does not invent inventory/inspection/portfolio metrics, does not infer status from inspection state, and filters availability only when both publication and rental-availability states allow it. Staff property reads no longer inherit the public rent ceiling by default.
 - The parent-directory Turbopack root override was removed. Portability is determined by a clean dependency install and build inside the project worktree, not by the earlier symlinked-dependency failure.
 - The mobile navigation button now changes its accessible name to “Close mobile navigation” while open.
 
@@ -30,24 +33,25 @@ No public form was submitted. No staff mutation, provider message, webhook repla
 
 | Check | Status | Evidence / limitation |
 |---|---|---|
-| Focused public-form unit tests | Pass | 12/12 focused tests pass for idempotency, receipt validation, and annual-rent parsing. |
-| Public property status regression | Pass | Verifies missing API status does not become a verified/direct-instruction claim or an available inspection slot. |
-| Full unit suite | Pass with skips | 198 passed; 16 skipped across 26 passing and 2 skipped files. Skipped live tests are not passes. |
-| Application and test typechecks | Pass | `npm run typecheck` and `npm run typecheck:tests` completed after the final build. |
-| Changed-path lint | Pass with warnings | ESLint found 0 errors and 26 warnings, primarily raw `<img>` warnings. |
-| Production build and Turbopack root | Pass | Next.js 16.4.2 built from the worktree project root and generated 80/80 routes without the parent-directory root override. |
-| Browser rendering and responsive behavior | Pass, scoped local check | Fresh local production server: 8 public routes at 320, 390, and 1280 CSS-pixel viewports (24 combinations), with headings present and no horizontal overflow or app-error indicator. A dynamic demo property detail showed the unconfirmed-fee warning and “Availability not listed”; landlord form defaults were blank, city was explicit, and no file input was present. Mobile navigation opened and updated its accessible name. No form was submitted. |
-| Vercel Preview deployment | Pass | Deployment `49NjUxSuu3yR9RSxxJ3W9Jf6koTH` reached Ready for reviewed head `8bed5e0c6695fdb6b33c9e4e86a89fc51defa4de`. The eight public routes above were also opened in Preview at all three viewports; no horizontal overflow or application-error indicators were observed. This is Preview evidence only. |
-| Production behavior | Not tested | No production deployment or mutation was requested or performed. |
+| Focused public-form/property/gallery tests | Pass | The focused suite passed 33 assertions across form retry, annual-rent parsing, fee rules, staff property status, rent filtering, and gallery-order tests. |
+| Full Vitest suite | Pass with skips | 212 passed; 16 skipped across 30 passing and 2 skipped files. Skipped live tests remain blocked, not passed. |
+| Application and test typechecks | Pass | `npm run typecheck` and `npm run typecheck:tests` completed on the reviewed tree. |
+| Full ESLint | Pass with warnings | 0 errors, 36 warnings. Warnings are mainly existing Next.js image/navigation advisories. |
+| Production build and Turbopack root | Pass | Next.js 16.4.2 built from the project root and generated 80/80 routes without a parent-directory root override. |
+| Browser rendering and responsive behavior | Pass, scoped local check | Local production build: 8 public routes at 320, 390, and 1280 CSS-pixel widths (24 combinations), all HTTP 200 with H1s, no detected horizontal overflow or app-error text. Contact had Telegram links and no WhatsApp links; landlord form had blank controls, no file input, and the photo-upload-unavailable disclosure. Mobile navigation opened with the accurate accessible label. No form was submitted. |
+| Local authenticated staff behavior | Blocked | Staff property and customer routes returned HTTP 500 because usable Supabase URL/key configuration is absent in this isolated worktree. No authenticated staff flow was tested or claimed. |
+| Vercel Preview | Deployment ready; app access blocked | Vercel deployment `FkYoxpqMvNPJUUr1thco8GUmee4C` completed for implementation commit `4d784245965a6dd645b33c9ead5d76d2160e0c0d`; Preview Comments passed. Requests to five public routes redirected HTTP 302 to deployment protection. No Nestly page was observed; Preview route, responsive, gallery, and authenticated staff behavior remain unverified. |
+| Dependency advisories | Blocked upstream fix | Production dependencies: 0 vulnerabilities. Full audit: 5 high findings in the dev-only `eslint-config-next` → `@next/eslint-plugin-next` → `fast-glob` → `micromatch` → `braces` chain (GHSA-vfj7-8cjw-p6xm). Forced remediation downgrades the lint config to Next 14.2.35, incompatible with Next 16; no compatible update was found. |
+| Production behavior | Not tested | Production was not deployed or mutated for this review. |
 
 ## Remaining risks and blockers
 
-- Idempotency keys are retained only in the current page session. A browser reload starts a new key; cross-reload retry identity is not guaranteed.
-- No authenticated browser test of the property editor or preview has been completed. Server-side authorization remains authoritative and is not inferred from the UI.
-- No landlord/contact submission was made, so live receipt and idempotent retry behavior remain unverified beyond unit tests. The idempotency key remains page-session scoped; a browser reload starts a new key.
+- No authenticated browser test of the property editor, customer directory, inbox, or preview has been completed. Server-side authorization remains authoritative and is not inferred from UI rendering.
+- No landlord/contact submission was made, so live receipt and retry behavior remain unverified beyond tests. `sessionStorage` retry state is scoped to the tab; browser privacy modes that block storage prevent a submission and surface an error.
+- Vercel deployment protection blocked Preview app access. Deployment readiness is not treated as route or browser verification.
 - Provider health, external verification (including GPS/title/power/water checks), notification delivery, and audit-log completeness require real operational evidence. This UI does not claim those checks occurred.
-- `npm ci` previously reported five high-severity dependency advisories. No dependency manifest or lockfile change was made in this review; the advisory status should be triaged separately.
+- Five high-severity dev-toolchain advisories remain pending a compatible upstream fix. Production dependency audit reports zero vulnerabilities; dependency files were not changed.
 
 ## Release state
 
-PR #3 remains a draft and unmerged. The review worktree is isolated from Antigravity's worktree. No Production deploy, form submission, provider send, n8n change, or migration was performed. Local browser rendering used the existing local environment configuration; Preview testing was read-only. Secret values were not printed.
+PR #3 remains a draft and unmerged. The review worktree is isolated from Antigravity's worktree. No Production deploy, form submission, provider send, n8n change, or migration was performed. Local browser rendering used the isolated local build; Preview deployment was read-only but protected from unauthenticated route access. No secrets were printed.
