@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import gsap from 'gsap';
 import { ChevronLeft, ChevronRight, Maximize2, Pause, Play, X } from 'lucide-react';
 import type { Property } from '@/lib/types';
+import { getPropertyGalleryPhotos } from '@/lib/property-gallery';
 import { MOTION, prefersReducedMotion, useReducedMotion } from '@/lib/motion';
 
 /**
@@ -44,15 +45,16 @@ function decodeUrl(url: string): Promise<boolean> {
 interface PropertyGalleryProps {
   property: Property;
   morphing: boolean;
+  initialImageSrc?: string;
 }
 
-export function PropertyGallery({ property, morphing }: PropertyGalleryProps) {
+export function PropertyGallery({ property, morphing, initialImageSrc }: PropertyGalleryProps) {
   const reduced = useReducedMotion();
 
-  const photos = useMemo(() => {
-    const list = (property.galleryImages?.length ? property.galleryImages : [property.featuredImage]).filter(Boolean);
-    return Array.from(new Set(list));
-  }, [property.galleryImages, property.featuredImage]);
+  const photos = useMemo(
+    () => getPropertyGalleryPhotos({ featuredImage: property.featuredImage, galleryImages: property.galleryImages }, initialImageSrc),
+    [property.galleryImages, property.featuredImage, initialImageSrc],
+  );
 
   const [failed, setFailed] = useState<string[]>([]);
   const valid = useMemo(() => photos.filter((p) => !failed.includes(p)), [photos, failed]);
@@ -73,6 +75,8 @@ export function PropertyGallery({ property, morphing }: PropertyGalleryProps) {
 
   const rootRef = useRef<HTMLDivElement>(null);
   const layerRefs = useRef<Array<HTMLImageElement | null>>([null, null]);
+  const thumbStripRef = useRef<HTMLDivElement>(null);
+  const thumbRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const frontRef = useRef(0);
   const indexRef = useRef(0);
   const fillRefs = useRef<Array<HTMLSpanElement | null>>([]);
@@ -143,6 +147,7 @@ export function PropertyGallery({ property, morphing }: PropertyGalleryProps) {
 
       indexRef.current = target;
       setIndex(target);
+      setFirstReady(true);
       resetProgress();
 
       const label = `${property.title} — photo ${valid.indexOf(url) + 1} of ${valid.length}`;
@@ -213,12 +218,27 @@ export function PropertyGallery({ property, morphing }: PropertyGalleryProps) {
     return () => cancelAnimationFrame(raf);
   }, [running, goTo, nextValidIndex]);
 
-  // Warm the decode cache for the whole gallery once the hero has settled.
+  // Warm only adjacent photos; do not saturate the connection with a full gallery decode.
   useEffect(() => {
     if (morphing || !firstReady || !multi) return;
-    const id = window.setTimeout(() => valid.forEach((u) => void decodeUrl(u)), 250);
+    const id = window.setTimeout(() => {
+      void decodeUrl(photos[nextValidIndex(index, 1)]);
+      void decodeUrl(photos[nextValidIndex(index, -1)]);
+    }, 250);
     return () => window.clearTimeout(id);
-  }, [morphing, firstReady, multi, valid]);
+  }, [morphing, firstReady, multi, photos, index, nextValidIndex]);
+
+  // Keep the selected thumbnail visible by scrolling the strip, never the document.
+  useEffect(() => {
+    const strip = thumbStripRef.current;
+    const selected = thumbRefs.current[index];
+    if (!strip || !selected) return;
+    const bounds = strip.getBoundingClientRect();
+    const thumb = selected.getBoundingClientRect();
+    const top = thumb.top < bounds.top ? thumb.top - bounds.top : thumb.bottom > bounds.bottom ? thumb.bottom - bounds.bottom : 0;
+    const left = thumb.left < bounds.left ? thumb.left - bounds.left : thumb.right > bounds.right ? thumb.right - bounds.right : 0;
+    if (top || left) strip.scrollBy({ top, left, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+  }, [index]);
 
   // Tab visibility
   useEffect(() => {
@@ -290,7 +310,10 @@ export function PropertyGallery({ property, morphing }: PropertyGalleryProps) {
     const target = e.target as HTMLElement;
     // Controls inside the carousel should not pause autoplay when focused;
     // otherwise clicking Play immediately re-pauses because focus stays on the button.
-    if (target.closest?.('[data-gallery-controls]')) return;
+    if (target.closest?.('[data-gallery-controls]')) {
+      setFocusWithin(false);
+      return;
+    }
     setFocusWithin(true);
   };
   const onBlurCapture = (e: React.FocusEvent) => {
@@ -325,7 +348,7 @@ export function PropertyGallery({ property, morphing }: PropertyGalleryProps) {
         onBlurCapture={onBlurCapture}
         onPointerEnter={(e) => e.pointerType === 'mouse' && setHovering(true)}
         onPointerLeave={(e) => e.pointerType === 'mouse' && setHovering(false)}
-        className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-12"
+        className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-12 items-start"
         data-gallery-running={running ? 'true' : 'false'}
         data-gallery-index={index}
       >
@@ -352,12 +375,14 @@ export function PropertyGallery({ property, morphing }: PropertyGalleryProps) {
               src={photos[0]}
               alt={`${property.title} — photo 1 of ${validCount}`}
               draggable={false}
+              fetchPriority="high"
+              decoding="async"
               onLoad={markReady}
               onError={handleFirstLayerError}
               className="absolute inset-0 w-full h-full object-cover"
               style={{ zIndex: 2 }}
             />
-            {multi && (
+            {total > 1 && (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 ref={(el) => {
@@ -434,7 +459,7 @@ export function PropertyGallery({ property, morphing }: PropertyGalleryProps) {
                 </button>
               )}
               <div className="px-3 py-1.5 rounded-full bg-charcoal/80 text-white text-xs font-medium backdrop-blur-xs tabular-nums">
-                Photo {displayIndex} of {validCount} · Daylight verified
+                Photo {displayIndex} of {validCount}
               </div>
             </div>
 
@@ -456,17 +481,18 @@ export function PropertyGallery({ property, morphing }: PropertyGalleryProps) {
         </div>
 
         {/* Side thumbnails */}
-        <div className="lg:col-span-4 grid grid-cols-3 lg:grid-cols-1 gap-3 h-full">
+        <div ref={thumbStripRef} role="group" aria-label="Property photo thumbnails" data-property-thumbnail-strip className="lg:col-span-4 relative flex lg:flex-col gap-3 h-[100px] sm:h-[112px] lg:h-[480px] min-w-0 overflow-x-auto overflow-y-hidden lg:overflow-x-hidden lg:overflow-y-auto overscroll-contain pb-1 lg:pb-0 lg:pr-1">
           {photos.map((img, idx) =>
             failed.includes(img) ? null : (
               <button
                 key={img}
                 data-property-thumb
+                ref={(el) => { thumbRefs.current[idx] = el; }}
                 type="button"
                 aria-label={`View photo ${valid.indexOf(img) + 1} of ${validCount}`}
                 aria-current={index === idx ? 'true' : undefined}
                 onClick={() => goTo(idx, { manual: true })}
-                className={`relative h-[100px] lg:h-[150px] rounded-2xl overflow-hidden border-2 cursor-pointer transition-[border-color,box-shadow,opacity] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-persimmon ${
+                className={`relative shrink-0 w-32 sm:w-40 lg:w-full h-full lg:h-[148px] rounded-2xl overflow-hidden border-2 cursor-pointer transition-[border-color,box-shadow,opacity] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-persimmon ${
                   index === idx
                     ? 'border-persimmon ring-2 ring-persimmon/20'
                     : 'border-hairline opacity-80 hover:opacity-100'
@@ -476,6 +502,8 @@ export function PropertyGallery({ property, morphing }: PropertyGalleryProps) {
                 <img
                   src={img}
                   alt=""
+                  loading="lazy"
+                  decoding="async"
                   draggable={false}
                   onError={() => setFailed((f) => (f.includes(img) ? f : [...f, img]))}
                   className="w-full h-full object-cover"
@@ -621,7 +649,7 @@ function GalleryLightbox({ title, photos, activeUrl, onNavigate, onClose }: Gall
           <div>
             <h3 className="font-headline text-sm sm:text-base font-bold">{title}</h3>
             <p className="text-xs text-white/70 tabular-nums" aria-live="polite">
-              Photo {current + 1} of {photos.length} · Daylight verified
+              Photo {current + 1} of {photos.length}
             </p>
           </div>
           <button
