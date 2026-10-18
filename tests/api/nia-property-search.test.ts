@@ -18,10 +18,38 @@ describe('Nia grounded property search parsing', () => {
     });
   });
 
+  it('parses the reported natural-language two-bedroom request without filler keywords', () => {
+    expect(parseNiaPropertySearch('Hi Nia, I’m looking for a two-bedroom apartment in Benin City.')).toEqual({
+      location: 'Benin City',
+      bedrooms: 2,
+      propertyType: 'apartment',
+      keywords: [],
+    });
+  });
+
+  it.each([
+    ['Find a 2-bedroom apartment in Benin City', 2],
+    ['Find a 3 bedroom apartment in Benin City', 3],
+    ['Find a four-bedroom apartment in Benin City', 4],
+  ])('parses bedroom count from %s', (query, bedrooms) => {
+    expect(parseNiaPropertySearch(query)).toMatchObject({ bedrooms });
+  });
+
   it('keeps feature terms while recognizing location', () => {
     expect(parseNiaPropertySearch('Homes with solar in Sapele')).toMatchObject({
       location: 'Sapele',
       keywords: ['solar'],
+    });
+  });
+
+  it('removes request filler without dropping meaningful amenity keywords', () => {
+    expect(parseNiaPropertySearch(
+      'Hi Nia, I’m looking for a two-bedroom apartment in Benin City with solar and parking',
+    )).toMatchObject({
+      location: 'Benin City',
+      bedrooms: 2,
+      propertyType: 'apartment',
+      keywords: ['solar', 'parking'],
     });
   });
 

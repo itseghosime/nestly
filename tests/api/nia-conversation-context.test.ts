@@ -6,6 +6,7 @@ import {
   normalizeNiaContext,
   resolveNiaPreferences,
 } from '@/lib/backend/nia-conversation-context';
+import { parseNiaPropertySearch } from '@/lib/backend/nia-property-search';
 
 describe('Nia website conversation context', () => {
   it('remembers references to the first three recent results', () => {
@@ -27,6 +28,43 @@ describe('Nia website conversation context', () => {
       bedrooms: 2,
       maxAnnualRent: 4_000_000,
       keywords: ['solar'],
+    });
+  });
+
+  it('updates requested preferences while retaining unchanged context', () => {
+    const previous = {
+      location: 'GRA',
+      bedrooms: 2,
+      maxAnnualRent: 4_000_000,
+      propertyType: 'house' as const,
+      keywords: ['solar'],
+    };
+    expect(resolveNiaPreferences(
+      'Actually, I need a three-bedroom apartment in Ugbor',
+      previous,
+    )).toEqual({
+      location: 'Ugbor',
+      bedrooms: 3,
+      maxAnnualRent: 4_000_000,
+      propertyType: 'apartment',
+      keywords: ['solar'],
+    });
+  });
+
+  it('retains parsed preferences through conversation-context normalization', () => {
+    const preferences = parseNiaPropertySearch(
+      'Hi Nia, I’m looking for a two-bedroom apartment in Benin City.',
+    );
+    const restored = normalizeNiaContext(JSON.parse(JSON.stringify({
+      preferences,
+      recentPropertyIds: ['property-1'],
+      selectedPropertyId: 'property-1',
+    })));
+
+    expect(restored).toEqual({
+      preferences,
+      recentPropertyIds: ['property-1'],
+      selectedPropertyId: 'property-1',
     });
   });
 

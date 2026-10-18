@@ -22,12 +22,27 @@ export type NiaPropertySearchResponse =
 
 const STOP_WORDS = new Set([
   'a', 'about', 'an', 'and', 'any', 'are', 'at', 'bed', 'bedroom', 'bedrooms',
-  'below', 'but', 'can', 'change', 'find', 'for', 'from', 'home', 'homes', 'house', 'houses',
-  'hello', 'help', 'how', 'in', 'is', 'listing', 'listings', 'me', 'maybe', 'near', 'of', 'on', 'only', 'or', 'please',
+  'below', 'but', 'can', 'change', 'dear', 'find', 'for', 'from', 'good', 'hello', 'help', 'hey', 'hi',
+  'home', 'homes', 'house', 'houses', 'how', 'im', 'in', 'is', 'like', 'listing', 'listings', 'looking',
+  'me', 'maybe', 'morning', 'near', 'need', 'nia', 'of', 'on', 'only', 'or', 'please', 'searching',
   'actually', 'area', 'first', 'instead', 'number', 'option', 'rather', 'same', 'second', 'switch', 'third', 'what',
   'property', 'properties', 'rent', 'rental', 'rentals', 'search', 'show', 'some',
-  'the', 'to', 'under', 'want', 'with',
+  'the', 'to', 'under', 'want', 'wanted', 'we', 'with', 'would',
+  'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
 ]);
+
+const BEDROOM_NUMBER_WORDS: Readonly<Record<string, number>> = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+};
 
 const LOCATION_HINTS = [
   ['benin city', 'Benin City'],
@@ -71,8 +86,11 @@ export function parseNiaPropertySearch(query: string): NiaPropertySearchCriteria
     }
   }
 
-  const bedroomMatch = remaining.match(/\b(\d{1,2})\s*-?\s*bed(?:room)?s?\b/i);
-  const bedrooms = bedroomMatch ? Number(bedroomMatch[1]) : undefined;
+  const bedroomMatch = remaining.match(/\b(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)\s*-?\s*bed(?:room)?s?\b/i);
+  const bedroomToken = bedroomMatch?.[1].toLowerCase();
+  const bedrooms = bedroomToken
+    ? BEDROOM_NUMBER_WORDS[bedroomToken] ?? Number(bedroomToken)
+    : undefined;
   if (bedroomMatch) remaining = remaining.replace(bedroomMatch[0], ' ');
 
   const budgetPattern =
