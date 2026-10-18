@@ -81,7 +81,7 @@ Use a fake test token, a synthetic callback URL, a fixture request body, and a m
 
 ### MessageSid deduplication (local database arbitration verified; WF01 change still pending)
 
-The core schema has a unique constraint on `messages.provider_message_id`. Preserve it as the concurrency arbiter; never fall back to `$execution.id` when `MessageSid` is missing. After the validator is deployed and tested, update `Persist Inbound Message` to return whether this execution inserted the inbound row, then gate the existing `AI Allowed?` node:
+The core schema has a unique constraint on `messages.provider_message_id`. Preserve it as the concurrency arbiter; never fall back to `$execution.id` when `MessageSid` is missing. In the existing `Persist Inbound Message` Postgres node, keep the existing Postgres credential and `queryBatching: single`, replace the `query` with:
 
 ```sql
 WITH inserted AS (
@@ -110,7 +110,21 @@ FROM jsonb_populate_record(
 ) AS c;
 ```
 
-Set `provider_message_id` only to the validated Twilio `MessageSid`. Add an IF node named `First Message Delivery?` after `Persist Inbound Message`, with boolean condition `{{$json.is_new_inbound}} is true`. Connect true to the existing `AI Allowed?`; connect false to a new `Respond Duplicate` node configured to return HTTP 200, `Content-Type: text/xml`, body `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`. The empty TwiML acknowledges a valid duplicate without invoking AI or sending another message. PostgreSQL's unique constraint makes simultaneous inserts for the same SID serialize: exactly one execution gets `is_new_inbound=true`; concurrent losers get false after the unique conflict resolves.
+Replace that same node's `options.queryReplacement` value with this n8n expression; do not include the former `$execution.id` fallback:
+
+```text
+={{ [JSON.stringify({conversation:$json,provider_message_id:$('Webhook').first().json.body.MessageSid,content:$('Webhook').first().json.body.Body || '[Non-text WhatsApp message]'})] }}
+```
+
+This uses only the Twilio `MessageSid`, which the incoming relay validates before forwarding. A missing SID must not be replaced with an execution-specific value.
+
+Add an IF node named `First Message Delivery?` immediately after the success output of `Persist Inbound Message`, with a Boolean condition using `{{$json.is_new_inbound}}` **is true**. Wire the existing `Persist Inbound Message` success output 0 to this IF node. Wire IF output 0 (true) to the existing `AI Allowed?`. Wire IF output 1 (false) to a new `Respond Duplicate` Respond to Webhook node. Set that node to respond with text, HTTP 200, header `Content-Type: text/xml`, body `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`. Keep `Persist Inbound Message` error output 1 connected to the existing `Fallback Response`; leave the upstream customer/conversation lookup and creation edges unchanged.
+
+The empty TwiML acknowledges a valid duplicate without invoking AI or producing a second automatic reply. PostgreSQL's unique constraint makes simultaneous inserts for the same SID serialize: exactly one execution gets `is_new_inbound=true`; concurrent losers get false after the unique conflict resolves. Test the node output, IF branches, and exact TwiML first in an inactive test workflow against a disposable database with synthetic SIDs. Do not invoke the active production WF01 or send customer messages as part of the test.
+
+**Expected result:** For a previously unseen synthetic SID, one customer-authored inbound row is inserted, `is_new_inbound` is true, and only that execution reaches the unchanged `AI Allowed?` branch and existing response behavior. A repeat or simultaneous retry for the same SID inserts no second row, returns `is_new_inbound=false`, bypasses AI, and receives the empty 200 TwiML. One stored inbound row and at most one AI execution are the acceptance conditions; this does not guarantee recovery if the winning execution crashes after insertion.
+
+**Rollback:** Restore the original `Persist Inbound Message` query and `options.queryReplacement` from the pre-edit workflow revision, delete `First Message Delivery?` and `Respond Duplicate`, and reconnect success output 0 directly to the existing `AI Allowed?`; retain error output 1 to `Fallback Response`. Do not drop the database uniqueness constraint or delete message rows. Rollback restores the previous behavior, including the known duplicate-AI risk.
 
 **Local database result:** `SUPABASE_TEST_DB_CONTAINER=supabase_db_nestly-supabase-isolated-xtlsfp npm run test:twilio-dedup:local` passed against the disposable local Nestly Supabase stack. It confirmed one first sequential claim, rejected its duplicate, and exactly one winner among eight concurrently launched inserts sharing one synthetic SID; there was one stored row per SID, and the runner cleaned only its generated customer/conversation/message rows. This validates the database uniqueness arbiter, not the n8n node output, AI branch, TwiML response, or live workflow.
 
@@ -140,7 +154,23 @@ WF03 remains untouched. Its public projection is not involved in staff message d
 
 ### Required server configuration and limits
 
-Configure `TWILIO_ACCOUNT_SID`, the existing server-only `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM` (the Sandbox sender shown by Twilio Console), and `TWILIO_STATUS_CALLBACK_URL` (the exact public HTTPS app URL ending in `/api/twilio/whatsapp/status`). The app appends one `message_id` query parameter for each outbound message. `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are also required for durable finalization and callback persistence. `.env.example` contains names only. Local presence-only inspection found the four Twilio outbound/signature variables empty; no credential value was read or recorded.
+Configure values in the Vercel project's **Settings → Environment Variables** and scope them to **Production** only to start. Save credentials as Secret values where Vercel offers Config/Secret types, then redeploy before relying on them. Sources:
+
+| Vercel variable | Obtain its value from |
+|---|---|
+| `TWILIO_ACCOUNT_SID` | Twilio Console → Account Info for the same account/subaccount that owns the Sandbox. Use the Account SID, not an API Key SID. |
+| `TWILIO_AUTH_TOKEN` | The Auth Token in that account's Twilio Console Account Info. The Twilio SDK's `validateRequest` requires the account Auth Token; an API Key secret is not a substitute. Treat it as server-only. |
+| `TWILIO_WHATSAPP_FROM` | Twilio legacy Console → **Try WhatsApp / Sandbox settings** → the Sandbox sender number, formatted as `whatsapp:+<number>`. |
+| `TWILIO_PUBLIC_WEBHOOK_URL` | `https://nestly-sigma.vercel.app/api/twilio/whatsapp/inbound` (user-supplied). It must exactly match the callback string Twilio signs. |
+| `TWILIO_STATUS_CALLBACK_URL` | `https://nestly-sigma.vercel.app/api/twilio/whatsapp/status` (user-supplied). The app uses this as the per-message callback base and appends one `message_id` query parameter; do not change the Sandbox callback field as part of this setup. |
+| `NESTLY_WF01_WEBHOOK_URL` | The existing active WF01 Webhook node's **Production URL** in n8n. Do not replace/regenerate the workflow or change its URL. Keep the value server-only. |
+| `NESTLY_WF01_RELAY_SECRET` | Generate 32 random bytes locally, then store the same value in this Vercel variable and a new n8n **Header Auth** credential whose header name is `X-Nestly-Relay`. Never place it in a node expression, export, chat, or Git. |
+
+On macOS, one way to generate the relay secret without printing it to the terminal is `openssl rand -base64 32 | tr -d '\n' | pbcopy`; paste it directly into the two secret-entry forms, then clear the clipboard. Add the n8n credential and set the WF01 Webhook to Header Auth only during an approved coordinated cutover; neither change is made here.
+
+`TWILIO_OUTBOUND_ENABLED` is a fail-closed feature gate for **staff-initiated Next.js sends**. Leave it absent or explicitly set it to `false`; code requires the exact string `true`, and the UI/API both deny sends otherwise. Do not enable it until an approved-recipient test is authorized. This flag does **not** suppress existing WF01 TwiML replies: the currently configured Sandbox callback is unchanged and may continue its existing behavior. Avoid sending messages to the Sandbox while WF01 remains active unless an external reply is intended.
+
+`NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are also required for durable finalization and callback persistence; obtain them from the linked Supabase project's API settings. `.env.example` contains names/placeholders only. No Vercel environment setting or Twilio Console callback was changed in this task.
 
 The code rejects localhost, private IPv4/IPv6 literals, non-HTTPS callback URLs, unexpected callback paths, and callback URLs with pre-existing query parameters. Syntax validation does not prove public reachability; a public HTTPS endpoint is still a deployment prerequisite. No hosting change, callback cutover, real Twilio request, external message, or live WF01/WF03 check occurred.
 
@@ -169,7 +199,7 @@ The SQL runner creates randomly named synthetic customer/conversation/message/st
 Do the remaining steps in order, with a named change owner and rollback window. The six reviewed database migrations were applied to linked Supabase on 2026-10-18. WF01, WF03, Twilio callbacks, and hosting remain unchanged.
 
 1. **Linked migrations — completed 2026-10-18.** Repeated `npx --yes supabase@2.121.0 migration list --linked` and `db push --linked --dry-run`; the exact pending set was the six Twilio files listed above, with no seeds or roles. Applied using `npx --yes supabase@2.121.0 db push --linked --yes --skip-vault`. Post-apply history shows all 20 local/remote versions aligned through `20261019111000`. Read-only checks confirmed service-only dispatch/status/reconciliation RPCs, no direct status-event table grants, website chat/staff RLS access, and the anonymous 30-column `public_properties` projection. See Build Log §40 for exact results. Do not reapply.
-2. **Configure required app variables (credentials server-only).** Set `TWILIO_AUTH_TOKEN`, `TWILIO_PUBLIC_WEBHOOK_URL`, `NESTLY_WF01_WEBHOOK_URL`, `NESTLY_WF01_RELAY_SECRET`, `TWILIO_ACCOUNT_SID`, `TWILIO_WHATSAPP_FROM`, `TWILIO_STATUS_CALLBACK_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`, and `SUPABASE_SERVICE_ROLE_KEY`. The service-role key and all Twilio/n8n relay credentials are server-only; never use a `NEXT_PUBLIC_` prefix for them. `TWILIO_PUBLIC_WEBHOOK_URL` must exactly match the public inbound relay URL; `TWILIO_STATUS_CALLBACK_URL` must be the exact public `/api/twilio/whatsapp/status` base URL. Keep secrets out of workflow JSON, logs, and client bundles.
+2. **Configure required app variables (credentials server-only).** Set `TWILIO_AUTH_TOKEN`, `TWILIO_PUBLIC_WEBHOOK_URL`, `NESTLY_WF01_WEBHOOK_URL`, `NESTLY_WF01_RELAY_SECRET`, `TWILIO_ACCOUNT_SID`, `TWILIO_WHATSAPP_FROM`, `TWILIO_STATUS_CALLBACK_URL`, `TWILIO_OUTBOUND_ENABLED`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`, and `SUPABASE_SERVICE_ROLE_KEY`. Initially leave `TWILIO_OUTBOUND_ENABLED` absent or `false`; the staff REST API requires the exact string `true`. The service-role key and all Twilio/n8n relay credentials are server-only; never use a `NEXT_PUBLIC_` prefix for them. `TWILIO_PUBLIC_WEBHOOK_URL` must exactly match the public inbound relay URL; `TWILIO_STATUS_CALLBACK_URL` is the per-message status callback base URL. Keep secrets out of workflow JSON, logs, and client bundles.
 3. **Deploy public HTTPS first.** Deploy the app routes `/api/twilio/whatsapp/inbound` and `/api/twilio/whatsapp/status` on the approved public HTTPS host. Verify reachability and signature canonical URLs without sending a message. Localhost is not Twilio-reachable. Do not switch the Sandbox callback until this succeeds.
 4. **Update the existing WF01 only, after relay deployment.**
    - On the existing `Webhook` node in `NESTLY — WF01 — Twilio WhatsApp Inbound`, set **Authentication** to **Header Auth** and select a new n8n Header Auth credential whose header name is `X-Nestly-Relay` and whose secret matches `NESTLY_WF01_RELAY_SECRET`. Keep the node name/path and response-node mode. Do not add a second Webhook, Code node, ingress, or credential containing the Twilio Auth Token.

@@ -43,6 +43,7 @@ Names only are listed here; never commit values for secrets.
 **Twilio inbound relay and staff-initiated replies**
 
 - `TWILIO_AUTH_TOKEN` — server-only
+- `TWILIO_OUTBOUND_ENABLED` — keep `false`; staff-initiated sends require an explicit `true`
 - `TWILIO_PUBLIC_WEBHOOK_URL`
 - `NESTLY_WF01_WEBHOOK_URL`
 - `NESTLY_WF01_RELAY_SECRET` — server-only

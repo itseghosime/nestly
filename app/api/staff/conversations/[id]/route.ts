@@ -81,6 +81,7 @@ export async function GET(
   const customer = one(data.customer);
   const property = one(data.property);
   const isAssignedToCurrentStaff = data.assigned_staff_id === context.userId;
+  const whatsappOutboundEnabled = process.env.TWILIO_OUTBOUND_ENABLED === 'true';
   return NextResponse.json({
     data: {
       id: data.id,
@@ -90,7 +91,9 @@ export async function GET(
       assignedStaff: profileResult.data?.display_name || (data.assigned_staff_id ? 'Assigned staff' : 'Unassigned'),
       isAssignedToCurrentStaff,
       whatsappDispatchAvailable: dispatchTrackingAvailable,
+      whatsappOutboundEnabled,
       canSendWhatsApp: dispatchTrackingAvailable
+        && whatsappOutboundEnabled
         && data.channel === 'whatsapp'
         && data.mode === 'HUMAN_ACTIVE'
         && isAssignedToCurrentStaff

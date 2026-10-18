@@ -63,6 +63,7 @@ function setTwilioEnvironment() {
   vi.stubEnv('NEXT_PUBLIC_SITE_URL', SITE_URL);
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://supabase.example.test');
   vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', SERVICE_ROLE);
+  vi.stubEnv('TWILIO_OUTBOUND_ENABLED', 'true');
   vi.stubEnv('TWILIO_ACCOUNT_SID', ACCOUNT_SID);
   vi.stubEnv('TWILIO_AUTH_TOKEN', AUTH_TOKEN);
   vi.stubEnv('TWILIO_WHATSAPP_FROM', 'whatsapp:+14155238886');
@@ -289,7 +290,7 @@ describe('staff conversation replies', () => {
     expect(errorSpy.mock.calls.flat().join(' ')).not.toContain(CONTENT);
   });
 
-  it('enables the WhatsApp composer only for the assigned staff member after takeover', async () => {
+  it('enables the WhatsApp composer only for assigned staff after takeover and explicit opt-in', async () => {
     const conversationData = {
       id: CONVERSATION_ID,
       channel: 'whatsapp',
@@ -330,8 +331,41 @@ describe('staff conversation replies', () => {
 
     expect(response.status).toBe(200);
     expect(result.data.whatsappDispatchAvailable).toBe(true);
+    expect(result.data.whatsappOutboundEnabled).toBe(true);
     expect(result.data.canSendWhatsApp).toBe(true);
     expect(result.data.messages[0].dispatch_status).toBe('unknown');
+
+    vi.stubEnv('TWILIO_OUTBOUND_ENABLED', 'false');
+    const disabledResponse = await getConversation(
+      new Request(`${SITE_URL}/api/staff/conversations/${CONVERSATION_ID}`),
+      staffRouteParams(),
+    );
+    const disabledResult = await disabledResponse.json();
+    expect(disabledResult.data.whatsappDispatchAvailable).toBe(true);
+    expect(disabledResult.data.whatsappOutboundEnabled).toBe(false);
+    expect(disabledResult.data.canSendWhatsApp).toBe(false);
+  });
+
+  it('keeps staff-initiated WhatsApp sending disabled unless explicitly enabled', async () => {
+    vi.stubEnv('TWILIO_OUTBOUND_ENABLED', 'false');
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const response = await postStaffReply(staffRequest(), staffRouteParams());
+    const result = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(result.error).toContain('not configured');
+    expect(staffRpc).not.toHaveBeenCalled();
+    expect(adminRpc).not.toHaveBeenCalled();
+    expect(mocks.messagesCreate).not.toHaveBeenCalled();
+
+    delete process.env.TWILIO_OUTBOUND_ENABLED;
+    const missingFlagResponse = await postStaffReply(staffRequest(), staffRouteParams());
+    expect(missingFlagResponse.status).toBe(503);
+    expect(staffRpc).not.toHaveBeenCalled();
+    expect(adminRpc).not.toHaveBeenCalled();
+    expect(mocks.messagesCreate).not.toHaveBeenCalled();
+    expect(errorSpy.mock.calls.flat().join(' ')).not.toContain(AUTH_TOKEN);
   });
 
   it('preserves website replies and never calls Twilio for website conversations', async () => {

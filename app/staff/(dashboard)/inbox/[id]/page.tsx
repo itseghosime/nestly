@@ -39,6 +39,7 @@ type Conversation = {
   assignedStaff: string;
   isAssignedToCurrentStaff: boolean;
   whatsappDispatchAvailable: boolean;
+  whatsappOutboundEnabled: boolean;
   canSendWhatsApp: boolean;
   createdAt: string;
   customer: { displayName: string; email: string; phone: string };
@@ -765,6 +766,8 @@ export default function ConversationDetailPage({
                   ? triageMode === 'HUMAN'
                     ? !conversation.whatsappDispatchAvailable
                       ? 'Twilio staff replies are unavailable until the additive message-tracking migration is applied to this database. No external message was sent.'
+                      : !conversation.whatsappOutboundEnabled
+                        ? 'Twilio staff sending is disabled for this deployment. No external message was sent.'
                       : !conversation.isAssignedToCurrentStaff
                         ? `This conversation is assigned to ${conversation.assignedStaff}. Only the assigned staff member can send a WhatsApp reply.`
                         : 'Your staff role is not authorized to send WhatsApp replies.'

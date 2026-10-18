@@ -115,6 +115,8 @@ function validWhatsAppAddress(value: string): string | null {
 }
 
 function twilioConfiguration() {
+  if (process.env.TWILIO_OUTBOUND_ENABLED !== 'true') return null;
+
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const from = process.env.TWILIO_WHATSAPP_FROM;
