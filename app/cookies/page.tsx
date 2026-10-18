@@ -105,8 +105,9 @@ export default function CookiePreferencesPage() {
             </span>
             <button
               type="button"
+              aria-label="Dismiss cookie notice"
               onClick={() => setSavedBanner(false)}
-              className="text-emerald-700 hover:text-emerald-900 px-2 py-0.5 rounded"
+              className="text-emerald-700 hover:text-emerald-900 px-2 py-0.5 rounded cursor-pointer"
             >
               ✕
             </button>

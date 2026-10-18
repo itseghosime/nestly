@@ -9,8 +9,9 @@ import { Header } from '@/components/public/Header';
 import { Footer } from '@/components/public/Footer';
 import { NiaWidget } from '@/components/public/NiaWidget';
 import { PropertyCard } from '@/components/public/PropertyCard';
-import { fetchProperties } from '@/lib/properties';
+import { fetchProperties, IS_DEMO_MODE } from '@/lib/properties';
 import { PROPERTIES as FIXTURE_PROPERTIES } from '@/lib/fixtures/properties';
+import type { Property } from '@/lib/types';
 import { prefersReducedMotion } from '@/lib/motion';
 import {
   Search,
@@ -36,7 +37,10 @@ function BrowseContent() {
   const [isNiaOpen, setIsNiaOpen] = useState(false);
   const [mobileFilterDrawerOpen, setMobileFilterDrawerOpen] = useState(false);
   const [propertiesError, setPropertiesError] = useState<string | null>(null);
-  const [properties, setProperties] = useState(FIXTURE_PROPERTIES);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
+  const [properties, setProperties] = useState<Property[]>(() => (IS_DEMO_MODE ? FIXTURE_PROPERTIES : []));
+  const [loading, setLoading] = useState(!IS_DEMO_MODE);
+
   useEffect(() => {
     let cancelled = false;
     fetchProperties({ location: locationFilter, beds: bedsFilter, maxPrice, type: propertyTypeFilter, keyword, sort: sortBy })
@@ -44,15 +48,18 @@ function BrowseContent() {
         if (!cancelled) {
           setProperties(rows);
           setPropertiesError(null);
+          setLoading(false);
         }
       })
       .catch((error: unknown) => {
         if (!cancelled) {
+          setProperties(IS_DEMO_MODE ? FIXTURE_PROPERTIES : []);
           setPropertiesError(error instanceof Error ? error.message : 'Failed to load listings.');
+          setLoading(false);
         }
       });
     return () => { cancelled = true; };
-  }, [locationFilter, bedsFilter, maxPrice, propertyTypeFilter, keyword, sortBy]);
+  }, [locationFilter, bedsFilter, maxPrice, propertyTypeFilter, keyword, sortBy, reloadTrigger]);
 
   const mainRef = useRef<HTMLElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -241,6 +248,7 @@ function BrowseContent() {
             <span>Listing sync notice: {propertiesError}</span>
             <button
               type="button"
+              aria-label="Dismiss listing notice"
               onClick={() => setPropertiesError(null)}
               className="text-amber-700 hover:text-amber-900 font-bold ml-2 cursor-pointer"
             >
@@ -379,6 +387,7 @@ function BrowseContent() {
               {locationFilter !== 'all' && (
                 <button
                   type="button"
+                  aria-label={`Remove ${locationFilter} location filter`}
                   onClick={() => setLocationFilter('all')}
                   className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-persimmon-soft text-persimmon border border-persimmon/20 text-[11px] font-bold nestly-press cursor-pointer"
                 >
@@ -390,6 +399,7 @@ function BrowseContent() {
               {bedsFilter !== 'all' && (
                 <button
                   type="button"
+                  aria-label={`Remove ${bedsFilter} bedroom filter`}
                   onClick={() => setBedsFilter('all')}
                   className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-persimmon-soft text-persimmon border border-persimmon/20 text-[11px] font-bold nestly-press cursor-pointer"
                 >
@@ -401,6 +411,7 @@ function BrowseContent() {
               {propertyTypeFilter !== 'all' && (
                 <button
                   type="button"
+                  aria-label={`Remove ${propertyTypeFilter} property type filter`}
                   onClick={() => setPropertyTypeFilter('all')}
                   className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-persimmon-soft text-persimmon border border-persimmon/20 text-[11px] font-bold nestly-press cursor-pointer"
                 >
@@ -412,6 +423,7 @@ function BrowseContent() {
               {maxPrice < 6000000 && (
                 <button
                   type="button"
+                  aria-label="Reset maximum price filter"
                   onClick={() => setMaxPrice(6000000)}
                   className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-persimmon-soft text-persimmon border border-persimmon/20 text-[11px] font-bold nestly-press cursor-pointer"
                 >
@@ -423,6 +435,7 @@ function BrowseContent() {
               {keyword.trim() && (
                 <button
                   type="button"
+                  aria-label={`Remove keyword search "${keyword.trim()}"`}
                   onClick={() => setKeyword('')}
                   className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-persimmon-soft text-persimmon border border-persimmon/20 text-[11px] font-bold nestly-press cursor-pointer"
                 >
@@ -463,7 +476,34 @@ function BrowseContent() {
         </div>
 
         {/* Listings Grid */}
-        {filteredProperties.length > 0 ? (
+        {loading && properties.length === 0 ? (
+          <div className="py-20 flex flex-col items-center justify-center text-center space-y-3">
+            <div className="w-9 h-9 border-3 border-persimmon border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs font-bold text-muted-ink uppercase tracking-wider">Loading verified listings...</p>
+          </div>
+        ) : propertiesError && properties.length === 0 ? (
+          <div className="bg-white rounded-3xl p-10 sm:p-14 border border-hairline max-w-lg mx-auto text-center shadow-sm my-8">
+            <div className="w-14 h-14 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center mx-auto mb-3 border border-amber-200">
+              <RotateCcw className="w-7 h-7" />
+            </div>
+            <h3 className="font-headline text-xl font-bold text-charcoal mb-2">Unable to Load Listings</h3>
+            <p className="text-xs text-muted-ink mb-6 leading-relaxed">
+              {propertiesError}. Check your network connection or retry the search.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setLoading(true);
+                setPropertiesError(null);
+                setReloadTrigger((t) => t + 1);
+              }}
+              className="px-6 py-2.5 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold uppercase tracking-wider shadow-sm nestly-press cursor-pointer inline-flex items-center gap-2"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Retry Search</span>
+            </button>
+          </div>
+        ) : filteredProperties.length > 0 ? (
           <div ref={gridRef} data-browse-enter className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredProperties.map((prop) => (
               <PropertyCard key={prop.id} property={prop} />
@@ -525,8 +565,9 @@ function BrowseContent() {
               <h3 className="font-headline text-lg font-extrabold text-charcoal">Refine Search</h3>
               <button
                 type="button"
+                aria-label="Close filters"
                 onClick={() => setMobileFilterDrawerOpen(false)}
-                className="w-8 h-8 rounded-full bg-soft-stone flex items-center justify-center text-charcoal"
+                className="w-8 h-8 rounded-full bg-soft-stone flex items-center justify-center text-charcoal cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>

@@ -180,7 +180,9 @@ export default function NeighborhoodsPage() {
                     </div>
                     <div>
                       <span className="text-[10px] uppercase font-bold text-muted-ink block">Power Uptime</span>
-                      <span className="font-extrabold text-charcoal">{n.powerReliability.split(' ')[0]} Daily</span>
+                      <span className="font-extrabold text-charcoal">
+                        {n.powerReliability ? `${n.powerReliability.split(' ')[0]} Daily` : 'Not provided'}
+                      </span>
                     </div>
                   </div>
                 </div>

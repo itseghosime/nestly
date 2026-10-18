@@ -1,124 +1,132 @@
 # Nestly Public Release Audit & Hardening Report
 
 **Audit Date:** 2026-10-18  
-**Target Environment:** Production Frontend Pre-release  
+**Target Environment:** Public Frontend Pre-release Audit  
 **Git Worktree:** `/Users/mac/Documents/Tech4Youth/Nestly-public-release`  
 **Active Branch:** `feature/public-release-polish`  
+**Pull Request:** Draft PR #2 (`https://github.com/itseghosime/nestly/pull/2`)  
 **Base Commit:** `57aa531` (`origin/main`)  
 **Parallel Checkout Isolation:** Copilot's active work on `feature/telegram-integration` in the primary workspace remained completely undisturbed and untouched. Shared `docs/BUILD_LOG.md` is preserved without edits to prevent merge collisions.
 
 ---
 
-## 1. Executive Summary
+## 1. Executive Summary & Verification Methodology
 
-This audit conducted an end-to-end frontend review and defect resolution pass across all public-facing pages, shared public layout components, and customer interaction flows in the Nestly platform. All approved Stitch V2 design specifications, warm white / charcoal / persimmon design tokens, Manrope typography, soft pill ergonomics, GSAP motion timelines, card-to-detail hero transitions, and automatic photo gallery cycling were preserved.
+This hardening audit reviewed all public-facing pages, shared public layout components, and customer interaction flows in the Nestly platform. All approved Stitch V2 design specifications, warm white / charcoal / persimmon design tokens, Manrope typography, soft pill ergonomics, GSAP motion timelines, card-to-detail hero transitions, and automatic photo gallery cycling were maintained.
 
-Zero backend code, API routes, database migrations, authentication systems, Telegram/Twilio integrations, or shared backend services were altered. Where demonstration prototypes exist, realistic boundaries and disclaimers were verified so that simulated features (such as NIN verification or SMS gateways) are never falsely implied to be live connections.
+To maintain strict truthfulness, verification results are partitioned strictly into three distinct evidence categories:
+1. **Static Code Inspection:** Structural review of TypeScript types, component logic, accessibility attributes, error boundaries, and API integration contracts.
+2. **Local Automated Tests:** Automated typechecking (`tsc`), linting (`eslint`), unit test suites (`vitest`), and Next.js production compilation (`next build`).
+3. **Browser Verification:** Visual inspection of desktop layouts in Google Chrome, component rendering, navigation links, and local UI state transitions.
 
----
-
-## 2. Public Page Audit Matrix
-
-| Route Path | Route Type | Stitch V2 Source | Mobile & Desktop | Interactive Controls & Forms | Accessibility & Loading/Empty States | Audit Result |
-|---|---|---|---|---|---|---|
-| `/` | Static (`○`) | Open House V2 (Desktop `de40d0a9`, Mobile `19cc836b`) | Responsive (Tailwind flex/grid, drawer on mobile) | Category chips, search form with query params to `/browse`, FAQ accordion | Semantic headings, keyboard focusable, reduced-motion guards | **PASSED** |
-| `/browse` | Static (`○`) | 02 · Browse Homes V2 (Desktop `da3ba39e`, Mobile `582e016f`) | Responsive (floating filter bar on desktop, bottom-sheet drawer on mobile) | Keyword search, location select, bed count chips, price range slider, type pills, sort dropdown | Empty search state with reset CTA, dismissible active chips, error alert banner | **PASSED** (Defect fixed) |
-| `/property/[id]` | Dynamic (`ƒ`) | 03 · Property Details V2 (Desktop `b0754859`, Mobile `42da4b87`) | Responsive (two-column 8/4 grid on desktop, single-column stack on mobile) | Save shortlist, copy share link, book visit CTA, lightbox modal, tabbed views | Full "Property Not Found" fallback, loading skeleton, keyboard trap in lightbox | **PASSED** (Defects fixed) |
-| `/neighborhoods` | Static (`○`) | 12 · Neighborhood Guides V2 (`9efdb6d4`) | Responsive (bento card grid, state selector pills) | Search filter, Edo/Delta state filter pills, clear search | Empty search fallback, reduced motion support, semantic tags | **PASSED** |
-| `/neighborhoods/[slug]` | Dynamic (`ƒ`) | 13 · Neighborhood Guide Detail V2 (`db8e7ffc`) | Responsive (hero banner, 4-col stat grid, narrative column) | Breadcrumbs, related property card links, Nia concierge trigger | Loading skeleton, "Guide Not Found" error state, safe power metric | **PASSED** (Defects fixed) |
-| `/saved` | Static (`○`) | 06 · Saved Homes V2 (`36e95499`) | Responsive (3-column grid on desktop, 1-col on mobile) | Bookmark toggle, clear all, copy reference list to clipboard, share modal | Animated empty state with browse CTA, LocalStorage persistence | **PASSED** |
-| `/inspection-request` | Static (`○`) | 04 · Request Inspection V2 (Desktop `e854a941`, Mobile `a39e3bd6`) | Responsive (property preview sidebar + 2-step booking card) | Date picker chips, WAT time slot buttons, contact inputs, submit button | Client-side validation with shake animation, alert roles, disabled submit when slot unselected | **PASSED** |
-| `/inspection-request/received` | Static (`○`) | 05 · Request Received V2 (Desktop `8a514d59`, Mobile `61f7481b`) | Responsive (centered confirmation card) | Copy reference button, .ics calendar export download | Secure token receipt (URL query params sanitized), no fake confirmed gate code before approval | **PASSED** |
-| `/about` | Static (`○`) | About Nestly V2 (`409e5b22`) | Responsive (hero problem statement, photo mosaic, 3-pillar grid) | External links, Nia concierge trigger | Semantic article headings, high contrast text | **PASSED** |
-| `/how-it-works` | Static (`○`) | How It Works V2 (`fa1e0419`) | Responsive (4-step visual flow, 4-col stat bar) | Browse CTAs, step anchor navigation | Clean heading hierarchy, optimized images | **PASSED** |
-| `/submit-property` | Static (`○`) | Submit Property V2 (`14f7b2f4`) | Responsive (3-step progress track + property details form) | Step navigation, multi-field input, sample photo attach/remove | Form validation with inline alerts, explicit prototype simulation receipt | **PASSED** |
-| `/faq` | Static (`○`) | Help & FAQ V2 (`82b794ca`) | Responsive (category filter chips, search input, accordion list) | Search filter, category pills, accordion toggle | ARIA expanded states, keyboard navigation, clear search | **PASSED** |
-| `/contact` | Static (`○`) | 09 · Contact V2 (`51aa60d1`) | Responsive (direct desk info cards + inquiry form) | Category selector pills, input validation, message submit | Field error indicators, reset inquiry button, simulated receipt | **PASSED** |
-| `/terms` | Static (`○`) | 14 · Terms & Conditions V2 (`518b5b7b`) | Responsive (clean legal prose layout) | Internal links, back to top | Prose typography, high contrast, statutory Edo/Delta terms | **PASSED** |
-| `/privacy` | Static (`○`) | 15 · Privacy Policy V2 (`a291bf14`) | Responsive (NDPA 2023 compliance layout) | Section anchors, contact links | Explicit demonstration notice for simulated third-party integrations | **PASSED** (Defect fixed) |
-| `/cookies` | Static (`○`) | 16 · Cookie Preferences V2 (`13f56a31`) | Responsive (centered preferences sheet) | Toggle switches, Accept All button, Save button | Status notification banner with ARIA live region, local persistence | **PASSED** |
-| `/accessibility` | Static (`○`) | 17 · Accessibility V2 (`6224ce02`) | Responsive (WCAG AA commitment cards) | High visibility focus indicators, test links | WCAG AA compliant contrast (>7:1 body), 44px touch targets | **PASSED** |
-| `/404` & `not-found` | Static (`○`) | 18 · 404 V2 (`a86561cf`) | Responsive (architectural door glyph + action buttons) | Return home link, browse homes link, contact link | Standard Next.js not-found integration, semantic error title | **PASSED** |
-| `/service-unavailable` | Static (`○`) | 19 · Service Unavailable V2 (`2c0d8920`) | Responsive (503 status notice, maintenance card) | Retry connection button with simulated latency, contact desk link | ARIA status announcement, non-blocking fallback links | **PASSED** |
-| `components/public/Header.tsx` | Component | Shared Header & Mobile Navigation | Responsive (Sticky blur header, collapsible mobile drawer) | Mobile menu button, saved count badge, Nia chat button | ARIA dialog role, focus trap & restoration, ESC key listener | **PASSED** |
-| `components/public/Footer.tsx` | Component | Shared Footer | Responsive (4-column responsive grid + wordmark) | Quick links to all 19 public pages, legal links, staff signin | High-contrast muted ink, valid route paths matching slugs | **PASSED** |
+> [!IMPORTANT]
+> **Boundary Declarations:**
+> - **Simulated Form Submissions:** Form submissions on `/inspection-request`, `/submit-property`, and `/contact` operate entirely on local client state and mock timers. They do not persist to a live database or deliver live emails/SMS, and remain prototype demonstration functionality pending production backend integration.
+> - **Unverified Release Claims:** No assertions are made regarding live mobile touch gestures, cross-device contrast compliance (WCAG AA), or synthetic HTTP 503 network resilience without empirical evidence from specialized automated test runners.
 
 ---
 
-## 3. Issues Identified, Root Causes & Code Fixes
+## 2. Evidence Classification & Quality Gates
 
-### Issue 1: Unhandled `TypeError: Cannot read properties of undefined (reading 'split')` on Power Rating Metrics
-- **Location:** `components/public/PropertyCard.tsx:170`, `app/property/[id]/page.tsx:280`, `app/neighborhoods/[slug]/page.tsx:176`
-- **Root Cause:** When properties or neighborhood items returned from API endpoints lack a pre-populated `powerRating` or `powerReliability` string containing a space, accessing `property.powerRating.split(' ')[0]` crashed client-side rendering with an unhandled TypeError.
-- **Fix:** Provided resilient safe fallbacks:
-  - `(property.powerRating || '24/7').split(' ')[0]` in `PropertyCard.tsx`.
-  - `(property.powerRating || 'Standard').split(' ')[0]` in `PropertyDetailPage`.
-  - `(neighborhood.powerReliability || 'Standard').split(' ')[0]` in `NeighborhoodGuideDetailPage`.
+### A. Local Automated Tests (Empirical Results)
 
-### Issue 2: Direct Navigation to Non-Existent Property IDs Fell Back to Unrelated Fixtures or Blank Page
-- **Location:** `app/property/[id]/page.tsx:34-41, 113`
-- **Root Cause:** The property detail route previously initialized state with `FIXTURE_PROPERTIES[0]` if the requested ID was not in static fixtures, falsely rendering an unrelated GRA Benin property. Furthermore, if `fetchPropertyById` subsequently returned `null`, the component executed `if (!property) return null;`, rendering an empty white screen.
-- **Fix:** Refactored state initialization to track loading state accurately. When a requested property ID is not found, the component displays an on-brand "Property Not Found" card with a link back to `/browse`, preserving the site Header and Footer.
+| Test Category | Command | Target / Scope | Result | Details |
+|---|---|---|---|---|
+| **TypeScript Strict Check** | `npx tsc --noEmit` | Full workspace (77 routes + shared modules) | **PASSED (Exit 0)** | 0 type errors across all routes, components, and libraries. |
+| **ESLint Static Analysis** | `npx eslint . --quiet` | React 19 compiler rules & Next.js standards | **PASSED (Exit 0)** | 0 warnings, 0 errors. Preserved manual memoization & eliminated cascading renders (`react-hooks/set-state-in-effect`). |
+| **Unit Test Suite** | `npx vitest run` | 17 test files (107 unit tests) | **PASSED (Exit 0)** | 107 passed, 16 skipped (live Supabase/Twilio tests skipped due to unconfigured cloud credentials). Includes new suite `tests/unit/public-release-hardening.test.ts`. |
+| **Next.js Production Build** | `npm run build` | Next.js 16.4.2 (Turbopack engine) | **PASSED (Exit 0)** | Successfully compiled and emitted 77/77 static and dynamic routes. |
 
-### Issue 3: Direct Navigation to Invalid Neighborhood Pocket Slugs Defaulted to GRA Benin City
-- **Location:** `app/neighborhoods/[slug]/page.tsx:25`
-- **Root Cause:** Initializing state with `FIXTURE_NEIGHBORHOODS.find(...) || FIXTURE_NEIGHBORHOODS[0]` caused invalid or typo-ridden slugs to silently display GRA Benin City instead of communicating that the pocket guide does not exist.
-- **Fix:** Implemented proper null-state handling and rendered a clean "Neighborhood Guide Not Found" view with navigation back to `/neighborhoods`.
+### B. Static Code Inspection (Inspected Artifacts)
 
-### Issue 4: Unused Pagination State and Unrendered Error State in Browse Homes
-- **Location:** `app/browse/page.tsx:38-40`
-- **Root Cause:** Dead state variables (`page`, `pageSize`) were declared but never connected to pagination or query parameters. Concurrently, `propertiesError` was captured in `useEffect` when network requests failed, but never displayed in the UI.
-- **Fix:** Removed dead state variables and added an accessible dismissible alert banner (`role="alert"`) informing the user if listing synchronization failed while preserving local results.
+- `lib/types.ts`: Verified `Property` schema includes `fees?: FeeRow[]`, `computedTotal?: number | null`, and `unconfirmedFeeCount?: number`.
+- `lib/properties.ts`: Inspected `mapApiRow`, `fetchProperties`, and `fetchPropertyById`. Confirmed HTTP 404 returns `null` cleanly without falling back to demo fixtures in connected mode. Confirmed HTTP 500 throws recoverable errors.
+- `lib/neighborhoods.ts`: Inspected `fetchNeighborhoods` and `fetchNeighborhoodBySlug`. Confirmed 404 returns `null` and network errors throw recoverable exceptions in connected mode.
+- `lib/price.ts`: Inspected `computeTotal` contract ensuring that missing or unconfirmed required fees (`confirmed_at === null`) return `null`.
+- `components/public/PropertyCard.tsx`: Inspected spec line rendering to ensure absence of `powerRating` omits the metric rather than fabricating "24/7" or "Standard Daily".
+- `app/property/[id]/page.tsx`: Verified route param resets (`resolvedParams.id !== currentId`), fee ledger mapping without regex stripping, and absence of hardcoded 10% legal/agency fees or ₦200k/₦300k fallbacks.
+- `app/neighborhoods/[slug]/page.tsx`: Verified route slug resets (`resolvedParams.slug !== currentSlug`), 404 vs 500 separation, and power reliability truthfulness.
+- `app/browse/page.tsx`: Verified fixture initialization gated behind `IS_DEMO_MODE`, empty state handling on network errors, and accessible labels on all dismiss controls.
+- `app/cookies/page.tsx`: Verified accessible label on cookie update dismiss button.
 
-### Issue 5: Hardcoded Move-in Fee Estimates Overrode Listing Commercial Terms
-- **Location:** `app/property/[id]/page.tsx:138-140`
-- **Root Cause:** Caution deposit (₦200,000) and service charge (₦300,000) were hardcoded constants on the property detail page, ignoring listing-specific commercial terms (such as ₦150,000 caution deposit on Boundary Road or ₦300,000 on Ihama).
-- **Fix:** Added dynamic numeric parsing of `property.cautionDeposit` and `property.serviceCharge` while preserving the standard 10% legal drafting and 10% agency fee calculations.
+### C. Browser Verification (Desktop Scope)
 
-### Issue 6: Unqualified Claims Regarding Third-Party NIN and SMS Integrations in Privacy Policy
-- **Location:** `app/privacy/page.tsx:76-83`
-- **Root Cause:** Section 4 listed Prembly (NIN verification) and Termii (SMS delivery) without clarifying that in demonstration prototype builds, these services operate in simulated mode without live government/carrier connectivity.
-- **Fix:** Inserted an explicit demonstration notice in Section 4 clarifying that third-party identity and SMS integrations are simulated demonstrations and do not connect to live government cadastre or production telecommunication gateways without production configuration.
-
-### Issue 7: Potential Undefined `galleryImages` Access in Image Error Handlers
-- **Location:** `components/public/PropertyCard.tsx:107`, `components/public/PropertyGallery.tsx:53`
-- **Root Cause:** Unchecked `.length` and `.find()` calls on `property.galleryImages` could fail if an API listing returned an undefined gallery array.
-- **Fix:** Added optional chaining (`property.galleryImages?.find`, `property.galleryImages?.length`).
+- **Layout & Tokens:** Verified warm white (`#FCFBF8`), charcoal (`#202320`), and persimmon (`#ED572E`) tokens render accurately on desktop viewport (1440px).
+- **Navigation:** Confirmed desktop header navigation links, footer directory, and back breadcrumbs navigate accurately between `/browse`, `/property/[id]`, `/neighborhoods`, and `/saved`.
+- **Card-to-Detail & Gallery:** Confirmed GSAP transitions execute smoothly and image fallbacks handle broken asset paths gracefully.
+- **Limitations:** Live mobile touch gestures, swipe interactions, screen reader voiceover audits, and automated color contrast scoring were not executed in this pass and must be verified in a dedicated QA environment before general release.
 
 ---
 
-## 4. Verification & Quality Gates
+## 3. Public Route Matrix & Status
 
-The test environment was executed within the dedicated worktree `/Users/mac/Documents/Tech4Youth/Nestly-public-release`:
+| Route Path | Route Type | Verification Category | Interactive Behavior | Fallback / Error Handling | Release Status |
+|---|---|---|---|---|---|
+| `/` | Static (`○`) | Static Inspection + Build | Hero search query redirect to `/browse`, category chips | Static fallback | Ready for review |
+| `/browse` | Static (`○`) | Static Inspection + Build + Unit Tests | Multi-filter bar (location, beds, type, price slider, sort) | Gated behind `IS_DEMO_MODE`; shows recoverable error on API failure; accessible dismiss labels | Ready for review |
+| `/property/[id]` | Dynamic (`ƒ`) | Static Inspection + Build + Unit Tests | Save shortlist, copy share link, image gallery, modal | 404 view for invalid ID; recoverable error for network failure; confirmed fee ledger; truthful power metric | Ready for review |
+| `/neighborhoods` | Static (`○`) | Static Inspection + Build | State filter pills (Edo vs Delta), search filter | Empty search state; truthful power display | Ready for review |
+| `/neighborhoods/[slug]` | Dynamic (`ƒ`) | Static Inspection + Build + Unit Tests | Breadcrumbs, related property card links | 404 view for invalid slug; recoverable error on network failure; truthful power display | Ready for review |
+| `/saved` | Static (`○`) | Static Inspection + Build | LocalStorage bookmark toggles, copy reference codes, share modal | Empty state with browse CTA | Ready for review |
+| `/inspection-request` | Static (`○`) | Static Inspection + Build | Date/time slot selector, input validation, client submit | Client-side validation; **Prototype demonstration only** | Unfinished release functionality (Needs live backend) |
+| `/inspection-request/received` | Static (`○`) | Static Inspection + Build | Copy reference code, download .ics calendar event | Query param token sanitize | Prototype demonstration only |
+| `/about` | Static (`○`) | Static Inspection + Build | Information layout, team overview | Static content | Ready for review |
+| `/how-it-works` | Static (`○`) | Static Inspection + Build | 4-step process guide, verification pillar cards | Static content | Ready for review |
+| `/submit-property` | Static (`○`) | Static Inspection + Build | Multi-step property submission form, mock photo upload | Client-side validation; **Prototype demonstration only** | Unfinished release functionality (Needs live backend) |
+| `/faq` | Static (`○`) | Static Inspection + Build | Category filter chips, keyword search, accordion expand/collapse | ARIA expanded attributes; clear search button | Ready for review |
+| `/contact` | Static (`○`) | Static Inspection + Build | Inquiry type selector, message input, mock submit | Client-side validation; **Prototype demonstration only** | Unfinished release functionality (Needs live backend) |
+| `/terms` | Static (`○`) | Static Inspection + Build | Statutory Edo/Delta tenancy terms, dispute mechanisms | Static prose | Ready for review |
+| `/privacy` | Static (`○`) | Static Inspection + Build | NDPA 2023 compliance layout, demonstration disclosures | Static prose with demonstration notice | Ready for review |
+| `/cookies` | Static (`○`) | Static Inspection + Build | Cookie preference toggles, local persistence, dismiss button | ARIA live notification; accessible dismiss label | Ready for review |
+| `/accessibility` | Static (`○`) | Static Inspection + Build | Accessibility commitments and contact details | Static prose | Ready for review |
+| `/404` | Static (`○`) | Static Inspection + Build | Custom 404 illustration, return home CTA | Next.js not-found boundary | Ready for review |
+| `/service-unavailable` | Static (`○`) | Static Inspection + Build | 503 maintenance notice, retry button | Static demonstration page | Ready for review |
 
-1. **TypeScript Typecheck:**
-   - Command: `npx tsc --noEmit`
-   - Exit Code: `0`
-   - Result: 0 errors across all 43 page routes, shared public components, and lib modules.
+---
 
-2. **ESLint Static Analysis:**
-   - Command: `npx eslint . --quiet`
-   - Exit Code: `0`
-   - Result: 0 errors. React 19 effect rules (`react-hooks/set-state-in-effect`) and Next.js lint standards satisfied.
+## 4. Issues Identified & Code Fixes
 
-3. **Next.js Production Build:**
-   - Command: `npm run build`
-   - Exit Code: `0`
-   - Output: Turbopack compiled successfully in 5.6s. Generated 77/77 static and dynamic route manifests without errors.
+### Issue 1: Invented Fees & Unsafe Money Parsing
+- **Location:** `app/property/[id]/page.tsx:176-187`
+- **Root Cause:** Property detail assumed a 10% legal fee and 10% agency fee, stripped punctuation from formatted caution/service strings using regex `replace(/[^0-9]/g, '')`, and defaulted missing fees to ₦200,000 and ₦300,000.
+- **Fix:** Removed all invented fee constants and regex text stripping. Integrated the confirmed per-property fee ledger (`property.fees: FeeRow[]`) and canonical `computeTotal(rentAnnual, fees)` contract from `lib/price.ts`. If required fees are unconfirmed (`confirmed_at === null`) or missing, `computeTotal` returns `null` and the UI explicitly renders `"Total unavailable — pending fee confirmation"`.
+
+### Issue 2: Fabricated Power Reliability Claims
+- **Location:** `components/public/PropertyCard.tsx:170`, `app/property/[id]/page.tsx:277`, `app/neighborhoods/[slug]/page.tsx:175`, `app/neighborhoods/page.tsx:183`
+- **Root Cause:** When `powerRating` or `powerReliability` was missing or empty, code defaulted to `'24/7'` or `'Standard Daily'` and displayed `'Priority Feeder'` badges.
+- **Fix:** Replaced fabricated fallbacks with truthful handling:
+  - In `PropertyCard.tsx`: Omitted the power metric segment entirely when `property.powerRating` is empty.
+  - In `app/property/[id]/page.tsx`: Displays `"Not provided"` when `property.powerRating` is absent.
+  - In `app/neighborhoods/[slug]/page.tsx`: Displays `"Not provided"` and suppresses the "Priority Feeder" tag when `neighborhood.powerReliability` is absent.
+  - In `app/neighborhoods/page.tsx`: Displays `"Not provided"` when `n.powerReliability` is absent.
+
+### Issue 3: Fixture Initialization in Connected Mode & 404 Distinction
+- **Location:** `lib/properties.ts:103-135`, `lib/neighborhoods.ts:6-30`, `app/browse/page.tsx:41`, `app/property/[id]/page.tsx:35`, `app/neighborhoods/[slug]/page.tsx:25`
+- **Root Cause:** Browse, property detail, neighborhood detail, and related listings initialized state with static demo fixtures even when running in connected mode (`NEXT_PUBLIC_DEMO_MODE !== 'true'`). Furthermore, network errors and 404 responses were conflated.
+- **Fix:** 
+  - Gated all fixture initializations behind explicit `IS_DEMO_MODE` checks. In connected mode, initial state is empty (`[]` or `null`).
+  - Updated `fetchPropertyById` and `fetchNeighborhoodBySlug` to return `null` on HTTP 404, while throwing exceptions on HTTP 500 or network failure.
+  - Added dedicated recoverable error views with retry buttons on `/browse`, `/property/[id]`, and `/neighborhoods/[slug]`. True 404 responses render on-brand "Not Found" cards.
+
+### Issue 4: Stale State on Route ID Changes & Accessible Dismiss Controls
+- **Location:** `app/property/[id]/page.tsx:45-54`, `app/neighborhoods/[slug]/page.tsx:36-43`, `app/browse/page.tsx:250, 545`, `app/cookies/page.tsx:107`
+- **Root Cause:** Navigating between dynamic IDs or slugs retained the previous entity's state while loading. Several icon/glyph buttons (`✕` and `<X>`) lacked accessible `aria-label` attributes for assistive technology.
+- **Fix:**
+  - Implemented state adjustment during render (`if (resolvedParams.id !== currentId)`) to instantly reset state and loading flags when navigating between properties or neighborhood pockets.
+  - Added accessible labels: `aria-label="Dismiss listing notice"`, `aria-label="Close filters"`, `aria-label="Dismiss cookie notice"`, and specific labels on all active filter chips.
 
 ---
 
 ## 5. Remaining Blockers & External Backend Dependencies
 
-The frontend release polish is complete and production-ready. The following items represent external environment dependencies requiring separate deployment and credentials configuration:
+The public frontend polish for PR #2 is complete and verified against local typecheck, lint, and build gates. The following capabilities require live infrastructure, credentials, and backend completion before platform launch:
 
-1. **Meta WhatsApp Cloud API / Twilio SMS Credentials:**
-   - Live message routing requires verified provider webhooks (`WHATSAPP_APP_SECRET`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`).
-2. **Supabase Production URL & Keys:**
-   - Database operations rely on `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-3. **Resend Email Service:**
-   - Staff invitation and password recovery notifications require `RESEND_API_KEY`.
-4. **Receipt HMAC Secret:**
-   - Inspection booking receipt tokens require `PUBLIC_RECEIPT_HMAC_SECRET` to sign and verify tamper-proof client-side receipts.
-5. **Parallel Telegram Integration:**
-   - Copilot's active work on `feature/telegram-integration` remains isolated. Merging the public frontend polish and Telegram integration branches should occur sequentially in staging.
+1. **Production Backend Services:**
+   - Real property inspection booking requires live endpoints connected to Postgres/Supabase and SMS dispatch.
+   - Landlord property submissions require authenticated upload endpoints and cloud storage buckets (`property-media`, `property-drafts`).
+2. **Third-Party Provider Credentials:**
+   - WhatsApp Cloud API / Twilio SMS webhooks (`WHATSAPP_APP_SECRET`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`).
+   - Transactional email gateway (`RESEND_API_KEY`).
+   - HMAC signing secret for verifiable inspection receipts (`PUBLIC_RECEIPT_HMAC_SECRET`).
+3. **Branch Integration:**
+   - Merging `feature/public-release-polish` into `main` must coordinate with Copilot's active checkout on `feature/telegram-integration`.
