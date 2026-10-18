@@ -179,3 +179,8 @@
 - [ ] New deliberate Telegram inbound confirms deployed backend→n8n→Telegram path; no automatic replay/send.
 
 - [x] Returning-user detection and greeting behavior added; 68 focused local tests passed; n8n synthetic returning visitor execution 91 passed. Final deployed roundtrip pending.
+
+- [x] PR #7 merged; final Preview and Production deployment checks succeeded for a26177d.
+- [x] Expanded source-only regression harness: 92/92 passed, including enabled n8n→single mocked Telegram send and return-visitor handling.
+- [x] Retained legacy n8n chat trigger disabled; authenticated response endpoint rejects unauthenticated requests (403).
+- [ ] Real Production backend→authenticated n8n→Telegram reply on a fresh deliberate user inbound remains pending; deployment success is not handset verification.
