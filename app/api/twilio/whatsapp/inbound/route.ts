@@ -69,7 +69,7 @@ export async function POST(request: Request): Promise<Response> {
       method: 'POST',
       headers: {
         'Content-Type': contentType,
-        'X-Nestly-Relay': relaySecret,
+        'X-Nestly-Relay-Secret': relaySecret,
       },
       body: rawBody,
       cache: 'no-store',

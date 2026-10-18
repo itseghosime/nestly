@@ -137,7 +137,8 @@ describe('Twilio WhatsApp relay', () => {
     expect(init?.redirect).toBe('manual');
     const forwardedHeaders = new Headers(init?.headers);
     expect(forwardedHeaders.get('Content-Type')).toBe('application/x-www-form-urlencoded');
-    expect(forwardedHeaders.get('X-Nestly-Relay')).toBe(RELAY_SECRET);
+    expect(forwardedHeaders.get('X-Nestly-Relay-Secret')).toBe(RELAY_SECRET);
+    expect(forwardedHeaders.has('X-Nestly-Relay')).toBe(false);
     expect(forwardedHeaders.has('X-Twilio-Signature')).toBe(false);
     expect(response.status).toBe(202);
     expect(response.headers.get('Content-Type')).toBe(upstreamContentType);
