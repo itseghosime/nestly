@@ -1150,3 +1150,16 @@ Prepared fix/property-gallery-continuity: retain only the already-visible card p
 The thumbnail strip is fixed to the 480px desktop hero height with internal vertical scrolling; mobile uses a bounded horizontal strip. Selected thumbnails scroll the strip rather than the document. Load/decode only adjacent gallery photos rather than the entire gallery at once; thumbnail loading is lazy. Existing autoplay, two-layer fades, swipe, lightbox focus/scroll cleanup, keyboard controls, pause, reduced-motion fallback, and published-listing validation remain. Removed the unsupported Daylight verified suffix from photo counters; no media, pricing or database changes.
 
 Local: four touched source files passed esbuild transpilation and six gallery-order assertions against the compiled helper passed. Added five Vitest regression cases, not claimed as executed in this environment. Preview/live checks remain pending at this entry. No recordings, screenshots, PDF, provider sends, n8n or hosting configuration changes.
+
+
+### Gallery repair — Preview observations, merge and live check (2026-10-18)
+
+PR #6 final code head f3655226f12886a0029431cdedf0740ecc3ba73a passed Vercel, was reviewed and squash-merged as 18a2e84bc1236e0e0423d3d1f602eda7657e87ae. Production's Vercel status completed successfully.
+
+Preview browser: 12-photo Adesuwa gallery measured 480px for the hero, gallery region and thumbnail strip (previously 1,932px region/strip). All 12 buttons remained available through internal scrolling. Manual Next and lightbox open/close were observed working. Autoplay progressed through multiple photos after Play. At a requested 390 × 844 viewport (384px document client width), the hero measured 340px and strip 100px, with horizontal internal scrolling and no document horizontal overflow; photo 12 could be selected. Temporary viewport override was reset.
+
+Preview also exposed a pre-existing focus issue: after a thumbnail selection, Play could remain blocked by stale focusWithin even with the pointer outside the gallery, the tab visible and most of the gallery in view. Added the focused-control reset; on the final head, selecting a thumbnail then Play yielded data-gallery-running=true with Pause focused. Card navigation settled on the right photo without the old whole-page verification spinner. A timed autoplay wait was unstable even though later DOM readings confirmed progression, and a read-only temporal sampler was unsupported. Frame-by-frame and deliberately throttled-network continuity are not marked verified.
+
+Live desktop: the screenshot's property page rendered Adesuwa Grove 4-Bedroom Duplex with 12 thumbnails, a decoded hero, 480px hero/strip/region, no document horizontal overflow and no old whole-page verification spinner. These focused checks do not constitute the outstanding full-site/mobile acceptance audit. Local six photo-order assertions passed; committed Vitest cases remain for Copilot to run in the full suite. No data, pricing, image files, n8n, provider or hosting configuration changes. No screenshots, recordings or PDFs created.
+
+Mac localhost must safely integrate current main including PR #6; Copilot should preserve this repair while finishing PR #3 and the remaining release checks.
