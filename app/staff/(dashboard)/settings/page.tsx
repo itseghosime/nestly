@@ -534,10 +534,10 @@ export default function WorkspaceSettingsPage() {
                   <MessageSquare className="w-4 h-4 text-[#173F35]" />
                   <div>
                     <h4 className="text-sm font-semibold text-[#202320]">
-                      WhatsApp Dispatch Alerts
+                      WhatsApp Dispatch Alerts (deferred)
                     </h4>
                     <p className="text-xs text-[#202320]/60">
-                      Meta delivery is not configured; this preference is unavailable
+                      WhatsApp is outside the active release scope; new app-side sends are disabled by the server flag.
                     </p>
                   </div>
                 </div>

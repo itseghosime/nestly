@@ -73,7 +73,7 @@ describe('staff conversation status labels', () => {
     })).toContain('Twilio configuration and provider delivery do not apply');
   });
 
-  it('reports WhatsApp configuration, feature state, and unverified delivery separately', () => {
+  it('marks disabled WhatsApp as historical and read-only without claiming external disconnection', () => {
     const notice = getConversationChannelNotice({
       channel: 'whatsapp',
       whatsappDispatchAvailable: true,
@@ -81,15 +81,15 @@ describe('staff conversation status labels', () => {
       whatsappSendConfigured: true,
       whatsappStatusCallbackConfigured: true,
     });
-    expect(notice).toContain('Twilio REST configured');
-    expect(notice).toContain('staff send flag disabled by deployment flag');
-    expect(notice).toContain('status callback URL configured');
-    expect(notice).toContain('Live delivery verification remains unconfirmed');
+    expect(notice).toContain('deferred');
+    expect(notice).toContain('Historical messages remain readable');
+    expect(notice).toContain('staff replies are disabled by the server-side flag');
+    expect(notice).toContain('External inbound/TwiML behavior is not controlled here');
   });
 
   it('does not claim Nia is disconnected or conflate AI ownership with delivery', () => {
     expect(getAiOwnershipNotice('website')).toContain('ownership does not confirm delivery');
-    expect(getAiOwnershipNotice('whatsapp')).toContain('WF01 handles inbound AI replies');
+    expect(getAiOwnershipNotice('whatsapp')).toContain('WF01 is separate from this inbox');
     expect(getAiOwnershipNotice('telegram')).toContain('Telegram');
   });
 

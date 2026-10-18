@@ -87,7 +87,7 @@ export default function CustomerDirectoryPage() {
               Customer Directory
             </h1>
             <p className="text-sm text-charcoal/70 mt-1">
-              Customer records established through explicit WhatsApp inquiries and inspection submissions.
+              Submitted enquiries and inspections, alongside preserved historical WhatsApp records.
             </p>
           </div>
         </div>
@@ -103,7 +103,7 @@ export default function CustomerDirectoryPage() {
                 Privacy Governance Rule (NDPA 2023 Compliance)
               </h2>
               <p className="text-xs text-charcoal/80 leading-relaxed max-w-3xl">
-                Anonymous browser <strong className="text-charcoal font-semibold">Saved Homes</strong> are stored locally on prospective tenants&apos; personal devices and are <span className="text-persimmon font-bold">NEVER</span> attributed to named customer records. Only explicitly submitted inspection inquiries and direct WhatsApp messages appear in this directory.
+                Anonymous browser <strong className="text-charcoal font-semibold">Saved Homes</strong> are stored locally on prospective tenants&apos; personal devices and are <span className="text-persimmon font-bold">NEVER</span> attributed to named customer records. Submitted enquiries and inspection requests may appear here alongside retained historical WhatsApp conversations.
               </p>
             </div>
           </div>
@@ -332,7 +332,7 @@ export default function CustomerDirectoryPage() {
                 className="w-full py-2.5 px-4 rounded-full bg-soft-stone hover:bg-hairline text-charcoal text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors border border-hairline"
               >
                 <MessageSquare className="w-3.5 h-3.5 text-persimmon" />
-                <span>Open WhatsApp Triage Thread</span>
+                <span>View historical WhatsApp thread</span>
               </Link>
             </div>
           </div>

@@ -10,6 +10,7 @@ import { NiaWidget } from '@/components/public/NiaWidget';
 import { PropertyCard } from '@/components/public/PropertyCard';
 import { useSavedHomes } from '@/lib/saved-homes-context';
 import { prefersReducedMotion } from '@/lib/motion';
+import { NIA_TELEGRAM_URL } from '@/lib/contact-channels';
 import {
   Heart,
   Share2,
@@ -296,8 +297,16 @@ export default function SavedHomesPage() {
               </div>
 
               <p className="text-xs text-muted-ink">
-                Copy the text below to share with your family or paste directly into chat with Nia. No external WhatsApp messages are transmitted automatically.
+                Copy the text below to share with your family or paste it into website chat or Telegram with Nia. This page never sends an external message automatically.
               </p>
+              <a
+                href={NIA_TELEGRAM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex text-xs font-bold text-primary hover:underline"
+              >
+                Open Nia on Telegram ↗
+              </a>
 
               <div className="p-4 rounded-2xl bg-soft-stone border border-hairline text-xs font-mono text-charcoal max-h-48 overflow-y-auto space-y-1.5">
                 <p className="font-bold text-primary">{`// Nestly Shortlist (${savedProperties.length} homes)`}</p>

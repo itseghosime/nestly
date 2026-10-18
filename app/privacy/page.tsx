@@ -62,10 +62,10 @@ export default function PrivacyPolicyPage() {
 
           <section className="space-y-3">
             <h2 className="font-headline text-xl sm:text-2xl font-bold text-charcoal">
-              3. WhatsApp &amp; Concierge Messaging
+              3. Telegram, Website Chat &amp; Historical WhatsApp Records
             </h2>
             <p>
-              If you send a message through a supported channel, the message and associated conversation/contact information may be processed to respond, maintain the conversation, or route it to staff. A message or request does not confirm a viewing or provider delivery.
+              Customers can contact Nia through Telegram or website chat. Existing WhatsApp conversations and related contact details are retained as historical records for continuity and audit; WhatsApp is not presented as a current customer-contact option in this release. The app-side Twilio staff-reply path is controlled by the server-only outbound flag. This does not disconnect external Twilio or n8n workflows: inbound handling and workflow-generated replies must be reviewed separately. A message or request does not confirm a viewing or provider delivery.
             </p>
           </section>
 

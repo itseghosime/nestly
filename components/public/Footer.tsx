@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import { NIA_TELEGRAM_URL } from '@/lib/contact-channels';
 
 interface FooterProps {
   onOpenNia?: () => void;
@@ -25,8 +26,16 @@ export function Footer({ onOpenNia }: FooterProps) {
               onClick={onOpenNia}
               className="px-6 py-3 rounded-full bg-white hover:bg-soft-stone text-charcoal font-bold text-xs uppercase tracking-wider border border-hairline transition-colors shadow-2xs"
             >
-              Ask Nia on WhatsApp
+              Chat with Nia on this site
             </button>
+            <a
+              href={NIA_TELEGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-3 rounded-full bg-white hover:bg-soft-stone text-charcoal font-bold text-xs uppercase tracking-wider border border-hairline transition-colors shadow-2xs"
+            >
+              Message Nia on Telegram
+            </a>
             <Link
               href="/browse"
               className="px-6 py-3 rounded-full bg-persimmon text-white font-bold text-xs uppercase tracking-wider hover:bg-persimmon-hover transition-colors shadow-sm"

@@ -1,6 +1,14 @@
 # Nestly Backend Checklist — Current Status (2026-10-18)
 
-> The current evidence summary below supersedes conflicting status statements in the historical implementation inventory that follows. The six reviewed Twilio migrations were applied on 2026-10-18 after an exact linked dry run and verified in linked history. No recordings/screenshots/PDF/hosting changes were made.
+> At the 2026-10-18 linked-migration verification checkpoint, the six reviewed Twilio migrations had been applied after an exact linked dry run and verified in linked history; no hosting configuration was changed at that checkpoint. Later environment-specific changes are recorded in the dated deltas below.
+
+## 2026-10-18 delta — WhatsApp deferred from the active website release
+
+- Public Nia contact actions now distinguish website chat from Telegram at `https://t.me/nestly_nia_bot`; phone fields no longer instruct customers to use WhatsApp. Website chat, visual layouts, motion, and existing routes are preserved.
+- WhatsApp is not a current release requirement. Historical conversations keep the `whatsapp` channel identity, messages, audit records, and signed callback handling; no customer is converted or matched to Telegram by phone number.
+- The app-side Twilio staff sender is controlled only by `TWILIO_OUTBOUND_ENABLED`. The flag does not disable Twilio inbound callbacks or WF01's synchronous TwiML responses. The user previously reported WF01 active at version `41d0a037-4706-4899-b18c-5756be24fb7b`; WF01/WF03 were not changed, and external webhook registration was not rechecked for this task.
+- In Vercel Production, `TWILIO_OUTBOUND_ENABLED` is now `false`; redeployment of current `main` completed Ready. This gates only app-side Twilio REST staff replies and does not stop external WF01/TwiML or callbacks.
+- See the current environment-specific verification and exact deployment revision in Build Log §66. WhatsApp remains deferred until a separate reactivation is approved.
 
 ## 2026-10-18 delta — Accurate staff takeover ownership labels
 

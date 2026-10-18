@@ -100,7 +100,7 @@ export default function SubmitPropertyPage() {
         : 'Please state the annual rent expected';
     }
     if (!ownerName.trim()) newErrors.ownerName = 'Please provide the owner or estate manager name';
-    if (!phone.trim()) newErrors.phone = 'Please provide a valid phone or WhatsApp number';
+    if (!phone.trim()) newErrors.phone = 'Please provide a valid phone number';
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -574,7 +574,7 @@ export default function SubmitPropertyPage() {
 
                     <div data-invalid-field={Boolean(errors.phone)}>
                       <label htmlFor="sub-phone" className="block text-xs font-bold text-charcoal mb-1">
-                        WhatsApp / Phone Number *
+                        Phone Number *
                       </label>
                       <input
                         id="sub-phone"

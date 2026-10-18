@@ -153,7 +153,7 @@ export default function HowItWorksPage() {
               </p>
               <div className="pt-2 flex items-center gap-2 text-xs font-bold text-primary">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Instant conversational answers on WhatsApp or Web</span>
+                <span>Ask Nia on Telegram or in website chat</span>
               </div>
             </div>
             <div className="property-card-hover lg:col-span-7 lg:order-1 h-[280px] sm:h-[360px] rounded-3xl overflow-hidden bg-soft-stone border border-hairline shadow-sm">

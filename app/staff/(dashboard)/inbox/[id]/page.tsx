@@ -914,11 +914,11 @@ export default function ConversationDetailPage({
                       ? 'This conversation is closed. Reopen or take over only through the authorized staff workflow before replying.'
                       : 'Take over this Telegram conversation before replying. Nia stays paused while staff owns it.'
                   : conversation.channel === 'whatsapp'
-                  ? triageMode === 'HUMAN'
-                    ? !conversation.whatsappDispatchAvailable
-                      ? 'Twilio staff replies are unavailable until the additive message-tracking migration is applied to this database. No external message was sent.'
-                      : !conversation.whatsappOutboundEnabled
-                        ? 'Twilio staff sending is disabled for this deployment. No external message was sent.'
+                      ? !conversation.whatsappOutboundEnabled
+                        ? 'WhatsApp staff replies are deferred in this deployment. This historical thread remains available for review; no Telegram identity is inferred from the phone number.'
+                        : triageMode === 'HUMAN'
+                        ? !conversation.whatsappDispatchAvailable
+                        ? 'Twilio staff replies are unavailable until the additive message-tracking migration is applied to this database. No external message was sent.'
                         : !conversation.whatsappSendConfigured
                           ? 'Twilio staff send configuration is incomplete. No external message was sent.'
                         : !conversation.isAssignedToCurrentStaff

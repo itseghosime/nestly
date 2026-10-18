@@ -26,11 +26,11 @@ interface IntegrationDirectoryEntry {
 }
 
 const INTEGRATION_DIRECTORY: IntegrationDirectoryEntry[] = [
-  { id: 'twilio-wa', name: 'Twilio WhatsApp', category: 'Omnichannel Messaging', iconType: 'chat' },
+  { id: 'twilio-wa', name: 'Twilio WhatsApp (deferred)', category: 'Historical Channel', iconType: 'chat' },
   { id: 'n8n-workflow', name: 'n8n Operations Orchestration', category: 'Event Automation', iconType: 'tree' },
   { id: 'supabase-db', name: 'Supabase Database', category: 'Core Data Backend', iconType: 'database' },
   { id: 'gemini-ai', name: 'Gemini AI', category: 'Assistant Intelligence', iconType: 'bot' },
-  { id: 'meta-wa', name: 'Meta WhatsApp Cloud API', category: 'Messaging Channel', iconType: 'meta' },
+  { id: 'meta-wa', name: 'Meta WhatsApp Cloud API (deferred)', category: 'Not Active', iconType: 'meta' },
   { id: 'prembly-kyc', name: 'Prembly / Identitypass', category: 'Identity Verification', iconType: 'shield' },
   { id: 'termii-sms', name: 'Termii SMS', category: 'SMS & OTP', iconType: 'chat' },
   { id: 'edogis-cadastre', name: 'EDOGIS Cadastre', category: 'Geographic Cadastre', iconType: 'server' },

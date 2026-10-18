@@ -16,6 +16,7 @@ import type { Property } from "@/lib/types";
 import { fetchNeighborhoods } from "@/lib/neighborhoods";
 import { NEIGHBORHOODS as FIXTURE_NEIGHBORHOODS } from "@/lib/fixtures/neighborhoods";
 import { prefersReducedMotion } from "@/lib/motion";
+import { NIA_TELEGRAM_URL } from "@/lib/contact-channels";
 import {
   ArrowUpRight,
   Search,
@@ -767,7 +768,7 @@ export default function HomePage() {
                 </p>
               </div>
 
-              {/* Right: Custom WhatsApp Mockup */}
+              {/* Right: Nia conversation mockup */}
               <div className="lg:col-span-6 flex justify-center">
                 <div className="w-full max-w-[400px] bg-white rounded-3xl p-5 shadow-lg border border-hairline">
                   {/* Header */}
@@ -806,17 +807,27 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-hairline flex items-center justify-between">
+                  <div className="mt-4 pt-3 border-t border-hairline flex flex-wrap items-center justify-between gap-2">
                     <span className="text-xs text-muted-ink font-medium">
-                      Ready to discuss your checklist?
+                      Chat with Nia on the site or Telegram.
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => setIsNiaOpen(true)}
-                      className="text-xs font-bold text-persimmon hover:underline cursor-pointer"
-                    >
-                      Open Assistant →
-                    </button>
+                    <div className="flex items-center gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setIsNiaOpen(true)}
+                        className="text-xs font-bold text-persimmon hover:underline cursor-pointer"
+                      >
+                        Open website chat →
+                      </button>
+                      <a
+                        href={NIA_TELEGRAM_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-bold text-persimmon hover:underline"
+                      >
+                        Open Telegram ↗
+                      </a>
+                    </div>
                   </div>
                 </div>
               </div>

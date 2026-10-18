@@ -81,7 +81,7 @@ export default function CustomerDetailPage({
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold transition-all shadow-2xs"
             >
               <MessageSquare className="w-3.5 h-3.5" />
-              <span>Open WhatsApp Thread</span>
+              <span>View historical WhatsApp thread</span>
             </Link>
           </div>
         </div>

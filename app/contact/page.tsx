@@ -7,6 +7,7 @@ import { Header } from '@/components/public/Header';
 import { Footer } from '@/components/public/Footer';
 import { NiaWidget } from '@/components/public/NiaWidget';
 import { prefersReducedMotion } from '@/lib/motion';
+import { NIA_TELEGRAM_URL } from '@/lib/contact-channels';
 import { getPendingFormSubmission, isLeadSubmissionReceipt, type PendingFormSubmission } from '@/lib/public-form-submission';
 import {
   MessageSquare,
@@ -63,7 +64,7 @@ export default function ContactPage() {
     const newErrors: Record<string, string> = {};
 
     if (!fullName.trim()) newErrors.fullName = 'Please enter your full name';
-    if (!phone.trim()) newErrors.phone = 'Please provide a valid phone or WhatsApp number';
+    if (!phone.trim()) newErrors.phone = 'Please provide a valid phone number';
     if (!message.trim()) newErrors.message = 'Please provide your message';
 
     if (Object.keys(newErrors).length > 0) {
@@ -199,8 +200,16 @@ export default function ContactPage() {
                 className="w-full py-3 px-4 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm nestly-press cursor-pointer"
               >
                 <MessageSquare className="w-4 h-4" />
-                <span>Open Nia Assistant</span>
+                <span>Open website chat</span>
               </button>
+              <a
+                href={NIA_TELEGRAM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full py-3 px-4 rounded-full bg-white hover:bg-warm text-charcoal text-xs font-bold text-center border border-hairline transition-colors"
+              >
+                Message Nia on Telegram ↗
+              </a>
             </div>
 
             {/* Contact Information Availability */}
@@ -283,7 +292,7 @@ export default function ContactPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div data-invalid-field={Boolean(errors.phone)}>
                     <label htmlFor="contact-phone" className="block text-xs font-bold text-charcoal mb-1">
-                      Phone / WhatsApp Number *
+                      Phone Number *
                     </label>
                     <input
                       id="contact-phone"

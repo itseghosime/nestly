@@ -141,7 +141,7 @@ function InspectionRequestContent() {
     const newErrors: Record<string, string> = {};
 
     if (!fullName.trim()) newErrors.fullName = 'Please enter your full name';
-    if (phone.trim().length < 5) newErrors.phone = 'Please provide a valid phone or WhatsApp number';
+    if (phone.trim().length < 5) newErrors.phone = 'Please provide a valid phone number';
     if (!selectedSlot) newErrors.slot = 'Select an available inspection time';
 
     if (Object.keys(newErrors).length > 0) {
@@ -451,7 +451,7 @@ function InspectionRequestContent() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div data-error-field={Boolean(errors.phone)}>
                     <label htmlFor="inspect-phone" className="block text-xs font-bold text-charcoal mb-1">
-                      Phone / WhatsApp Number *
+                      Phone Number *
                     </label>
                     <input
                       id="inspect-phone"

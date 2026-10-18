@@ -176,7 +176,7 @@ export default function ConversationInboxPage() {
               Conversation Inbox
             </h1>
             <p className="text-sm text-charcoal/70 mt-0.5">
-              Persisted website and WhatsApp conversation records visible to your staff role and zone.
+              Website and Telegram are active contact paths. Historical WhatsApp records remain readable; new staff replies are disabled for that channel.
             </p>
           </div>
 
@@ -340,7 +340,11 @@ export default function ConversationInboxPage() {
                     : 'bg-soft-stone text-charcoal/70 hover:bg-hairline'
                 }`}
               >
-                {channel === 'ALL' ? 'All channels' : channel}
+                {channel === 'ALL'
+                  ? 'All channels'
+                  : channel === 'whatsapp'
+                    ? 'WhatsApp history'
+                    : channel}
               </button>
             ))}
           </div>

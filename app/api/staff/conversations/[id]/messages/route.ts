@@ -200,11 +200,6 @@ function sanitizeProviderErrorMessage(error: unknown, sensitiveValues: string[])
   }
 }
 
-function twilioConfiguration() {
-  const settings = getTwilioStaffSendSettings();
-  return settings.enabled ? settings.configuration : null;
-}
-
 function apiMessage(
   row: DispatchRow | RecordedRow,
   content: string,
@@ -559,7 +554,11 @@ export async function POST(
   if (conversation.channel !== 'whatsapp') {
     return NextResponse.json({ error: 'Unsupported conversation channel' }, { status: 409 });
   }
-  const config = twilioConfiguration();
+  const twilioSettings = getTwilioStaffSendSettings();
+  if (!twilioSettings.enabled) {
+    return NextResponse.json({ error: 'WhatsApp staff replies are disabled by the deployment flag' }, { status: 503 });
+  }
+  const config = twilioSettings.configuration;
   if (!config) {
     console.error('Twilio staff reply configuration is incomplete or invalid');
     return NextResponse.json({ error: 'Twilio WhatsApp sending is not configured' }, { status: 503 });
