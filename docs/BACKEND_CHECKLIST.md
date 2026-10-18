@@ -2,6 +2,13 @@
 
 > The current evidence summary below supersedes conflicting status statements in the historical implementation inventory that follows. The six reviewed Twilio migrations were applied on 2026-10-18 after an exact linked dry run and verified in linked history. No recordings/screenshots/PDF/hosting changes were made.
 
+## 2026-10-18 delta — Telegram implementation prepared locally
+
+- Added Telegram as an additional channel through `supabase/migrations/20261019120000_nestly_telegram_channel.sql`; it remains **local-only** and has not been applied to linked Supabase.
+- Next.js handles secret-header-validated private-chat webhook ingress, durable bot/user/chat identity and update deduplication, persisted grounded Nia context/replies, handoff/audit, assigned-staff replies, and server-only `sendMessage`. Staff takeover is checked at AI dispatch; unsupported updates and duplicates cannot produce duplicate replies. Website/WhatsApp paths and WF01/WF03 are unchanged.
+- `TELEGRAM_OUTBOUND_ENABLED` defaults off unless exactly `true`; Telegram API acceptance is not delivery/read confirmation. Ambiguous sends stay `unknown` and are never automatically retried. Webhook registration, production configuration/deployment, linked migration, and approved-chat verification remain pending.
+- Local evidence and ordered cutover instructions are in [Telegram integration](./integrations/telegram.md) and Build Log §52. No external messages were sent and no hosting, linked schema, callbacks, or workflows were changed.
+
 ## 2026-10-18 delta — WF01 execution evidence and staff status accuracy
 
 - The user reports live WF01 executions **81** and **86** produced normal AI replies, **84** performed handoff with notification/audit, and **85** suppressed AI in human mode. These are user-reported observations, not independently retrieved execution records.
