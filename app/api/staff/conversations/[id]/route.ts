@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { assertSameOrigin } from '@/lib/backend/public-request';
 import { requireStaff } from '@/lib/backend/staff-context';
 import { getTwilioStaffSendSettings } from '@/lib/backend/twilio-staff-config';
+import { getTelegramServerSettings } from '@/lib/backend/telegram';
 import { isTwilioMessageSid } from '@/lib/twilio-message-sid';
 
 const CONVERSATION_STAFF_ROLES = [
@@ -31,7 +32,7 @@ export async function GET(
     return NextResponse.json({ error: 'Invalid conversation ID' }, { status: 400 });
   }
   const { data, error } = await context.client.from('conversations')
-    .select('id, channel, mode, current_property_id, assigned_staff_id, created_at, updated_at, customer:customers!conversations_customer_id_fkey(display_name, email, phone, whatsapp_phone), property:properties!conversations_current_property_id_fkey(title, reference, location)')
+    .select('id, channel, mode, current_property_id, assigned_staff_id, created_at, updated_at, customer:customers!conversations_customer_id_fkey(display_name, email, phone, whatsapp_phone), telegram_identity:telegram_identities!conversations_telegram_identity_id_fkey(display_name, username), property:properties!conversations_current_property_id_fkey(title, reference, location)')
     .eq('id', id)
     .maybeSingle();
   if (error) return NextResponse.json({ error: 'Unable to load conversation' }, { status: 503 });
@@ -80,11 +81,28 @@ export async function GET(
     }
     messageRows = legacyMessageResult.data || [];
   }
+  let telegramReviewRows: { message_id: string; created_at: string }[] = [];
+  if (data.channel === 'telegram') {
+    const reviewResult = await context.client.from('telegram_dispatch_reviews')
+      .select('message_id, created_at')
+      .eq('conversation_id', id);
+    if (reviewResult.error) {
+      console.error('Telegram dispatch review lookup failed', reviewResult.error.code || 'unknown');
+      return NextResponse.json({ error: 'Unable to load Telegram send reviews' }, { status: 503 });
+    }
+    telegramReviewRows = reviewResult.data || [];
+  }
+  const telegramReviewTimes = new Map(
+    telegramReviewRows.map((review) => [review.message_id, review.created_at]),
+  );
   const customer = one(data.customer);
+  const telegramIdentity = one(data.telegram_identity);
   const property = one(data.property);
   const isAssignedToCurrentStaff = data.assigned_staff_id === context.userId;
   const twilioSendSettings = getTwilioStaffSendSettings();
   const whatsappOutboundEnabled = twilioSendSettings.enabled;
+  const telegramSettings = getTelegramServerSettings();
+  const telegramSendConfigured = Boolean(telegramSettings.token && telegramSettings.botId);
   return NextResponse.json({
     data: {
       id: data.id,
@@ -104,11 +122,26 @@ export async function GET(
         && data.mode === 'HUMAN_ACTIVE'
         && isAssignedToCurrentStaff
         && WHATSAPP_REPLY_ROLES.has(context.role),
+      telegramDispatchAvailable: true,
+      telegramOutboundEnabled: telegramSettings.outboundEnabled,
+      telegramSendConfigured,
+      telegramWebhookSecretConfigured: telegramSettings.webhookSecretConfigured,
+      canSendTelegram: telegramSendConfigured
+        && telegramSettings.outboundEnabled
+        && data.channel === 'telegram'
+        && data.mode === 'HUMAN_ACTIVE'
+        && isAssignedToCurrentStaff
+        && WHATSAPP_REPLY_ROLES.has(context.role),
+      canReviewTelegramUnknown: data.channel === 'telegram'
+        && data.mode === 'HUMAN_ACTIVE'
+        && isAssignedToCurrentStaff
+        && WHATSAPP_REPLY_ROLES.has(context.role),
       createdAt: data.created_at,
       customer: {
-        displayName: customer?.display_name || 'Customer',
+        displayName: telegramIdentity?.display_name || customer?.display_name || 'Customer',
         email: customer?.email || '',
         phone: customer?.phone || customer?.whatsapp_phone || '',
+        username: telegramIdentity?.username || null,
       },
       property: property
         ? { id: data.current_property_id, title: property.title, reference: property.reference, location: property.location }
@@ -128,6 +161,8 @@ export async function GET(
           && typeof message.provider_message_id === 'string',
         has_valid_provider_message_sid: 'provider_message_id' in message
           && isTwilioMessageSid(message.provider_message_id),
+        telegram_follow_up_reviewed: telegramReviewTimes.has(message.id),
+        telegram_follow_up_reviewed_at: telegramReviewTimes.get(message.id) || null,
       })),
       messageLimit: 100,
     },
@@ -155,7 +190,7 @@ export async function PATCH(
       if (error.code === '42501') return NextResponse.json({ error: 'Forbidden or conversation is out of scope' }, { status: 403 });
       if (error.code === 'P0002') return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
       if (error.code === '22023') return NextResponse.json({ error: 'Closed conversations cannot be resumed' }, { status: 409 });
-      if (error.code === '55000') return NextResponse.json({ error: 'Resolve the pending Twilio send before changing conversation ownership' }, { status: 409 });
+      if (error.code === '55000') return NextResponse.json({ error: 'Wait for the active external send to finish before changing conversation ownership' }, { status: 409 });
       console.error('Conversation return-to-AI failed', error.code);
       return NextResponse.json({ error: 'Unable to return conversation to Nia' }, { status: 503 });
     }
@@ -173,7 +208,7 @@ export async function PATCH(
     .maybeSingle();
   if (error) {
     if (error.code === '42501') return NextResponse.json({ error: 'Forbidden or conversation is out of scope' }, { status: 403 });
-    if (error.code === '55000') return NextResponse.json({ error: 'Resolve the pending Twilio send before changing conversation ownership' }, { status: 409 });
+    if (error.code === '55000') return NextResponse.json({ error: 'Wait for the active external send to finish before changing conversation ownership' }, { status: 409 });
     console.error('Conversation ownership update failed', error.code);
     return NextResponse.json({ error: 'Unable to update conversation ownership' }, { status: 503 });
   }

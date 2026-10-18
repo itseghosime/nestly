@@ -2,6 +2,22 @@
 
 > The current evidence summary below supersedes conflicting status statements in the historical implementation inventory that follows. The six reviewed Twilio migrations were applied on 2026-10-18 after an exact linked dry run and verified in linked history. No recordings/screenshots/PDF/hosting changes were made.
 
+## 2026-10-18 delta — Telegram recovery and fresh-migration verification
+
+- Webhook duplicates still in active `processing` now receive retryable HTTP 503 instead of a false HTTP 200 acknowledgement. Completed/ignored/human-owned updates and safely tracked dispatch outcomes remain acknowledged without resending. Redelivery after an expired pre-dispatch lease reclaims the update; route and fresh-database regressions assert one inbound row and at most one dispatch claim.
+- Added a daily Vercel Cron at `/api/cron/telegram-dispatch-recovery`, protected by server-only `CRON_SECRET`. It invokes the service-only sweep; expired dispatches become `unknown`, never automatically resent. Production scheduling is not active until this branch is deployed and `CRON_SECRET` is configured.
+- Assigned staff now have an audited explicit acknowledgement path for unknown Telegram Nia/staff sends. The original stays unknown; a separate new staff reply remains subject to the outbound flag/configuration. System handoff uncertainty is explained without blocking staff follow-up.
+- Recreated a fresh, seed-disabled local Supabase stack and applied the full ordered 21-migration history, including the Telegram migration after all 20 predecessors. Local/remote history matched with no pending migrations. The database regression suite passed website anonymous handoff/staff reply compatibility, grants/RLS, identity and update isolation, takeover race, explicit review/audit/idempotency, overlapping recovery, expired-lease crash recovery, late provider acceptance, and no automatic resend.
+- Applied `20261019120000_nestly_telegram_channel.sql` to the existing linked project after the sole-pending dry-run; all 21 migration versions now align. Read-only checks verified Telegram table RLS/grants, restricted RPC execution and safe search paths, preserved website/WhatsApp triggers, and unchanged existing conversation channels.
+- Vercel Production has `TELEGRAM_BOT_TOKEN` present and `TELEGRAM_OUTBOUND_ENABLED=false` explicitly set as a non-secret Config; a new deployment is required for the flag to take effect. `TELEGRAM_WEBHOOK_SECRET` and `CRON_SECRET` are absent. No secret values were revealed. The code is not yet deployed, the webhook is not registered, and no provider messages were sent. The missing webhook secret prevents testing the invalid-header response (the unconfigured route must fail closed); the missing cron secret means scheduled recovery is not operational. PR #1 remains draft pending the normal merge/deployment verification. See [Telegram integration](./integrations/telegram.md) and Build Log §55.
+
+## 2026-10-18 delta — Telegram implementation prepared locally (initial state)
+
+- Added Telegram as an additional channel through `supabase/migrations/20261019120000_nestly_telegram_channel.sql`. At this initial implementation checkpoint it was local-only; its later linked application is recorded in the current delta above.
+- Next.js handles secret-header-validated private-chat webhook ingress, durable bot/user/chat identity and update deduplication, persisted grounded Nia context/replies, handoff/audit, assigned-staff replies, and server-only `sendMessage`. Staff takeover is checked at AI dispatch; unsupported updates and duplicates cannot produce duplicate replies. Website/WhatsApp paths and WF01/WF03 are unchanged.
+- `TELEGRAM_OUTBOUND_ENABLED` defaults off unless exactly `true`; Telegram API acceptance is not delivery/read confirmation. Ambiguous sends stay `unknown` and are never automatically retried. Webhook registration, production configuration/deployment, and approved-chat verification remain pending.
+- Local evidence and ordered cutover instructions are in [Telegram integration](./integrations/telegram.md) and Build Log §52. No external messages were sent and no hosting, linked schema, callbacks, or workflows were changed.
+
 ## 2026-10-18 delta — WF01 execution evidence and staff status accuracy
 
 - The user reports live WF01 executions **81** and **86** produced normal AI replies, **84** performed handoff with notification/audit, and **85** suppressed AI in human mode. These are user-reported observations, not independently retrieved execution records.

@@ -20,10 +20,11 @@ import {
 
 type ConversationSummary = {
   id: string;
-  channel: 'website' | 'whatsapp';
+  channel: 'website' | 'whatsapp' | 'telegram';
   mode: 'AI_ACTIVE' | 'HUMAN_ACTIVE' | 'CLOSED';
   customerName: string;
   customerPhone: string;
+  telegramUsername: string | null;
   propertyTitle: string;
   propertyReference: string | null;
   assignedStaff: string;
@@ -43,6 +44,7 @@ function formatTimestamp(value: string) {
 export default function ConversationInboxPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'AI_ACTIVE' | 'HUMAN_ACTIVE' | 'CLOSED'>('ALL');
+  const [channelFilter, setChannelFilter] = useState<'ALL' | 'website' | 'whatsapp' | 'telegram'>('ALL');
   const [humanOnly, setHumanOnly] = useState(false);
   const [selectedConvId, setSelectedConvId] = useState('');
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -59,6 +61,7 @@ export default function ConversationInboxPage() {
       const params = new URLSearchParams({ page: String(page) });
       const mode = humanOnly ? 'HUMAN_ACTIVE' : statusFilter;
       if (mode !== 'ALL') params.set('mode', mode);
+      if (channelFilter !== 'ALL') params.set('channel', channelFilter);
       const response = await fetch(`/api/staff/conversations?${params}`);
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Unable to load conversations');
@@ -76,7 +79,7 @@ export default function ConversationInboxPage() {
     } finally {
       setLoading(false);
     }
-  }, [humanOnly, page, statusFilter]);
+  }, [channelFilter, humanOnly, page, statusFilter]);
 
   useEffect(() => {
     let active = true;
@@ -321,6 +324,26 @@ export default function ConversationInboxPage() {
               Closed
             </button>
           </div>
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-hairline text-xs font-semibold">
+            <span className="text-[11px] font-bold text-muted-ink uppercase tracking-wider mr-1">Channel:</span>
+            {(['ALL', 'website', 'whatsapp', 'telegram'] as const).map((channel) => (
+              <button
+                key={channel}
+                type="button"
+                onClick={() => {
+                  setChannelFilter(channel);
+                  setPage(1);
+                }}
+                className={`nestly-press px-3.5 py-1.5 rounded-full capitalize transition-all ${
+                  channelFilter === channel
+                    ? 'bg-charcoal text-white font-bold'
+                    : 'bg-soft-stone text-charcoal/70 hover:bg-hairline'
+                }`}
+              >
+                {channel === 'ALL' ? 'All channels' : channel}
+              </button>
+            ))}
+          </div>
         </div>
 
         {error && (
@@ -405,7 +428,11 @@ export default function ConversationInboxPage() {
                               {conv.customerName}
                             </span>
                             <span className="text-[11px] font-mono text-muted-ink">
-                              {conv.customerPhone}
+                              {conv.channel === 'telegram'
+                                ? conv.telegramUsername
+                                  ? `@${conv.telegramUsername}`
+                                  : 'Telegram private chat'
+                                : conv.customerPhone}
                             </span>
                             <span
                               className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
