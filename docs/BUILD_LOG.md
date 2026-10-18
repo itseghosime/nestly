@@ -1065,3 +1065,15 @@ Phase A replaces the simulated `setTimeout`→`router.push` in `app/staff/(auth)
 - **Deployment:** Code commit `14dc29e31ceba12dccee81298a291a01176ccbc2` was pushed to `main`. Vercel Production deployment `Akb7ZuZTvTJ3W9GVKKE6B6GfsFDa` is **Ready** with `nestly-sigma.vercel.app` assigned. No secrets or outbound configuration were changed.
 - **Restoring the live test context:** After this fix is deployed, the user can send a new deliberate message such as “I’m looking for a two-bedroom apartment in GRA.” That fresh message will establish preferences from the new inbound update; it does not replay or edit earlier records. Do not send it automatically.
 - **Safety:** No live message was sent, no old update replayed, and no production conversation/preferences were modified by the operator. Provider sends in the regression were mocked. WF01/WF03 are unchanged; PR #2 remains unmerged.
+
+## 61. Recording the latest controlled Telegram live results (2026-10-18)
+
+- **Environment and evidence:** These Production results were independently checked during the user-led live test and supplied for this record. They are not a fresh database inspection by the assistant; no customer record was queried or changed during the PR #2 merge work.
+- Natural-language property search and a location change retained the intended preferences.
+- Unknown/unconfirmed property fees prevented Nia from presenting a final move-in total.
+- Human handoff queued a staff notification and paused Nia. The assigned staff reply was accepted by the Telegram API; this does not establish handset receipt.
+- Return to AI cleared the staff assignment and queued handoff notification.
+- After the user restored preferences, recall returned **2 bedrooms, GRA, apartment** without overwriting the saved context.
+- **Delivery evidence:** Handset receipt/read remains unconfirmed. No provider message was sent or retried by the assistant during this merge task.
+- **Still-open follow-ups:** Correct the misleading “Human Active” takeover label; make Telegram search replies show matching listing details rather than only a count; complete the remaining hosted acceptance tests.
+- **Scope preserved:** Telegram secrets and outbound settings were not changed. WF01/WF03 and motion were not changed. PR #2 remains open pending the coordinated review and merge.
