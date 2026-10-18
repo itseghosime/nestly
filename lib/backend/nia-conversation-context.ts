@@ -1,4 +1,5 @@
 import {
+  normalizeNiaSearchKeywords,
   parseNiaPropertySearch,
   type NiaPropertyType,
   type NiaPropertySearchCriteria,
@@ -17,6 +18,9 @@ export const EMPTY_NIA_CONTEXT: NiaConversationContext = {
 };
 
 const PREFERENCE_CHANGE = /\b(actually|instead|rather|what about|how about|maybe|change|switch|same area|but|only)\b/i;
+const PREFERENCE_RECALL = /\b(?:what|which|remind|repeat|recall|remember|show|tell)\b[\s\S]{0,70}\b(?:my|saved|current|previous)\b[\s\S]{0,32}\bpreferences?\b/i;
+const PREFERENCE_RESET = /\b(?:start\s+over|start\s+fresh|begin\s+again)\b|\b(?:reset|clear|forget)\b[\s\S]{0,40}\b(?:preferences?|filters?|criteria|search)\b/i;
+const SEARCH_REQUEST = /\b(?:find|search|look(?:ing)?\s+for|show(?:\s+me)?|browse|list|do\s+you\s+have|any|need|want|try|instead|rather|what\s+about|how\s+about|add|include|change|switch|prefer)\b/i;
 const PROPERTY_TYPES = new Set<NiaPropertyType>([
   'apartment',
   'house',
@@ -50,9 +54,11 @@ export function normalizeNiaContext(value: unknown): NiaConversationContext {
         ? { maxAnnualRent: value.maxAnnualRent }
         : {}),
       ...(type ? { propertyType: type } : {}),
-      keywords: Array.isArray(value.keywords)
-        ? value.keywords.filter((word): word is string => typeof word === 'string' && word.length <= 64).slice(0, 4)
-        : [],
+      keywords: normalizeNiaSearchKeywords(
+        Array.isArray(value.keywords)
+          ? value.keywords.filter((word): word is string => typeof word === 'string' && word.length <= 64)
+          : [],
+      ),
     };
     if (
       normalized.location
@@ -97,16 +103,35 @@ export function resolveNiaPreferences(
   const bedrooms = parsed.bedrooms ?? previous.bedrooms;
   const maxAnnualRent = parsed.maxAnnualRent ?? previous.maxAnnualRent;
   const propertyType = parsed.propertyType ?? previous.propertyType;
+  const keywords = normalizeNiaSearchKeywords([
+    ...previous.keywords,
+    ...parsed.keywords,
+  ]);
   return {
     ...(location ? { location } : {}),
     ...(bedrooms ? { bedrooms } : {}),
     ...(maxAnnualRent ? { maxAnnualRent } : {}),
     ...(propertyType ? { propertyType } : {}),
-    keywords: parsed.keywords.length ? parsed.keywords : previous.keywords,
+    keywords,
   };
 }
 
 export function isNiaPropertyReference(query: string): boolean {
   return getNiaReferenceIndex(query) !== null
     && /\b(one|option|listing|property|home|house|it)\b/i.test(query);
+}
+
+export type NiaMessageIntent = 'preference_recall' | 'reset_preferences' | 'search' | 'unsupported';
+
+export function classifyNiaMessageIntent(query: string): NiaMessageIntent {
+  if (PREFERENCE_RESET.test(query)) return 'reset_preferences';
+  if (PREFERENCE_RECALL.test(query)) return 'preference_recall';
+
+  const parsed = parseNiaPropertySearch(query);
+  if (parsed.location || parsed.bedrooms || parsed.maxAnnualRent || parsed.propertyType) {
+    return 'search';
+  }
+  return parsed.keywords.length > 0 && SEARCH_REQUEST.test(query)
+    ? 'search'
+    : 'unsupported';
 }

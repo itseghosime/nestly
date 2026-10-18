@@ -21,13 +21,44 @@ export type NiaPropertySearchResponse =
   | { status: 'matches'; count: number; matches: NiaSearchProperty[]; message: string };
 
 const STOP_WORDS = new Set([
-  'a', 'about', 'an', 'and', 'any', 'are', 'at', 'bed', 'bedroom', 'bedrooms',
-  'below', 'but', 'can', 'change', 'find', 'for', 'from', 'home', 'homes', 'house', 'houses',
-  'hello', 'help', 'how', 'in', 'is', 'listing', 'listings', 'me', 'maybe', 'near', 'of', 'on', 'only', 'or', 'please',
+  'a', 'about', 'add', 'an', 'and', 'any', 'are', 'at', 'bed', 'bedroom', 'bedrooms',
+  'below', 'browse', 'browsing', 'but', 'can', 'change', 'check', 'could', 'consider', 'dear', 'find', 'give',
+  'for', 'from', 'get', 'good', 'have', 'hello', 'help', 'hey', 'hi', 'home', 'homes', 'house', 'houses',
+  'include', 'including',
+  'how', 'im', 'in', 'is', 'let', 'like', 'listing', 'listings', 'look', 'looking',
+  'me', 'maybe', 'morning', 'near', 'need', 'nia', 'of', 'on', 'only', 'or', 'please', 'prefer',
+  'searching', 'seeking', 'send',
   'actually', 'area', 'first', 'instead', 'number', 'option', 'rather', 'same', 'second', 'switch', 'third', 'what',
   'property', 'properties', 'rent', 'rental', 'rentals', 'search', 'show', 'some',
-  'the', 'to', 'under', 'want', 'with',
+  'take', 'thank', 'thanks', 'the', 'to', 'try', 'trying', 'under', 'want', 'wanted', 'we', 'with',
+  'tell', 'would', 'you',
+  'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
 ]);
+
+const BEDROOM_NUMBER_WORDS: Readonly<Record<string, number>> = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+};
+
+export function normalizeNiaSearchKeywords(keywords: readonly string[]): string[] {
+  const normalized = new Set<string>();
+  for (const keyword of keywords) {
+    const words = keyword.normalize('NFKC').toLowerCase().match(/[a-z]{3,}/g) ?? [];
+    for (const word of words) {
+      if (!STOP_WORDS.has(word)) normalized.add(word);
+      if (normalized.size === 4) return [...normalized];
+    }
+  }
+  return [...normalized];
+}
 
 const LOCATION_HINTS = [
   ['benin city', 'Benin City'],
@@ -71,8 +102,11 @@ export function parseNiaPropertySearch(query: string): NiaPropertySearchCriteria
     }
   }
 
-  const bedroomMatch = remaining.match(/\b(\d{1,2})\s*-?\s*bed(?:room)?s?\b/i);
-  const bedrooms = bedroomMatch ? Number(bedroomMatch[1]) : undefined;
+  const bedroomMatch = remaining.match(/\b(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)\s*-?\s*bed(?:room)?s?\b/i);
+  const bedroomToken = bedroomMatch?.[1].toLowerCase();
+  const bedrooms = bedroomToken
+    ? BEDROOM_NUMBER_WORDS[bedroomToken] ?? Number(bedroomToken)
+    : undefined;
   if (bedroomMatch) remaining = remaining.replace(bedroomMatch[0], ' ');
 
   const budgetPattern =
@@ -94,9 +128,9 @@ export function parseNiaPropertySearch(query: string): NiaPropertySearchCriteria
     remaining = remaining.replace(budgetPattern, ' ');
   }
 
-  const keywords = [...new Set(
-    remaining.match(/[a-z]{3,}/g)?.filter((word) => !STOP_WORDS.has(word)) ?? [],
-  )].slice(0, 4);
+  const keywords = normalizeNiaSearchKeywords(
+    remaining.match(/[a-z]{3,}/g) ?? [],
+  );
 
   return {
     ...(location ? { location } : {}),
