@@ -34,6 +34,13 @@ import {
 
 export default function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
+  const { propertyPreview, clearPropertyPreview, isMorphingProperty, cancelPropertyTransition } = usePropertyTransition();
+  // Only retain the already-visible card photo/title, not cached listing permissions or fees.
+  const [navigationPreview, setNavigationPreview] = useState(() =>
+    propertyPreview?.propertyId === resolvedParams.id
+      ? { imageSrc: propertyPreview.imageSrc, title: propertyPreview.title }
+      : null
+  );
   const initialProp = IS_DEMO_MODE ? FIXTURE_PROPERTIES.find((p) => p.id === resolvedParams.id) || null : null;
   const [currentId, setCurrentId] = useState(resolvedParams.id);
   const [property, setProperty] = useState<Property | null>(initialProp);
@@ -47,6 +54,9 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   // Reset loading and data correctly when route params change
   if (resolvedParams.id !== currentId) {
     setCurrentId(resolvedParams.id);
+    setNavigationPreview(propertyPreview?.propertyId === resolvedParams.id
+      ? { imageSrc: propertyPreview.imageSrc, title: propertyPreview.title }
+      : null);
     const nextProp = IS_DEMO_MODE ? FIXTURE_PROPERTIES.find((p) => p.id === resolvedParams.id) || null : null;
     setProperty(nextProp);
     setLoading(!nextProp);
@@ -61,10 +71,14 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
         if (!c) {
           setProperty(row);
           setLoading(false);
+          clearPropertyPreview(resolvedParams.id);
+          if (!row) cancelPropertyTransition();
         }
       })
       .catch((err: unknown) => {
         if (!c) {
+          cancelPropertyTransition();
+          clearPropertyPreview(resolvedParams.id);
           setPropertyError(err instanceof Error ? err.message : 'Unable to load property details.');
           setLoading(false);
         }
@@ -72,10 +86,9 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
 
     syncRelatedProperties(resolvedParams.id, setRelatedProperties, () => c, fetchAllProperties);
     return () => { c = true; };
-  }, [resolvedParams.id, reloadTrigger]);
+  }, [resolvedParams.id, reloadTrigger, cancelPropertyTransition, clearPropertyPreview]);
 
   const { isSaved, toggleSave } = useSavedHomes();
-  const { isMorphingProperty } = usePropertyTransition();
   const [isNiaOpen, setIsNiaOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [backHref] = useState(() => peekLastListingPath() || '/browse');
@@ -169,10 +182,38 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
     return (
       <div className="min-h-screen bg-warm text-charcoal flex flex-col">
         <Header onOpenNia={() => setIsNiaOpen(true)} />
-        <main className="flex-1 max-w-[1240px] mx-auto w-full px-4 sm:px-8 py-20 flex items-center justify-center">
-          <div className="text-center space-y-3">
-            <div className="w-9 h-9 border-3 border-persimmon border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-xs font-bold text-muted-ink uppercase tracking-wider">Verifying listing details...</p>
+        <main aria-busy="true" data-property-loading-shell className="flex-1 max-w-[1240px] mx-auto w-full px-4 sm:px-8 py-8 sm:py-12">
+          <div className="flex items-center justify-between gap-4 mb-6 min-h-[30px]">
+            <Link href={backHref} className="inline-flex items-center gap-1.5 text-xs font-bold text-charcoal/70">
+              <ArrowLeft className="w-4 h-4" /><span>Back to listings</span>
+            </Link>
+            <p role="status" className="text-xs text-muted-ink">Loading property details…</p>
+          </div>
+          <div className="mb-8">
+            <div aria-hidden="true" className="h-[26px] w-40 rounded-full bg-soft-stone mb-2" />
+            <h1 className="font-headline text-3xl sm:text-5xl font-extrabold tracking-tight text-charcoal mt-2 mb-2">
+              {navigationPreview?.title || 'Property details'}
+            </h1>
+            <div aria-hidden="true" className="h-5 w-56 max-w-full rounded-full bg-soft-stone" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-12 items-start">
+            <div data-property-hero={resolvedParams.id}
+              className="lg:col-span-8 h-[340px] sm:h-[480px] rounded-3xl overflow-hidden border border-hairline bg-soft-stone relative shadow-sm">
+              {navigationPreview ? (
+                <img data-property-hero-img={resolvedParams.id} data-active="true"
+                  src={navigationPreview.imageSrc} alt={navigationPreview.title}
+                  fetchPriority="high" decoding="async"
+                  style={{ opacity: isMorphingProperty(resolvedParams.id) ? 0 : 1 }}
+                  className="absolute inset-0 w-full h-full object-cover" />
+              ) : <div aria-hidden="true" className="absolute inset-0 bg-soft-stone motion-safe:animate-pulse" />}
+            </div>
+            <div aria-hidden="true" className="lg:col-span-4 flex lg:flex-col gap-3 h-[100px] sm:h-[112px] lg:h-[480px] overflow-hidden">
+              {[0, 1, 2].map((slot) => <div key={slot} className="shrink-0 w-32 sm:w-40 lg:w-full h-full lg:h-[148px] rounded-2xl bg-soft-stone motion-safe:animate-pulse" />)}
+            </div>
+          </div>
+          <div aria-hidden="true" className="grid grid-cols-1 lg:grid-cols-12 gap-10 mb-12">
+            <div className="lg:col-span-8 h-52 rounded-3xl bg-soft-stone motion-safe:animate-pulse" />
+            <div className="lg:col-span-4 h-64 rounded-3xl bg-soft-stone motion-safe:animate-pulse" />
           </div>
         </main>
         <Footer onOpenNia={() => setIsNiaOpen(true)} />
@@ -318,7 +359,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
 
-        <PropertyGallery property={property} morphing={morphing} />
+        <PropertyGallery key={property.id} property={property} morphing={morphing} initialImageSrc={navigationPreview?.imageSrc} />
 
         {/* Content & Sticky Booking Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">

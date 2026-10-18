@@ -1114,6 +1114,29 @@ Local: five mocked API branch regressions and five-file esbuild transpilation pa
 - **Dependency advisories:** `npm audit` reports **5 high** findings, all in the development-only ESLint chain (`eslint-config-next` → `@next/eslint-plugin-next` → `fast-glob` → `micromatch` → `braces`); `npm audit --omit=dev` reports **0**. The audit's suggested automatic remediation downgrades `eslint-config-next` from 16.4.2 to 14.2.35 (semver-major, incompatible with the installed Next 16 line). No dependency or lockfile change was made; resolving this supported-toolchain advisory remains a review blocker.
 - **Environment boundaries:** The localhost PR #3 browser run used a read-only local Supabase stub. Live neighborhood verification was GET/HEAD-only. No Telegram/WhatsApp messages, n8n changes, credentials, or workflow definitions were used or changed. Production remains on merged `main`; PR #3 must be reviewed, merged, and deployed before its contact UI changes reach Production.
 
+## Property gallery continuity and thumbnail overflow repair (2026-10-18)
+
+User screenshots showed a full-page listing spinner during card navigation and an unbounded right thumbnail column. Reproduced on live property 6232dee4-3cbd-5b88-8a4f-6a5717a1d0c7: 12 thumbnails made the gallery/column 1,932px tall while the hero was 480px; autoplay was false at the observed viewport. The transition also stopped searching after 30 animation frames while the destination fetched its listing data.
+
+Prepared fix/property-gallery-continuity: retain only the already-visible card photo/title as a navigation preview while a fresh API request still validates the listing. Render a gallery-sized loading shell with a transition target immediately; retain its photo after the morph ends; remove it on a not-found/error result. The overlay now resolves the mounted destination on each frame to survive the shell-to-gallery swap, and uses the existing elapsed-time deadline instead of a 30-frame limit. Actual card fallback src is captured. Validated gallery ordering starts with that clicked cover when it belongs to the current property, and rejects unrelated preview URLs.
+
+The thumbnail strip is fixed to the 480px desktop hero height with internal vertical scrolling; mobile uses a bounded horizontal strip. Selected thumbnails scroll the strip rather than the document. Load/decode only adjacent gallery photos rather than the entire gallery at once; thumbnail loading is lazy. Existing autoplay, two-layer fades, swipe, lightbox focus/scroll cleanup, keyboard controls, pause, reduced-motion fallback, and published-listing validation remain. Removed the unsupported Daylight verified suffix from photo counters; no media, pricing or database changes.
+
+Local: four touched source files passed esbuild transpilation and six gallery-order assertions against the compiled helper passed. Added five Vitest regression cases, not claimed as executed in this environment. Preview/live checks remain pending at this entry. No recordings, screenshots, PDF, provider sends, n8n or hosting configuration changes.
+
+
+### Gallery repair — Preview observations, merge and live check (2026-10-18)
+
+PR #6 final code head f3655226f12886a0029431cdedf0740ecc3ba73a passed Vercel, was reviewed and squash-merged as 18a2e84bc1236e0e0423d3d1f602eda7657e87ae. Production's Vercel status completed successfully.
+
+Preview browser: 12-photo Adesuwa gallery measured 480px for the hero, gallery region and thumbnail strip (previously 1,932px region/strip). All 12 buttons remained available through internal scrolling. Manual Next and lightbox open/close were observed working. Autoplay progressed through multiple photos after Play. At a requested 390 × 844 viewport (384px document client width), the hero measured 340px and strip 100px, with horizontal internal scrolling and no document horizontal overflow; photo 12 could be selected. Temporary viewport override was reset.
+
+Preview also exposed a pre-existing focus issue: after a thumbnail selection, Play could remain blocked by stale focusWithin even with the pointer outside the gallery, the tab visible and most of the gallery in view. Added the focused-control reset; on the final head, selecting a thumbnail then Play yielded data-gallery-running=true with Pause focused. Card navigation settled on the right photo without the old whole-page verification spinner. A timed autoplay wait was unstable even though later DOM readings confirmed progression, and a read-only temporal sampler was unsupported. Frame-by-frame and deliberately throttled-network continuity are not marked verified.
+
+Live desktop: the screenshot's property page rendered Adesuwa Grove 4-Bedroom Duplex with 12 thumbnails, a decoded hero, 480px hero/strip/region, no document horizontal overflow and no old whole-page verification spinner. These focused checks do not constitute the outstanding full-site/mobile acceptance audit. Local six photo-order assertions passed; committed Vitest cases remain for Copilot to run in the full suite. No data, pricing, image files, n8n, provider or hosting configuration changes. No screenshots, recordings or PDFs created.
+
+Mac localhost must safely integrate current main including PR #6; Copilot should preserve this repair while finishing PR #3 and the remaining release checks.
+
 ## PR #3 Preview deployment and localhost restart (2026-10-19)
 
 - **PR #3 Preview:** Head `1e8b00527cbc16643f8ce5819ee6a97699d9e531` remains open and draft. Vercel reports deployment `49Q7cfUboMf42QYwukAfcTuamL7E` Ready at `https://nestly-git-feature-produc-4cf436-itseghosime-codebases-projects.vercel.app`; the Vercel Preview Comments check passed with zero unresolved comments. This confirms deployment completion, not app behavior.
