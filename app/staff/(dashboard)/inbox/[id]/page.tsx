@@ -11,6 +11,7 @@ import {
   getAiOwnershipNotice,
   getConversationChannelNotice,
   getDeliveryLabel,
+  getTakeoverControlState,
 } from '@/lib/staff-conversation-status';
 import { isTwilioMessageSid } from '@/lib/twilio-message-sid';
 import {
@@ -154,6 +155,9 @@ export default function ConversationDetailPage({
     : conversation?.mode === 'CLOSED'
       ? 'CLOSED'
       : 'AI';
+  const takeoverControl = conversation
+    ? getTakeoverControlState(conversation)
+    : { label: 'Take over', disabled: true };
   const unresolvedWhatsAppSend = conversation?.channel === 'whatsapp'
     && messages.some((message) => (
       message.direction === 'outbound'
@@ -570,8 +574,14 @@ export default function ConversationDetailPage({
                 </div>
                 <div className="flex justify-between items-center text-charcoal/70">
                   <span>Assigned:</span>
-                  <span className="font-semibold text-persimmon">
-                    {conversation.assignedStaff}
+                  <span className={`font-semibold ${
+                    conversation.isAssignedToCurrentStaff
+                      ? 'text-emerald-700'
+                      : conversation.assignedStaffId === null
+                        ? 'text-muted-ink'
+                        : 'text-persimmon'
+                  }`}>
+                    {conversation.isAssignedToCurrentStaff ? 'Assigned to you' : conversation.assignedStaff}
                   </span>
                 </div>
               </div>
@@ -586,18 +596,20 @@ export default function ConversationDetailPage({
                 <button
                   type="button"
                   onClick={() => void updateMode('takeover')}
-                  disabled={saving || triageMode === 'CLOSED'}
+                  disabled={saving || takeoverControl.disabled}
                   className={`nestly-press w-full flex items-center justify-between px-4 py-2.5 rounded-full text-xs font-bold transition-all ${
                     triageMode === 'HUMAN'
-                      ? 'bg-persimmon text-white shadow-xs'
+                      ? conversation.isAssignedToCurrentStaff
+                        ? 'bg-emerald-700 text-white shadow-xs'
+                        : 'bg-persimmon text-white shadow-xs'
                       : 'bg-soft-stone hover:bg-hairline text-charcoal'
                   }`}
                 >
                   <span className="flex items-center gap-2">
                     <User className="w-3.5 h-3.5" />
-                    <span>Human Active</span>
+                    <span>{takeoverControl.label}</span>
                   </span>
-                  {triageMode === 'HUMAN' && (
+                  {triageMode === 'HUMAN' && conversation.isAssignedToCurrentStaff && (
                     <CheckCircle2 className="w-3.5 h-3.5" />
                   )}
                 </button>
@@ -641,6 +653,21 @@ export default function ConversationDetailPage({
               {conversation?.mode === 'AI_ACTIVE' && (
                 <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-900 border border-emerald-200 text-[11px] leading-relaxed">
                   <strong>AI ownership recorded.</strong> {getAiOwnershipNotice(conversation.channel)}
+                </div>
+              )}
+              {conversation?.mode === 'HUMAN_ACTIVE' && (
+                <div className={`p-3 rounded-2xl border text-[11px] leading-relaxed ${
+                  conversation.isAssignedToCurrentStaff
+                    ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                    : 'bg-amber-50 text-amber-900 border-amber-200'
+                }`}>
+                  {conversation.assignedStaffId === null ? (
+                    <><strong>Unassigned human handoff.</strong> Assign this conversation to yourself before replying.</>
+                  ) : conversation.isAssignedToCurrentStaff ? (
+                    <><strong>Assigned to you.</strong> Reply availability depends on your staff role and channel configuration.</>
+                  ) : (
+                    <><strong>Assigned to {conversation.assignedStaff}.</strong> Reassignment and replies remain subject to the authorized staff workflow.</>
+                  )}
                 </div>
               )}
             </div>
@@ -879,8 +906,10 @@ export default function ConversationDetailPage({
                         : !conversation.telegramSendConfigured
                           ? 'Telegram bot token is missing or invalid. No external message was sent.'
                           : !conversation.isAssignedToCurrentStaff
-                            ? `This conversation is assigned to ${conversation.assignedStaff}. Only the assigned staff member can send a Telegram reply.`
-                            : 'Your staff role is not authorized to send Telegram replies.'
+                              ? conversation.assignedStaffId === null
+                                ? 'This conversation is unassigned. Click "Assign to me" above to take ownership before replying.'
+                                : `This conversation is assigned to ${conversation.assignedStaff}. Only its assigned staff member can send a Telegram reply.`
+                              : 'Your staff role is not authorized to send Telegram replies.'
                     : triageMode === 'CLOSED'
                       ? 'This conversation is closed. Reopen or take over only through the authorized staff workflow before replying.'
                       : 'Take over this Telegram conversation before replying. Nia stays paused while staff owns it.'
@@ -893,7 +922,9 @@ export default function ConversationDetailPage({
                         : !conversation.whatsappSendConfigured
                           ? 'Twilio staff send configuration is incomplete. No external message was sent.'
                         : !conversation.isAssignedToCurrentStaff
-                          ? `This conversation is assigned to ${conversation.assignedStaff}. Only the assigned staff member can send a WhatsApp reply.`
+                          ? conversation.assignedStaffId === null
+                            ? 'This conversation is unassigned. Click "Assign to me" above to take ownership before replying.'
+                            : `This conversation is assigned to ${conversation.assignedStaff}. Only its assigned staff member can send a WhatsApp reply.`
                         : 'Your staff role is not authorized to send WhatsApp replies.'
                     : triageMode === 'CLOSED'
                       ? 'This conversation is closed. Reopen or take over only through the authorized staff workflow before replying.'

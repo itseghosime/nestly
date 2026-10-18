@@ -3,10 +3,66 @@ import {
   getAiOwnershipNotice,
   getConversationChannelNotice,
   getDeliveryLabel,
+  getTakeoverControlState,
 } from '@/lib/staff-conversation-status';
 import { isTwilioMessageSid } from '@/lib/twilio-message-sid';
 
 describe('staff conversation status labels', () => {
+  it.each([
+    [
+      'unassigned human handoff',
+      {
+        mode: 'HUMAN_ACTIVE',
+        assignedStaffId: null,
+        assignedStaff: 'Unassigned',
+        isAssignedToCurrentStaff: false,
+      },
+      { label: 'Assign to me', disabled: false },
+    ],
+    [
+      'human conversation assigned to the current staff member',
+      {
+        mode: 'HUMAN_ACTIVE',
+        assignedStaffId: 'staff-current',
+        assignedStaff: 'Victoria Nosa',
+        isAssignedToCurrentStaff: true,
+      },
+      { label: 'Assigned to you', disabled: true },
+    ],
+    [
+      'human conversation assigned to another staff member',
+      {
+        mode: 'HUMAN_ACTIVE',
+        assignedStaffId: 'staff-other',
+        assignedStaff: 'Ada Staff',
+        isAssignedToCurrentStaff: false,
+      },
+      { label: 'Reassign to me', disabled: false },
+    ],
+    [
+      'AI-owned conversation',
+      {
+        mode: 'AI_ACTIVE',
+        assignedStaffId: null,
+        assignedStaff: 'Unassigned',
+        isAssignedToCurrentStaff: false,
+      },
+      { label: 'Take over', disabled: false },
+    ],
+    [
+      'closed conversation',
+      {
+        mode: 'CLOSED',
+        assignedStaffId: null,
+        assignedStaff: 'Unassigned',
+        isAssignedToCurrentStaff: false,
+      },
+      { label: 'Conversation closed', disabled: true },
+    ],
+  ] as const)('shows correct takeover state for %s', (_case, conversation, expected) => {
+    expect(getTakeoverControlState(conversation)).toEqual(expected);
+  });
+
   it('keeps website chat status separate from Twilio', () => {
     expect(getConversationChannelNotice({
       channel: 'website',
