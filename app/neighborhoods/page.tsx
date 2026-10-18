@@ -1,5 +1,7 @@
 'use client';
 
+import { resolveEditorialImage } from '@/lib/editorial-images';
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import gsap from 'gsap';
@@ -153,8 +155,8 @@ export default function NeighborhoodsPage() {
               <div>
                 <div className="relative w-full h-[240px] sm:h-[280px] bg-soft-stone overflow-hidden">
                   <img
-                    src={n.heroImage}
-                    alt={n.name}
+                    src={resolveEditorialImage(n.heroImage)}
+                    alt={`Residential architecture accompanying the ${n.name} guide`}
                     className="property-card-img w-full h-full object-cover"
                   />
                   <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-white/95 backdrop-blur-sm text-[11px] font-extrabold uppercase tracking-wider text-charcoal">
