@@ -3,17 +3,74 @@ export interface PendingFormSubmission {
   key: string;
 }
 
-export function getPendingFormSubmission(
-  previous: PendingFormSubmission | null,
+export type FormSubmissionStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+
+export async function getPendingFormSubmission(
+  storage: FormSubmissionStorage,
+  storageKey: string,
   payload: Record<string, string | number>,
   createKey: () => string = () => crypto.randomUUID(),
-): PendingFormSubmission {
-  const fingerprint = JSON.stringify(payload);
-  if (previous?.fingerprint === fingerprint) return previous;
+): Promise<PendingFormSubmission> {
+  const canonicalPayload = JSON.stringify(
+    Object.fromEntries(
+      Object.entries(payload).sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0),
+    ),
+  );
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonicalPayload));
+  const fingerprint = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+
+  let saved: string | null;
+  try {
+    saved = storage.getItem(storageKey);
+  } catch {
+    throw new Error('Unable to read the saved retry key. Enable browser session storage and try again.');
+  }
+
+  if (saved !== null) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(saved);
+    } catch {
+      throw new Error('The saved retry key is invalid. Clear this form’s session data before retrying.');
+    }
+    if (
+      parsed && typeof parsed === 'object'
+      && 'fingerprint' in parsed && parsed.fingerprint === fingerprint
+      && 'key' in parsed && typeof parsed.key === 'string' && parsed.key.trim()
+    ) {
+      return { fingerprint, key: parsed.key };
+    }
+  }
 
   const key = createKey();
   if (!key.trim()) throw new Error('Unable to create an idempotency key');
-  return { fingerprint, key };
+  const pending = { fingerprint, key };
+  try {
+    storage.setItem(storageKey, JSON.stringify(pending));
+  } catch {
+    throw new Error('Unable to save a retry key in this browser. Your form was not submitted.');
+  }
+  return pending;
+}
+
+export function clearPendingFormSubmission(
+  storage: FormSubmissionStorage,
+  storageKey: string,
+): boolean {
+  try {
+    storage.removeItem(storageKey);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function clearBrowserPendingFormSubmission(storageKey: string): boolean {
+  try {
+    return clearPendingFormSubmission(window.sessionStorage, storageKey);
+  } catch {
+    return false;
+  }
 }
 
 export function isLeadSubmissionReceipt(status: number, body: unknown): boolean {

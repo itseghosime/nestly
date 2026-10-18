@@ -1,23 +1,58 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  clearPendingFormSubmission,
   getPendingFormSubmission,
   isLeadSubmissionReceipt,
   parseExpectedAnnualRent,
+  type FormSubmissionStorage,
 } from '@/lib/public-form-submission';
 
+function createStorage(initial?: Map<string, string>): FormSubmissionStorage {
+  const values = initial ?? new Map<string, string>();
+  return {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => { values.set(key, value); },
+    removeItem: (key) => { values.delete(key); },
+  };
+}
+
 describe('public form submission helpers', () => {
-  it('reuses an idempotency key for the same retry payload and renews it when payload changes', () => {
+  it('persists only a payload digest and reuses the key after the form is recreated', async () => {
+    const values = new Map<string, string>();
+    const storage = createStorage(values);
     const createKey = vi.fn()
       .mockReturnValueOnce('key-one')
       .mockReturnValueOnce('key-two');
     const originalPayload = { name: 'Ada', amount: 2_500_000.5 };
-    const first = getPendingFormSubmission(null, originalPayload, createKey);
-    const retry = getPendingFormSubmission(first, { ...originalPayload }, createKey);
-    const changed = getPendingFormSubmission(retry, { ...originalPayload, amount: 3_000_000 }, createKey);
+    const first = await getPendingFormSubmission(storage, 'contact', originalPayload, createKey);
+    const afterReload = await getPendingFormSubmission(createStorage(values), 'contact', { amount: 2_500_000.5, name: 'Ada' }, createKey);
+    const changed = await getPendingFormSubmission(storage, 'contact', { ...originalPayload, amount: 3_000_000 }, createKey);
 
-    expect(retry).toBe(first);
+    expect(afterReload).toEqual(first);
+    expect(values.get('contact')).not.toContain('Ada');
+    expect(values.get('contact')).not.toContain('2500000');
     expect(changed.key).toBe('key-two');
     expect(createKey).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects malformed saved retry state instead of silently issuing another key', async () => {
+    const storage = createStorage(new Map([['contact', '{broken']]));
+    await expect(getPendingFormSubmission(storage, 'contact', { name: 'Ada' })).rejects.toThrow('saved retry key is invalid');
+  });
+
+  it('reports unavailable session storage and clears accepted retry state', async () => {
+    const unavailableStorage: FormSubmissionStorage = {
+      getItem: () => null,
+      setItem: () => { throw new Error('blocked'); },
+      removeItem: () => { throw new Error('blocked'); },
+    };
+    await expect(getPendingFormSubmission(unavailableStorage, 'contact', { name: 'Ada' }))
+      .rejects.toThrow('Your form was not submitted');
+
+    const storage = createStorage(new Map([['contact', 'saved']]));
+    expect(clearPendingFormSubmission(storage, 'contact')).toBe(true);
+    expect(storage.getItem('contact')).toBeNull();
+    expect(clearPendingFormSubmission(unavailableStorage, 'contact')).toBe(false);
   });
 
   it('accepts only the API receipt response contract', () => {

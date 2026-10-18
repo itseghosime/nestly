@@ -16,7 +16,9 @@ import {
   Image as ImageIcon,
   Loader2,
 } from 'lucide-react';
-import { getPendingFormSubmission, isLeadSubmissionReceipt, parseExpectedAnnualRent, type PendingFormSubmission } from '@/lib/public-form-submission';
+import { clearBrowserPendingFormSubmission, getPendingFormSubmission, isLeadSubmissionReceipt, parseExpectedAnnualRent } from '@/lib/public-form-submission';
+
+const PENDING_SUBMISSION_STORAGE_KEY = 'nestly:landlord-submission:v1';
 
 export default function SubmitPropertyPage() {
   const [activeStep, setActiveStep] = useState(1);
@@ -44,7 +46,6 @@ export default function SubmitPropertyPage() {
   const mainRef = useRef<HTMLElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const successRef = useRef<HTMLDivElement>(null);
-  const pendingSubmissionRef = useRef<PendingFormSubmission | null>(null);
   const sec1Ref = useRef<HTMLDivElement>(null);
   const sec2Ref = useRef<HTMLDivElement>(null);
   const sec3Ref = useRef<HTMLDivElement>(null);
@@ -143,8 +144,11 @@ export default function SubmitPropertyPage() {
           titleType ? `Reported title document type: ${titleType}` : '',
         ].filter(Boolean).join('. '),
       };
-      const pendingSubmission = getPendingFormSubmission(pendingSubmissionRef.current, payload);
-      pendingSubmissionRef.current = pendingSubmission;
+      const pendingSubmission = await getPendingFormSubmission(
+        window.sessionStorage,
+        PENDING_SUBMISSION_STORAGE_KEY,
+        payload,
+      );
 
       const response = await fetch('/api/leads/landlord', {
         method: 'POST',
@@ -164,7 +168,10 @@ export default function SubmitPropertyPage() {
         throw new Error(errorMessage);
       }
 
-      pendingSubmissionRef.current = null;
+      const retryStateCleared = clearBrowserPendingFormSubmission(PENDING_SUBMISSION_STORAGE_KEY);
+      if (!retryStateCleared) {
+        setSubmitError('Receipt was confirmed, but this browser could not clear its retry key. Avoid resetting this submission until session storage is available.');
+      }
       setSubmitted(true);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Unable to submit property particulars.');
@@ -174,7 +181,7 @@ export default function SubmitPropertyPage() {
   };
 
   const handleReset = () => {
-    pendingSubmissionRef.current = null;
+    const retryStateCleared = clearBrowserPendingFormSubmission(PENDING_SUBMISSION_STORAGE_KEY);
     setSubmitted(false);
     setPropertyTitle('');
     setPropertyType('');
@@ -193,7 +200,7 @@ export default function SubmitPropertyPage() {
     setEmail('');
     setActiveStep(1);
     setErrors({});
-    setSubmitError('');
+    setSubmitError(retryStateCleared ? '' : 'The previous receipt was confirmed, but this browser could not clear its retry key. A matching submission will reuse that key.');
   };
 
   return (
@@ -285,6 +292,7 @@ export default function SubmitPropertyPage() {
                 <p className="text-xs sm:text-sm text-muted-ink max-w-md mx-auto leading-relaxed">
                   The server recorded your property submission for <span className="font-bold text-charcoal">{propertyTitle}</span> ({city}). Receipt does not mean the property is accepted, vetted, or published.
                 </p>
+                {submitError && <p role="status" className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-2xl p-3 max-w-md mx-auto">{submitError}</p>}
                 <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
                   <button
                     type="button"

@@ -8,7 +8,7 @@ import { Footer } from '@/components/public/Footer';
 import { NiaWidget } from '@/components/public/NiaWidget';
 import { prefersReducedMotion } from '@/lib/motion';
 import { NIA_TELEGRAM_URL } from '@/lib/contact-channels';
-import { getPendingFormSubmission, isLeadSubmissionReceipt, type PendingFormSubmission } from '@/lib/public-form-submission';
+import { clearBrowserPendingFormSubmission, getPendingFormSubmission, isLeadSubmissionReceipt } from '@/lib/public-form-submission';
 import {
   MessageSquare,
   CheckCircle2,
@@ -18,6 +18,8 @@ import {
   RotateCcw,
   Loader2,
 } from 'lucide-react';
+
+const PENDING_SUBMISSION_STORAGE_KEY = 'nestly:contact-submission:v1';
 
 export default function ContactPage() {
   const [category, setCategory] = useState<'General Inquiry' | 'Property Inspection' | 'Landlord Listing' | 'Partnership'>('General Inquiry');
@@ -34,7 +36,6 @@ export default function ContactPage() {
   const mainRef = useRef<HTMLElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const successRef = useRef<HTMLDivElement>(null);
-  const pendingSubmissionRef = useRef<PendingFormSubmission | null>(null);
 
   useGSAP(
     () => {
@@ -91,8 +92,11 @@ export default function ContactPage() {
         phone: phone.trim(),
         message: `[${category}] ${message.trim()}`,
       };
-      const pendingSubmission = getPendingFormSubmission(pendingSubmissionRef.current, payload);
-      pendingSubmissionRef.current = pendingSubmission;
+      const pendingSubmission = await getPendingFormSubmission(
+        window.sessionStorage,
+        PENDING_SUBMISSION_STORAGE_KEY,
+        payload,
+      );
       const response = await fetch('/api/leads/contact', {
         method: 'POST',
         headers: {
@@ -111,7 +115,10 @@ export default function ContactPage() {
         throw new Error(errorMessage);
       }
 
-      pendingSubmissionRef.current = null;
+      const retryStateCleared = clearBrowserPendingFormSubmission(PENDING_SUBMISSION_STORAGE_KEY);
+      if (!retryStateCleared) {
+        setSubmitError('Receipt was confirmed, but this browser could not clear its retry key. Avoid resetting this inquiry until session storage is available.');
+      }
       setSubmitted(true);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Unable to submit inquiry at this time.');
@@ -121,14 +128,14 @@ export default function ContactPage() {
   };
 
   const handleReset = () => {
-    pendingSubmissionRef.current = null;
+    const retryStateCleared = clearBrowserPendingFormSubmission(PENDING_SUBMISSION_STORAGE_KEY);
     setSubmitted(false);
     setFullName('');
     setPhone('');
     setEmail('');
     setMessage('');
     setErrors({});
-    setSubmitError('');
+    setSubmitError(retryStateCleared ? '' : 'The previous receipt was confirmed, but this browser could not clear its retry key. A matching inquiry will reuse that key.');
   };
 
   return (
@@ -238,6 +245,7 @@ export default function ContactPage() {
                 <p className="text-xs sm:text-sm text-muted-ink max-w-md mx-auto leading-relaxed">
                   Your inquiry about <span className="font-bold text-charcoal">{category}</span> has been recorded. This confirms receipt only; it does not confirm an assigned officer or response time.
                 </p>
+                {submitError && <p role="status" className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-2xl p-3 max-w-md mx-auto">{submitError}</p>}
                 <div className="pt-4 flex justify-center">
                   <button
                     type="button"
