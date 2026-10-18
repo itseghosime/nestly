@@ -1,3 +1,4 @@
+import { getNiaSocialReply } from '@/lib/backend/nia-social-reply';
 import {
   normalizeNiaSearchKeywords,
   parseNiaPropertySearch,
@@ -90,6 +91,7 @@ export function isNiaFeeQuestion(query: string): boolean {
 }
 
 export function isNiaHandoffRequest(query: string): boolean {
+  if (getNiaSocialReply(query, false) !== null) return false;
   return /\b(human|agent|officer|staff|person|team member|handoff|hand off|speak to someone|talk to someone)\b/i.test(query);
 }
 

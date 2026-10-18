@@ -82,6 +82,9 @@ describe('Nia website conversation context', () => {
     expect(isNiaFeeQuestion('What are the confirmed fees for the second one?')).toBe(true);
     expect(isNiaHandoffRequest('Please connect me to a person')).toBe(true);
     expect(isNiaHandoffRequest('Show me homes in GRA')).toBe(false);
+    expect(isNiaHandoffRequest('Are you human?')).toBe(false);
+    expect(isNiaHandoffRequest('Hello, connect me to a human')).toBe(true);
+    expect(isNiaHandoffRequest('human')).toBe(true);
   });
 
   it.each([
