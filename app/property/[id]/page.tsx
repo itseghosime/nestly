@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, use } from 'react';
+import React, { useState, useRef, use, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -9,9 +9,10 @@ import { Footer } from '@/components/public/Footer';
 import { NiaWidget } from '@/components/public/NiaWidget';
 import { PropertyCard } from '@/components/public/PropertyCard';
 import { PropertyGallery } from '@/components/public/PropertyGallery';
-import { fetchPropertyById } from '@/lib/properties';
-import { fetchProperties as fetchAllProperties } from '@/lib/properties';
+import { fetchPropertyById, fetchProperties as fetchAllProperties, syncRelatedProperties, IS_DEMO_MODE } from '@/lib/properties';
 import { PROPERTIES as FIXTURE_PROPERTIES } from '@/lib/fixtures/properties';
+import { computeTotal, computeFeeBreakdown, formatPrice } from '@/lib/price';
+import type { Property } from '@/lib/types';
 import { useSavedHomes } from '@/lib/saved-homes-context';
 import { usePropertyTransition } from '@/lib/property-transition-context';
 import { prefersReducedMotion, peekLastListingPath } from '@/lib/motion';
@@ -19,26 +20,60 @@ import {
   Heart,
   Share2,
   Calendar,
-  MessageSquare,
   ShieldCheck,
   CheckCircle2,
   Compass,
   ArrowLeft,
-  Info,
   Check,
-  MapPin
+  MapPin,
+  Home,
+  MessageSquare,
+  AlertCircle,
+  RotateCcw
 } from 'lucide-react';
 
 export default function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
-  const [property, setProperty] = React.useState<import('@/lib/types').Property | null>(() => FIXTURE_PROPERTIES.find((p) => p.id === resolvedParams.id) || FIXTURE_PROPERTIES[0]);
-  const [relatedProperties, setRelatedProperties] = React.useState<import('@/lib/types').Property[]>(() => FIXTURE_PROPERTIES.filter((p) => p.id !== (FIXTURE_PROPERTIES.find((x) => x.id === resolvedParams.id) || FIXTURE_PROPERTIES[0]).id).slice(0, 3));
-  React.useEffect(() => {
+  const initialProp = IS_DEMO_MODE ? FIXTURE_PROPERTIES.find((p) => p.id === resolvedParams.id) || null : null;
+  const [currentId, setCurrentId] = useState(resolvedParams.id);
+  const [property, setProperty] = useState<Property | null>(initialProp);
+  const [loading, setLoading] = useState(!initialProp);
+  const [propertyError, setPropertyError] = useState<string | null>(null);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
+  const [relatedProperties, setRelatedProperties] = useState<Property[]>(() =>
+    IS_DEMO_MODE ? FIXTURE_PROPERTIES.filter((p) => p.id !== resolvedParams.id).slice(0, 3) : []
+  );
+
+  // Reset loading and data correctly when route params change
+  if (resolvedParams.id !== currentId) {
+    setCurrentId(resolvedParams.id);
+    const nextProp = IS_DEMO_MODE ? FIXTURE_PROPERTIES.find((p) => p.id === resolvedParams.id) || null : null;
+    setProperty(nextProp);
+    setLoading(!nextProp);
+    setPropertyError(null);
+    setRelatedProperties(IS_DEMO_MODE ? FIXTURE_PROPERTIES.filter((p) => p.id !== resolvedParams.id).slice(0, 3) : []);
+  }
+
+  useEffect(() => {
     let c = false;
-    fetchPropertyById(resolvedParams.id).then((row) => { if (!c && row) setProperty(row); });
-    fetchAllProperties().then((rows) => { if (!c && rows.length) setRelatedProperties(rows.filter((r) => r.id !== resolvedParams.id).slice(0, 3)); });
+    fetchPropertyById(resolvedParams.id)
+      .then((row) => {
+        if (!c) {
+          setProperty(row);
+          setLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!c) {
+          setPropertyError(err instanceof Error ? err.message : 'Unable to load property details.');
+          setLoading(false);
+        }
+      });
+
+    syncRelatedProperties(resolvedParams.id, setRelatedProperties, () => c, fetchAllProperties);
     return () => { c = true; };
-  }, [resolvedParams.id]);
+  }, [resolvedParams.id, reloadTrigger]);
+
   const { isSaved, toggleSave } = useSavedHomes();
   const { isMorphingProperty } = usePropertyTransition();
   const [isNiaOpen, setIsNiaOpen] = useState(false);
@@ -47,12 +82,53 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
 
   const mainRef = useRef<HTMLElement>(null);
   const saveBtnRef = useRef<HTMLButtonElement>(null);
-  const currentProperty = property ?? FIXTURE_PROPERTIES[0];
+  const currentProperty = property;
+
+  // Grounded fee calculation using confirmed per-property fee ledger and existing computeTotal contract
+  const propertyFees = property?.fees;
+  const annualRent = property?.priceAnnual;
+
+  const feeBreakdown = useMemo(() => {
+    if (annualRent == null || !propertyFees || !Array.isArray(propertyFees)) return [];
+    return computeFeeBreakdown(annualRent, propertyFees);
+  }, [annualRent, propertyFees]);
+
+  const totalMoveIn = useMemo(() => {
+    if (annualRent == null || !propertyFees || !Array.isArray(propertyFees)) return null;
+    return computeTotal(annualRent, propertyFees);
+  }, [annualRent, propertyFees]);
+
+  const saved = property ? isSaved(property.id) : false;
+
+  const handleSaveProperty = () => {
+    if (!property) return;
+    toggleSave(property.id);
+    if (!prefersReducedMotion() && saveBtnRef.current) {
+      gsap.fromTo(
+        saveBtnRef.current,
+        { scale: 0.9 },
+        { scale: 1, duration: 0.32, ease: 'back.out(2.2)' }
+      );
+    }
+  };
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
+
+  const handleRetry = () => {
+    setLoading(true);
+    setPropertyError(null);
+    setRelatedProperties([]);
+    setReloadTrigger((t) => t + 1);
+  };
 
   // Coordinate destination title, badges, thumbnails, and booking card around the hero transition
   useGSAP(
     () => {
-      if (prefersReducedMotion()) return;
+      if (prefersReducedMotion() || !currentProperty) return;
 
       const morphing = isMorphingProperty(currentProperty.id);
       const baseDelay = morphing ? 0.14 : 0;
@@ -85,37 +161,94 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
         }
       );
     },
-    { scope: mainRef, dependencies: [currentProperty.id] }
+    { scope: mainRef, dependencies: [currentProperty?.id] }
   );
 
-  if (!property) return null;
+  if (loading && !property) {
+    return (
+      <div className="min-h-screen bg-warm text-charcoal flex flex-col">
+        <Header onOpenNia={() => setIsNiaOpen(true)} />
+        <main className="flex-1 max-w-[1240px] mx-auto w-full px-4 sm:px-8 py-20 flex items-center justify-center">
+          <div className="text-center space-y-3">
+            <div className="w-9 h-9 border-3 border-persimmon border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs font-bold text-muted-ink uppercase tracking-wider">Verifying listing details...</p>
+          </div>
+        </main>
+        <Footer onOpenNia={() => setIsNiaOpen(true)} />
+      </div>
+    );
+  }
 
-  const saved = isSaved(property.id);
+  // Recoverable network/server error view
+  if (propertyError && !property) {
+    return (
+      <div className="min-h-screen bg-warm text-charcoal flex flex-col selection:bg-persimmon selection:text-white">
+        <Header onOpenNia={() => setIsNiaOpen(true)} />
+        <main className="flex-1 max-w-[1240px] mx-auto w-full px-4 sm:px-8 py-16 flex flex-col items-center justify-center text-center">
+          <div className="bg-white rounded-3xl p-10 sm:p-14 border border-hairline shadow-sm max-w-lg mx-auto">
+            <div className="w-16 h-16 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center mx-auto mb-4 border border-amber-200">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h1 className="font-headline text-2xl sm:text-3xl font-extrabold text-charcoal mb-2">
+              Listing Temporarily Unavailable
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-ink leading-relaxed mb-6">
+              {propertyError}. Check your network connection or retry the request.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="px-6 py-3 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold uppercase tracking-wider shadow-sm nestly-press cursor-pointer flex items-center gap-2"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Retry Connection</span>
+              </button>
+              <Link
+                href="/browse"
+                className="px-6 py-3 rounded-full bg-soft-stone hover:bg-stone-card text-charcoal text-xs font-bold uppercase tracking-wider border border-hairline nestly-press"
+              >
+                <span>Browse Listings</span>
+              </Link>
+            </div>
+          </div>
+        </main>
+        <Footer onOpenNia={() => setIsNiaOpen(true)} />
+        <NiaWidget isOpenExternal={isNiaOpen} onCloseExternal={() => setIsNiaOpen(false)} />
+      </div>
+    );
+  }
 
-  const handleSaveProperty = () => {
-    toggleSave(property.id);
-    if (!prefersReducedMotion() && saveBtnRef.current) {
-      gsap.fromTo(
-        saveBtnRef.current,
-        { scale: 0.9 },
-        { scale: 1, duration: 0.32, ease: 'back.out(2.2)' }
-      );
-    }
-  };
-
-  const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2500);
-  };
-
-  // Fee calculation
-  const annualRent = property.priceAnnual;
-  const legalFee = annualRent * 0.1;
-  const agencyFee = annualRent * 0.1;
-  const cautionDeposit = 200000;
-  const serviceCharge = 300000;
-  const totalMoveIn = annualRent + legalFee + agencyFee + cautionDeposit + serviceCharge;
+  // 404 Not Found view
+  if (!property) {
+    return (
+      <div className="min-h-screen bg-warm text-charcoal flex flex-col selection:bg-persimmon selection:text-white">
+        <Header onOpenNia={() => setIsNiaOpen(true)} />
+        <main className="flex-1 max-w-[1240px] mx-auto w-full px-4 sm:px-8 py-16 flex flex-col items-center justify-center text-center">
+          <div className="bg-white rounded-3xl p-10 sm:p-14 border border-hairline shadow-sm max-w-lg mx-auto">
+            <div className="w-16 h-16 rounded-full bg-soft-stone text-persimmon flex items-center justify-center mx-auto mb-4">
+              <Home className="w-8 h-8" />
+            </div>
+            <h1 className="font-headline text-2xl sm:text-3xl font-extrabold text-charcoal mb-2">
+              Property Not Found
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-ink leading-relaxed mb-6">
+              Listing reference &ldquo;{resolvedParams.id}&rdquo; was not found in our verified database or may have been archived following a confirmed lease.
+            </p>
+            <Link
+              href="/browse"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold uppercase tracking-wider shadow-sm nestly-press"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Browse Verified Homes</span>
+            </Link>
+          </div>
+        </main>
+        <Footer onOpenNia={() => setIsNiaOpen(true)} />
+        <NiaWidget isOpenExternal={isNiaOpen} onCloseExternal={() => setIsNiaOpen(false)} />
+      </div>
+    );
+  }
 
   const morphing = isMorphingProperty(property.id);
 
@@ -205,14 +338,14 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
               </div>
               <div>
                 <span className="text-[11px] uppercase tracking-wider text-muted-ink font-bold block mb-1">Power</span>
-                <p className="font-headline text-sm font-extrabold text-charcoal truncate" title={property.powerRating}>
-                  {property.powerRating.split(' ')[0]} Daily
+                <p className="font-headline text-sm font-extrabold text-charcoal truncate" title={property.powerRating || 'Not provided'}>
+                  {property.powerRating ? `${property.powerRating.split(' ')[0]} Daily` : 'Not provided'}
                 </p>
               </div>
               <div>
                 <span className="text-[11px] uppercase tracking-wider text-muted-ink font-bold block mb-1">Water Supply</span>
-                <p className="font-headline text-sm font-extrabold text-charcoal truncate" title={property.waterSupply}>
-                  Treated Borehole
+                <p className="font-headline text-sm font-extrabold text-charcoal truncate" title={property.waterSupply || 'Not provided'}>
+                  {property.waterSupply ? 'Treated Borehole' : 'Not provided'}
                 </p>
               </div>
             </div>
@@ -260,7 +393,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                   </p>
                 </div>
                 <span className="text-xs font-bold text-emerald-700 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200">
-                  Direct Instruction
+                  {property.verificationBadge}
                 </span>
               </div>
 
@@ -269,25 +402,48 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                   <span className="text-charcoal/80 font-medium">Base Annual Rent (12 months)</span>
                   <span className="font-extrabold text-charcoal">{property.priceFormatted}</span>
                 </div>
-                <div className="flex items-center justify-between py-1 border-t border-hairline">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-charcoal/80 font-medium">Refundable Caution Deposit</span>
-                    <Info className="w-3.5 h-3.5 text-muted-ink" />
+
+                {feeBreakdown.length > 0 ? (
+                  feeBreakdown.map((fee) => {
+                    const isConfirmed = !!fee.confirmed_at;
+                    const feeAmountNum = Number(fee.amount);
+                    const feeValueDisplay = fee.kind === 'fixed'
+                      ? formatPrice(feeAmountNum)
+                      : `${feeAmountNum}% of ${fee.base === 'rent' ? 'Annual Rent' : 'Subtotal'} (${formatPrice(fee.calculatedAmount)})`;
+
+                    const feeLabel = (fee as { label?: string }).label || (
+                      fee.fee_key === 'caution_deposit'
+                        ? 'Refundable Caution Deposit'
+                        : fee.fee_key === 'legal_fee'
+                          ? 'Legal Agreement Draft & Stamping'
+                          : fee.fee_key === 'agency_fee'
+                            ? 'Agency Service & Handover'
+                            : fee.fee_key === 'service_charge'
+                              ? 'Annual Estate Service Charge'
+                              : fee.fee_key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+                    );
+
+                    return (
+                      <div key={fee.fee_key} className="flex items-center justify-between py-1 border-t border-hairline">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-charcoal/80 font-medium">{feeLabel}</span>
+                          {!isConfirmed && (
+                            <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                              Pending Confirmation
+                            </span>
+                          )}
+                        </div>
+                        <span className={`font-extrabold ${isConfirmed ? 'text-charcoal' : 'text-amber-800'}`}>
+                          {feeValueDisplay}
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="py-2 border-t border-hairline text-xs text-muted-ink">
+                    No confirmed fee ledger recorded for this listing. All additional fees remain subject to landlord confirmation.
                   </div>
-                  <span className="font-extrabold text-charcoal">₦{cautionDeposit.toLocaleString()}</span>
-                </div>
-                <div className="flex items-center justify-between py-1 border-t border-hairline">
-                  <span className="text-charcoal/80 font-medium">Legal Agreement Draft &amp; Stamping (10%)</span>
-                  <span className="font-extrabold text-charcoal">₦{legalFee.toLocaleString()}</span>
-                </div>
-                <div className="flex items-center justify-between py-1 border-t border-hairline">
-                  <span className="text-charcoal/80 font-medium">Agency Service &amp; Handover (10%)</span>
-                  <span className="font-extrabold text-charcoal">₦{agencyFee.toLocaleString()}</span>
-                </div>
-                <div className="flex items-center justify-between py-1 border-t border-hairline">
-                  <span className="text-charcoal/80 font-medium">Annual Estate Service Charge</span>
-                  <span className="font-extrabold text-charcoal">₦{serviceCharge.toLocaleString()}</span>
-                </div>
+                )}
 
                 <div className="pt-4 mt-2 border-t-2 border-charcoal flex items-center justify-between">
                   <div>
@@ -295,12 +451,20 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                       Total Estimated Move-in Cost
                     </span>
                     <span className="text-[11px] text-muted-ink">
-                      Excludes optional furniture package. Paid directly upon title verification.
+                      {totalMoveIn !== null
+                        ? 'Excludes optional furniture package. Paid directly upon title verification.'
+                        : 'One or more required fees are pending landlord/agent confirmation.'}
                     </span>
                   </div>
-                  <span className="font-headline text-2xl font-extrabold text-persimmon">
-                    ₦{totalMoveIn.toLocaleString()}
-                  </span>
+                  {totalMoveIn !== null ? (
+                    <span className="font-headline text-2xl font-extrabold text-persimmon">
+                      {formatPrice(totalMoveIn)}
+                    </span>
+                  ) : (
+                    <span className="text-xs font-bold text-amber-800 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
+                      Total unavailable — pending fee confirmation
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

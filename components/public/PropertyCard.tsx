@@ -104,7 +104,7 @@ export function PropertyCard({
                     return;
                   }
                   image.dataset.fallbackAttempted = 'true';
-                  const fallback = property.galleryImages.find(
+                  const fallback = property.galleryImages?.find(
                     (source) => source && source !== property.featuredImage,
                   );
                   if (fallback) image.src = fallback;
@@ -167,7 +167,7 @@ export function PropertyCard({
           </Link>
 
           <p className="text-xs text-muted-ink mb-3 font-medium">
-            {property.bedrooms} Beds · {property.bathrooms} Baths · {property.powerRating.split(' ')[0]} Power
+            {property.bedrooms} Beds · {property.bathrooms} Baths{property.powerRating ? ` · ${property.powerRating.split(' ')[0]} Power` : ''}
           </p>
 
           <p className="text-xs text-charcoal/70 line-clamp-2 leading-relaxed mb-4">

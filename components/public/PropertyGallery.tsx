@@ -50,7 +50,7 @@ export function PropertyGallery({ property, morphing }: PropertyGalleryProps) {
   const reduced = useReducedMotion();
 
   const photos = useMemo(() => {
-    const list = (property.galleryImages.length ? property.galleryImages : [property.featuredImage]).filter(Boolean);
+    const list = (property.galleryImages?.length ? property.galleryImages : [property.featuredImage]).filter(Boolean);
     return Array.from(new Set(list));
   }, [property.galleryImages, property.featuredImage]);
 

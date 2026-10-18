@@ -1,3 +1,5 @@
+import type { FeeRow } from './price';
+
 export interface Property {
   id: string;
   slug: string;
@@ -9,6 +11,9 @@ export interface Property {
   serviceCharge?: string;
   cautionDeposit?: string;
   agencyLegal?: string;
+  fees?: FeeRow[];
+  computedTotal?: number | null;
+  unconfirmedFeeCount?: number;
   state: 'Edo' | 'Delta';
   city: string;
   neighborhood: string;

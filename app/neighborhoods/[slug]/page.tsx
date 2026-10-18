@@ -1,6 +1,6 @@
 'use client';
 
-import React, { use, useState, useRef, useEffect } from 'react';
+import React, { use, useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -8,48 +8,182 @@ import { Header } from '@/components/public/Header';
 import { Footer } from '@/components/public/Footer';
 import { NiaWidget } from '@/components/public/NiaWidget';
 import { PropertyCard } from '@/components/public/PropertyCard';
-import { fetchNeighborhoodBySlug } from '@/lib/neighborhoods';
+import { fetchNeighborhoodBySlug, IS_DEMO_MODE } from '@/lib/neighborhoods';
 import { PROPERTIES as FIXTURE_PROPERTIES } from '@/lib/fixtures/properties';
 import { fetchProperties } from '@/lib/properties';
 import { NEIGHBORHOODS as FIXTURE_NEIGHBORHOODS } from '@/lib/fixtures/neighborhoods';
-// (PROPERTIES via FIXTURE_PROPERTIES)
+import type { NeighborhoodGuide, Property } from '@/lib/types';
 import { prefersReducedMotion } from '@/lib/motion';
 import {
   ChevronRight,
   CheckCircle2,
-  ArrowRight
+  ArrowRight,
+  AlertCircle,
+  RotateCcw
 } from 'lucide-react';
 
 export default function NeighborhoodGuideDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const resolvedParams = use(params);
-  const [neighborhood, setNeighborhood] = useState(() => FIXTURE_NEIGHBORHOODS.find((n) => n.slug === resolvedParams.slug) || FIXTURE_NEIGHBORHOODS[0]);
-  const [relatedProperties, setRelatedProperties] = useState<import('@/lib/types').Property[]>(FIXTURE_PROPERTIES);
+  const initialNeighborhood = IS_DEMO_MODE ? FIXTURE_NEIGHBORHOODS.find((n) => n.slug === resolvedParams.slug) || null : null;
+  const [currentSlug, setCurrentSlug] = useState(resolvedParams.slug);
+  const [neighborhood, setNeighborhood] = useState<NeighborhoodGuide | null>(initialNeighborhood);
+  const [loading, setLoading] = useState(!initialNeighborhood);
+  const [neighborhoodError, setNeighborhoodError] = useState<string | null>(null);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
+  const [relatedProperties, setRelatedProperties] = useState<Property[]>(() =>
+    IS_DEMO_MODE ? FIXTURE_PROPERTIES : []
+  );
+
+  // Reset loading and data correctly when slug changes
+  if (resolvedParams.slug !== currentSlug) {
+    setCurrentSlug(resolvedParams.slug);
+    const nextN = IS_DEMO_MODE ? FIXTURE_NEIGHBORHOODS.find((n) => n.slug === resolvedParams.slug) || null : null;
+    setNeighborhood(nextN);
+    setLoading(!nextN);
+    setNeighborhoodError(null);
+    setRelatedProperties(IS_DEMO_MODE ? FIXTURE_PROPERTIES : []);
+  }
+
   useEffect(() => {
-    let c=false;
-    fetchNeighborhoodBySlug(resolvedParams.slug).then((row)=>{ if(!c && row) setNeighborhood(row); });
-    fetchProperties().then((rows)=>{ if(!c && rows.length) setRelatedProperties(rows); });
-    return ()=>{c=true};
-  }, [resolvedParams.slug]);
+    let c = false;
+    fetchNeighborhoodBySlug(resolvedParams.slug)
+      .then((row) => {
+        if (!c) {
+          setNeighborhood(row);
+          setLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!c) {
+          setNeighborhoodError(err instanceof Error ? err.message : 'Unable to load neighborhood guide.');
+          setLoading(false);
+        }
+      });
+    fetchProperties()
+      .then((rows) => {
+        if (!c) {
+          setRelatedProperties(Array.isArray(rows) ? rows : []);
+        }
+      })
+      .catch(() => {
+        if (!c) {
+          setRelatedProperties([]);
+        }
+      });
+    return () => { c = true; };
+  }, [resolvedParams.slug, reloadTrigger]);
+
+  const handleRetry = () => {
+    setLoading(true);
+    setNeighborhoodError(null);
+    setRelatedProperties([]);
+    setReloadTrigger((t) => t + 1);
+  };
+
   const [isNiaOpen, setIsNiaOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
 
-  const localProperties = relatedProperties.filter(
-    (p) =>
-      p.neighborhood.toLowerCase().includes(neighborhood.name.toLowerCase().split(' ')[0]) ||
-      p.city.toLowerCase() === neighborhood.city.toLowerCase()
-  );
+  const localProperties = neighborhood
+    ? relatedProperties.filter(
+        (p) =>
+          p.neighborhood.toLowerCase().includes(neighborhood.name.toLowerCase().split(' ')[0]) ||
+          p.city.toLowerCase() === neighborhood.city.toLowerCase()
+      )
+    : [];
 
   useGSAP(
     () => {
-      if (prefersReducedMotion()) return;
+      if (prefersReducedMotion() || !neighborhood) return;
       gsap.fromTo(
         '[data-nhdetail-enter]',
         { opacity: 0, y: 16 },
         { opacity: 1, y: 0, duration: 0.42, stagger: 0.065, ease: 'power2.out', clearProps: 'all' }
       );
     },
-    { scope: mainRef, dependencies: [neighborhood.slug] }
+    { scope: mainRef, dependencies: [neighborhood?.slug] }
   );
+
+  if (loading && !neighborhood) {
+    return (
+      <div className="min-h-screen bg-warm text-charcoal flex flex-col">
+        <Header onOpenNia={() => setIsNiaOpen(true)} />
+        <main className="flex-1 max-w-[1240px] mx-auto w-full px-4 sm:px-8 py-20 flex items-center justify-center">
+          <div className="text-center space-y-3">
+            <div className="w-9 h-9 border-3 border-persimmon border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs font-bold text-muted-ink uppercase tracking-wider">Loading neighborhood guide...</p>
+          </div>
+        </main>
+        <Footer onOpenNia={() => setIsNiaOpen(true)} />
+      </div>
+    );
+  }
+
+  // Recoverable error view for network/server failures
+  if (neighborhoodError && !neighborhood) {
+    return (
+      <div className="min-h-screen bg-warm text-charcoal flex flex-col selection:bg-persimmon selection:text-white">
+        <Header onOpenNia={() => setIsNiaOpen(true)} />
+        <main className="flex-1 max-w-[1240px] mx-auto w-full px-4 sm:px-8 py-16 flex flex-col items-center justify-center text-center">
+          <div className="bg-white rounded-3xl p-10 sm:p-14 border border-hairline shadow-sm max-w-lg mx-auto">
+            <div className="w-16 h-16 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center mx-auto mb-4 border border-amber-200">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h1 className="font-headline text-2xl sm:text-3xl font-extrabold text-charcoal mb-2">
+              Guide Temporarily Unavailable
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-ink leading-relaxed mb-6">
+              {neighborhoodError}. Check your network connection or try again.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="px-6 py-3 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold uppercase tracking-wider shadow-sm nestly-press cursor-pointer flex items-center gap-2"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Retry Connection</span>
+              </button>
+              <Link
+                href="/neighborhoods"
+                className="px-6 py-3 rounded-full bg-soft-stone hover:bg-stone-card text-charcoal text-xs font-bold uppercase tracking-wider border border-hairline nestly-press"
+              >
+                <span>All Neighborhoods</span>
+              </Link>
+            </div>
+          </div>
+        </main>
+        <Footer onOpenNia={() => setIsNiaOpen(true)} />
+        <NiaWidget isOpenExternal={isNiaOpen} onCloseExternal={() => setIsNiaOpen(false)} />
+      </div>
+    );
+  }
+
+  // 404 Not Found view
+  if (!neighborhood) {
+    return (
+      <div className="min-h-screen bg-warm text-charcoal flex flex-col selection:bg-persimmon selection:text-white">
+        <Header onOpenNia={() => setIsNiaOpen(true)} />
+        <main className="flex-1 max-w-[1240px] mx-auto w-full px-4 sm:px-8 py-16 flex flex-col items-center justify-center text-center">
+          <div className="bg-white rounded-3xl p-10 sm:p-14 border border-hairline shadow-sm max-w-lg mx-auto">
+            <h1 className="font-headline text-2xl sm:text-3xl font-extrabold text-charcoal mb-2">
+              Neighborhood Guide Not Found
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-ink leading-relaxed mb-6">
+              We couldn&apos;t find an active neighborhood guide for &ldquo;{resolvedParams.slug}&rdquo;. Explore our other residential pockets in Edo and Delta States.
+            </p>
+            <Link
+              href="/neighborhoods"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold uppercase tracking-wider shadow-sm nestly-press"
+            >
+              <span>Explore All Neighborhoods</span>
+            </Link>
+          </div>
+        </main>
+        <Footer onOpenNia={() => setIsNiaOpen(true)} />
+        <NiaWidget isOpenExternal={isNiaOpen} onCloseExternal={() => setIsNiaOpen(false)} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-warm text-charcoal flex flex-col selection:bg-persimmon selection:text-white">
@@ -115,9 +249,11 @@ export default function NeighborhoodGuideDetailPage({ params }: { params: Promis
               Electrical Uptime
             </span>
             <p className="font-headline text-lg sm:text-xl font-extrabold text-charcoal">
-              {neighborhood.powerReliability.split(' ')[0]} Daily
+              {neighborhood.powerReliability ? `${neighborhood.powerReliability.split(' ')[0]} Daily` : 'Not provided'}
             </p>
-            <span className="text-[11px] text-emerald-700 font-medium">Priority Feeder</span>
+            {neighborhood.powerReliability ? (
+              <span className="text-[11px] text-emerald-700 font-medium">Priority Feeder</span>
+            ) : null}
           </div>
 
           <div>
@@ -218,11 +354,24 @@ export default function NeighborhoodGuideDetailPage({ params }: { params: Promis
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {localProperties.map((prop) => (
-              <PropertyCard key={prop.id} property={prop} />
-            ))}
-          </div>
+          {localProperties.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {localProperties.map((prop) => (
+                <PropertyCard key={prop.id} property={prop} />
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white rounded-3xl p-8 border border-hairline text-center max-w-md mx-auto">
+              <p className="text-sm font-bold text-charcoal mb-1">No active listings in this pocket yet</p>
+              <p className="text-xs text-muted-ink mb-4">New properties are verified weekly by our field operations team.</p>
+              <Link
+                href="/browse"
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold uppercase tracking-wider nestly-press"
+              >
+                <span>Browse all verified listings</span>
+              </Link>
+            </div>
+          )}
         </section>
       </main>
 

@@ -1,7 +1,8 @@
 import type { Property } from './types';
+import type { FeeRow } from './price';
 import { PROPERTIES as FIXTURES } from './fixtures/properties';
 
-const ALLOW_FIXTURE_FALLBACK = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+export const IS_DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 export type FetchPropertiesParams = {
   location?: string;
@@ -57,6 +58,9 @@ type ApiPropertyRow = {
   publication_state?: string;
   rental_availability?: string;
   status?: string;
+  fees?: FeeRow[];
+  computedTotal?: number | null;
+  unconfirmedFeeCount?: number;
 };
 
 function mapApiRow(row: ApiPropertyRow): Property {
@@ -97,6 +101,9 @@ function mapApiRow(row: ApiPropertyRow): Property {
     nearbyLandmarks: row.nearbyLandmarks || row.nearby_landmarks || [],
     landlordContact: row.landlordContact || row.landlord_contact || undefined,
     status: listingStatus,
+    fees: Array.isArray(row.fees) ? row.fees : undefined,
+    computedTotal: typeof row.computedTotal === 'number' || row.computedTotal === null ? row.computedTotal : undefined,
+    unconfirmedFeeCount: typeof row.unconfirmedFeeCount === 'number' ? row.unconfirmedFeeCount : undefined,
   } as Property;
 }
 
@@ -111,12 +118,12 @@ export async function fetchProperties(params: FetchPropertiesParams = {}): Promi
   const url = `/api/properties${qs.toString() ? `?${qs}` : ''}`;
   try {
     const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) throw new Error(String(res.status));
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const body = await res.json();
     const rows: ApiPropertyRow[] = Array.isArray(body.data) ? body.data : [];
     return rows.map(mapApiRow);
   } catch (e) {
-    if (ALLOW_FIXTURE_FALLBACK) return FIXTURES;
+    if (IS_DEMO_MODE) return FIXTURES;
     throw e;
   }
 }
@@ -124,14 +131,42 @@ export async function fetchProperties(params: FetchPropertiesParams = {}): Promi
 export async function fetchPropertyById(id: string): Promise<Property | null> {
   try {
     const res = await fetch(`/api/properties/${encodeURIComponent(id)}`, { cache: 'no-store' });
-    if (!res.ok) throw new Error(String(res.status));
+    if (res.status === 404) {
+      if (IS_DEMO_MODE) return FIXTURES.find((p) => p.id === id) || null;
+      return null;
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const body = await res.json();
     if (!body.data) return null;
     return mapApiRow(body.data as ApiPropertyRow);
   } catch (e) {
-    if (ALLOW_FIXTURE_FALLBACK) return FIXTURES.find((p) => p.id === id) || null;
+    if (IS_DEMO_MODE) return FIXTURES.find((p) => p.id === id) || null;
     throw e;
   }
 }
 
+/**
+ * Synchronizes related properties for a given route ID, guarding against stale/late responses.
+ * Clears related properties when the API returns an empty array or throws an error.
+ */
+export async function syncRelatedProperties(
+  routeId: string,
+  setRelated: (properties: Property[]) => void,
+  isCancelled: () => boolean,
+  fetchFn: () => Promise<Property[]> = fetchProperties
+): Promise<void> {
+  try {
+    const rows = await fetchFn();
+    if (!isCancelled()) {
+      const list = Array.isArray(rows) ? rows : [];
+      setRelated(list.filter((r) => r.id !== routeId).slice(0, 3));
+    }
+  } catch {
+    if (!isCancelled()) {
+      setRelated([]);
+    }
+  }
+}
+
 export { FIXTURES as FIXTURE_PROPERTIES };
+
