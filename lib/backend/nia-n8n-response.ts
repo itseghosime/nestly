@@ -1,3 +1,4 @@
+import { getNiaSocialReply } from '@/lib/backend/nia-social-reply';
 import type { NiaConversationAnswer } from '@/lib/backend/nia-conversation-response';
 
 export type NiaHistoryMessage = { role: 'user' | 'assistant' | 'staff'; content: string };
@@ -17,7 +18,7 @@ export function sanitizeNiaHistory(rows: unknown, currentMessageId: string): Nia
 }
 
 export async function generateNiaAiReply(
-  input: { requestId: string; query: string; answer: NiaConversationAnswer; history: NiaHistoryMessage[] },
+  input: { requestId: string; query: string; answer: NiaConversationAnswer; history: NiaHistoryMessage[]; returningUser?: boolean },
   options: { env?: NodeJS.ProcessEnv; fetcher?: typeof fetch } = {},
 ): Promise<NiaAiResult> {
   const env = options.env ?? process.env;
@@ -35,6 +36,7 @@ export async function generateNiaAiReply(
     ? 'grounded' : 'conversation';
   const body = JSON.stringify({
     version: 1, requestId: input.requestId, query: input.query,
+    visitor: { returningUser: input.returningUser === true },
     answerKind: kind, context: input.answer.context,
     history: input.history.slice(-10),
     grounding: { message: input.answer.message, properties: input.answer.properties, searchResultCount: input.answer.searchResultCount },
@@ -79,6 +81,28 @@ export async function generateNiaAiReply(
       || (kind === 'grounded' && (message.length > 240 || /\d/.test(message)))) {
       return { status: 'fallback', reason: 'UNSAFE_RESPONSE' };
     }
-    return { status: 'generated', message, kind };
+    const welcome = getReturningNiaGreeting(input.query, input.returningUser === true);
+    return { status: 'generated', message: welcome && !/welcome back/i.test(message) ? welcome : message, kind };
   } catch { return { status: 'fallback', reason: 'AGENT_UNAVAILABLE' }; }
+}
+
+export function getReturningNiaGreeting(query: string, returningUser: boolean): string | null {
+  const social = getNiaSocialReply(query, false);
+  return returningUser && social && /^(?:Hey!|Hello!|Hi!)/.test(social)
+    ? 'Welcome back! 👋 How can I help you today?'
+    : null;
+}
+
+export async function hasPriorTelegramMessages(
+  client: import('@supabase/supabase-js').SupabaseClient,
+  identity: { botId: number; userId: number; currentMessageId: string },
+): Promise<boolean> {
+  const lookup = await client.from('telegram_identities').select('id')
+    .eq('bot_id', identity.botId).eq('telegram_user_id', identity.userId).maybeSingle();
+  if (lookup.error || !lookup.data || typeof lookup.data.id !== 'string') return false;
+  const prior = await client.from('messages')
+    .select('id, conversation:conversations!inner(telegram_identity_id)')
+    .eq('conversation.telegram_identity_id', lookup.data.id)
+    .eq('direction', 'inbound').neq('id', identity.currentMessageId).limit(1);
+  return !prior.error && Array.isArray(prior.data) && prior.data.length > 0;
 }

@@ -42,3 +42,7 @@ Missing, disabled, timed-out, invalid or unavailable AI responses use the ground
 - Live n8n, manual synthetic execution 90: grounded-fee input returned a short introduction without modifying fee facts. No Telegram/provider send nodes exist on this path.
 - WF02 published successfully; Production configuration saved. Vercel build and end-to-end Telegram delivery are pending at this documentation checkpoint.
 - No customer messages sent/replayed, credentials disclosed, migrations applied, screenshots, recordings, PDF or hosting-provider changes.
+
+## Returning-user follow-up
+The current message is excluded from history. An earlier inbound message establishes a return visit. When the current conversation has no earlier user message, the backend checks the exact bot ID + Telegram user ID and looks for an earlier inbound across that same identity's conversations, excluding the current inbound. This recognizes returns after a closed conversation without matching names or usernames. Lookup errors never fabricate a return visit. Only greeting-only messages receive a welcome-back fallback; substantive requests proceed normally. visitor.returningUser is passed explicitly to the model.
+Local focused coverage is now 68 passed. Live n8n manual synthetic execution 91 returned a welcome-back greeting. Published version ebaff88d-e649-4506-ad80-508d47241ffa includes the visitor contract.

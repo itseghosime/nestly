@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { generateNiaAiReply, sanitizeNiaHistory } from '@/lib/backend/nia-n8n-response';
+import { generateNiaAiReply, sanitizeNiaHistory, getReturningNiaGreeting, hasPriorTelegramMessages } from '@/lib/backend/nia-n8n-response';
 import { formatTelegramPropertySearchReply } from '@/lib/backend/telegram';
 
 const env = {
@@ -79,5 +79,36 @@ describe('n8n Nia response bridge', () => {
     expect(reply).toContain('₦2000000/year');
     expect(reply).toContain('https://example.test/property/synthetic-1');
     expect(reply.length).toBeLessThanOrEqual(4096);
+  });
+});
+
+describe('returning Telegram visitors', () => {
+  it('welcomes a prior visitor on greeting-only turns, including after a closed conversation', async () => {
+    const identityQuery = { eq: vi.fn().mockReturnThis(), maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'same-verified-identity' }, error: null }) };
+    const messageQuery = { eq: vi.fn().mockReturnThis(), neq: vi.fn().mockReturnThis(), limit: vi.fn().mockResolvedValue({ data: [{ id: 'prior-message' }], error: null }) };
+    const selectIdentity = vi.fn().mockReturnValue(identityQuery);
+    const selectMessage = vi.fn().mockReturnValue(messageQuery);
+    const client = { from: vi.fn().mockImplementation((table) => ({ select: table === 'telegram_identities' ? selectIdentity : selectMessage })) };
+    expect(await hasPriorTelegramMessages(client as never, { botId: 123, userId: 456, currentMessageId: 'current' })).toBe(true);
+    expect(identityQuery.eq).toHaveBeenCalledWith('bot_id', 123);
+    expect(identityQuery.eq).toHaveBeenCalledWith('telegram_user_id', 456);
+    expect(messageQuery.eq).toHaveBeenCalledWith('conversation.telegram_identity_id', 'same-verified-identity');
+    expect(messageQuery.neq).toHaveBeenCalledWith('id', 'current');
+    expect(getReturningNiaGreeting('Hey', true)).toContain('Welcome back!');
+    expect(getReturningNiaGreeting('Hey', false)).toBeNull();
+    expect(getReturningNiaGreeting('Hey, find homes in GRA', true)).toBeNull();
+    expect(getReturningNiaGreeting('Thanks', true)).toBeNull();
+  });
+  it('does not claim a returning identity when lookup fails', async () => {
+    const query = { eq: vi.fn().mockReturnThis(), maybeSingle: vi.fn().mockResolvedValue({ data: null, error: { code: 'unavailable' } }) };
+    const client = { from: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue(query) }) };
+    expect(await hasPriorTelegramMessages(client as never, { botId: 123, userId: 456, currentMessageId: 'current' })).toBe(false);
+  });
+  it('sends the trusted returning flag and enforces a welcome for a returning greeting', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(result('Hey, how can I help?'));
+    const reply = await generateNiaAiReply({ ...input, returningUser: true }, { env, fetcher });
+    expect(reply).toMatchObject({ status: 'generated', message: 'Welcome back! 👋 How can I help you today?' });
+    const [, request] = fetcher.mock.calls[0]!;
+    expect(JSON.parse(String(request?.body)).visitor).toEqual({ returningUser: true });
   });
 });

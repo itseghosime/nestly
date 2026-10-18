@@ -1,4 +1,4 @@
-import { generateNiaAiReply, sanitizeNiaHistory } from '@/lib/backend/nia-n8n-response';
+import { generateNiaAiReply, sanitizeNiaHistory, hasPriorTelegramMessages, getReturningNiaGreeting } from '@/lib/backend/nia-n8n-response';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { answerNiaConversationMessage } from '@/lib/backend/nia-conversation-response';
@@ -352,6 +352,7 @@ export async function POST(request: Request) {
       auth: { autoRefreshToken: false, persistSession: false },
     });
     answer = await answerNiaConversationMessage(publicClient, parsed.text, inbound.nia_context);
+    let returningUser = false;
     let history: ReturnType<typeof sanitizeNiaHistory> = [];
     if (process.env.NIA_N8N_ENABLED === 'true') {
       const historyResult = await admin.from('messages')
@@ -361,10 +362,16 @@ export async function POST(request: Request) {
         .limit(11);
       if (!historyResult.error) history = sanitizeNiaHistory(historyResult.data, inbound.message_id);
       else console.warn('Nia history lookup unavailable');
+      returningUser = history.some((message) => message.role === 'user');
+      if (!returningUser) {
+        returningUser = await hasPriorTelegramMessages(admin, {
+          botId: settings.botId, userId: parsed.userId, currentMessageId: inbound.message_id,
+        });
+      }
     }
     const ai = await generateNiaAiReply({
       requestId: `telegram:${settings.botId}:${parsed.updateId}`,
-      query: parsed.text, answer, history,
+      query: parsed.text, answer, history, returningUser,
     });
     if (ai.status === 'fallback' && ai.reason !== 'DISABLED') {
       console.warn('Nia agent fallback', ai.reason);
@@ -379,7 +386,7 @@ export async function POST(request: Request) {
       )
       : ai.status === 'generated'
         ? ai.kind === 'grounded' ? `${ai.message}\n\n${answer.message}` : ai.message
-        : answer.message;
+        : getReturningNiaGreeting(parsed.text, returningUser) ?? answer.message;
   } catch (answerError) {
     const code = answerError instanceof Error ? answerError.message : 'unknown';
     console.error('Telegram Nia response failed', code);

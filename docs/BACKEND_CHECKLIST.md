@@ -177,3 +177,5 @@
 - [x] Detailed personality, truthfulness, privacy and action boundaries documented.
 - [ ] Vercel revision build/merge/deployment verification (pending at preparation checkpoint).
 - [ ] New deliberate Telegram inbound confirms deployed backend→n8n→Telegram path; no automatic replay/send.
+
+- [x] Returning-user detection and greeting behavior added; 68 focused local tests passed; n8n synthetic returning visitor execution 91 passed. Final deployed roundtrip pending.
