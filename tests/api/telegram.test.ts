@@ -24,11 +24,13 @@ import {
   isTelegramWebhookSecretValid,
   parseTelegramUpdate,
   readBoundedWebhookBody,
+  formatTelegramPropertySearchReply,
   sendTelegramText,
 } from '@/lib/backend/telegram';
 
 const BOT_TOKEN = `123456789:${'A'.repeat(35)}`;
 const WEBHOOK_SECRET = 'synthetic-telegram-webhook-secret-000000000000';
+const SITE_URL = 'https://nestly.example.test';
 const MESSAGE_CONTENT = 'Synthetic Telegram query about a property fee';
 const BOT_ID = 123456789;
 const UPDATE_ID = 8822001;
@@ -100,6 +102,7 @@ function setTelegramEnvironment(outbound = 'true') {
   vi.stubEnv('TELEGRAM_BOT_TOKEN', BOT_TOKEN);
   vi.stubEnv('TELEGRAM_WEBHOOK_SECRET', WEBHOOK_SECRET);
   vi.stubEnv('TELEGRAM_OUTBOUND_ENABLED', outbound);
+  vi.stubEnv('NEXT_PUBLIC_SITE_URL', SITE_URL);
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://supabase.example.test');
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'synthetic-anon-key');
   vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'synthetic-service-role');
@@ -180,6 +183,29 @@ describe('Telegram settings and parser', () => {
       body: new Uint8Array([0xff, 0xfe]),
     });
     expect(await readBoundedWebhookBody(invalidUtf8)).toBeNull();
+  });
+
+  it('formats grounded property results as numbered public links within Telegram’s text limit', () => {
+    const reply = formatTelegramPropertySearchReply(1, [{
+      id: 'public-property-1',
+      title: 'Synthetic published apartment',
+      location: 'GRA, Benin City',
+      priceLabel: '₦5,000,000/year',
+    }], SITE_URL);
+
+    expect(reply).toContain('1. Synthetic published apartment');
+    expect(reply).toContain('Location: GRA, Benin City');
+    expect(reply).toContain('Rent: ₦5,000,000/year');
+    expect(reply).toContain('Link: https://nestly.example.test/property/public-property-1');
+
+    const oversized = formatTelegramPropertySearchReply(12, Array.from({ length: 12 }, (_, index) => ({
+      id: `public-property-${index + 1}`,
+      title: 'Synthetic title '.repeat(40),
+      location: 'Synthetic location '.repeat(20),
+      priceLabel: '₦5,000,000/year '.repeat(20),
+    })), SITE_URL);
+    expect(oversized.length).toBeLessThanOrEqual(4096);
+    expect(oversized).toContain('Link: https://nestly.example.test/property/public-property-1');
   });
 
   it('uses the sendMessage API and classifies acceptance, rejection, and uncertain timeout honestly', async () => {
@@ -386,6 +412,40 @@ describe('Telegram webhook', () => {
       p_state: 'human_owned',
     }));
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('persists and sends grounded numbered listing details for a property search', async () => {
+    mocks.answerNiaConversationMessage.mockResolvedValue({
+      message: 'I found 1 current published listing matching those details.',
+      searchResultCount: 1,
+      properties: [{
+        id: 'public-property-1',
+        title: 'Synthetic published apartment',
+        location: 'GRA, Benin City',
+        priceLabel: '₦5,000,000/year',
+        staff_notes: 'Private synthetic staff note',
+      }],
+      context: { preferences: null, recentPropertyIds: ['public-property-1'], selectedPropertyId: null },
+    });
+
+    const response = await POST(webhookRequest(makeUpdate()));
+    expect(response.status).toBe(200);
+
+    const claim = mocks.adminRpc.mock.calls.find(([name]) => name === 'claim_telegram_ai_reply');
+    const savedContent = String(claim?.[1]?.p_content);
+    expect(savedContent).toContain('1. Synthetic published apartment');
+    expect(savedContent).toContain('Location: GRA, Benin City');
+    expect(savedContent).toContain('Rent: ₦5,000,000/year');
+    expect(savedContent).toContain('https://nestly.example.test/property/public-property-1');
+    expect(savedContent).not.toContain('Private synthetic staff note');
+
+    const sendCall = vi.mocked(fetch).mock.calls.find(([input]) => String(input).includes('/sendMessage'));
+    expect(JSON.parse(String(sendCall?.[1]?.body))).toEqual({
+      chat_id: 44556677,
+      text: savedContent,
+    });
+    expect(mocks.adminRpc.mock.calls.filter(([name]) => name === 'claim_telegram_ai_reply')).toHaveLength(1);
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it('records handoff without running Nia', async () => {

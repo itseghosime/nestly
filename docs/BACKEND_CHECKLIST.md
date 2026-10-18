@@ -2,6 +2,13 @@
 
 > The current evidence summary below supersedes conflicting status statements in the historical implementation inventory that follows. The six reviewed Twilio migrations were applied on 2026-10-18 after an exact linked dry run and verified in linked history. No recordings/screenshots/PDF/hosting changes were made.
 
+## 2026-10-18 delta — Telegram property-search reply details
+
+- Telegram search replies now render the grounded public search results as numbered listings with the public title, location, formatted rent, and a canonical property-page link. The handler uses the existing `public_properties` search response; the persisted dispatch content and `sendMessage` payload are the same, preserving idempotency and conversation context. Private fields are not passed to the formatter, and the final text is bounded to Telegram's 4096-character limit.
+- Focused local tests passed **32/32**. Application and test typechecks, targeted ESLint, and production build passed (80/80 routes). These are local checks, not a hosted acceptance test.
+- Production deployment for `aca4c882582d0327aa8b21e7e7a84468032c0d29` completed successfully. No inbound update was replayed and no provider message was sent by the operator. Actual delivery/rendering in Telegram remains pending a deliberate user test.
+- The separate “Human Active” takeover wording follow-up remains open pending coordination with the owner of the active production-readiness audit worktree.
+
 ## 2026-10-18 delta — Telegram recovery and fresh-migration verification
 
 - Webhook duplicates still in active `processing` now receive retryable HTTP 503 instead of a false HTTP 200 acknowledgement. Completed/ignored/human-owned updates and safely tracked dispatch outcomes remain acknowledged without resending. Redelivery after an expired pre-dispatch lease reclaims the update; route and fresh-database regressions assert one inbound row and at most one dispatch claim.

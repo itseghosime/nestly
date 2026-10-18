@@ -157,6 +157,7 @@ describe('Nia preference changes applied to the public-property search contract'
 
     expect(answer.context.preferences).toEqual(expected);
     expect(answer.properties).toHaveLength(1);
+    expect(answer.searchResultCount).toBe(1);
     expect(fetchMock).toHaveBeenCalledOnce();
 
     const requestInput = fetchMock.mock.calls[0][0];
