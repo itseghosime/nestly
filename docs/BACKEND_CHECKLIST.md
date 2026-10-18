@@ -1,13 +1,14 @@
-# Nestly Backend Checklist — Current Status (2026-10-22)
+# Nestly Backend Checklist — Current Status (2026-10-18)
 
 > The current evidence summary below supersedes conflicting status statements in the historical implementation inventory that follows. The six reviewed Twilio migrations were applied on 2026-10-18 after an exact linked dry run and verified in linked history. No recordings/screenshots/PDF/hosting changes were made.
 
-## 2026-10-22 delta — Telegram recovery and fresh-migration verification
+## 2026-10-18 delta — Telegram recovery and fresh-migration verification
 
+- Webhook duplicates still in active `processing` now receive retryable HTTP 503 instead of a false HTTP 200 acknowledgement. Completed/ignored/human-owned updates and safely tracked dispatch outcomes remain acknowledged without resending. Redelivery after an expired pre-dispatch lease reclaims the update; route and fresh-database regressions assert one inbound row and at most one dispatch claim.
 - Added a daily Vercel Cron at `/api/cron/telegram-dispatch-recovery`, protected by server-only `CRON_SECRET`. It invokes the service-only sweep; expired dispatches become `unknown`, never automatically resent. Production scheduling is not active until this branch is deployed and `CRON_SECRET` is configured.
 - Assigned staff now have an audited explicit acknowledgement path for unknown Telegram Nia/staff sends. The original stays unknown; a separate new staff reply remains subject to the outbound flag/configuration. System handoff uncertainty is explained without blocking staff follow-up.
 - Recreated a fresh, seed-disabled local Supabase stack and applied the full ordered 21-migration history, including the Telegram migration after all 20 predecessors. Local/remote history matched with no pending migrations. The database regression suite passed website anonymous handoff/staff reply compatibility, grants/RLS, identity and update isolation, takeover race, explicit review/audit/idempotency, overlapping recovery, expired-lease crash recovery, late provider acceptance, and no automatic resend.
-- The current local migration remains **unapplied to linked Supabase**. No Telegram webhook, outbound flag, hosting configuration, WF01/WF03, or callback was changed; no provider messages were sent. See [Telegram integration](./integrations/telegram.md) and Build Log §53.
+- The current local migration remains **unapplied to linked Supabase**. No Telegram webhook, outbound flag, hosting configuration, WF01/WF03, or callback was changed; no provider messages were sent. See [Telegram integration](./integrations/telegram.md) and Build Log §54.
 
 ## 2026-10-18 delta — Telegram implementation prepared locally
 

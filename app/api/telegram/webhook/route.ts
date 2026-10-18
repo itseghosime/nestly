@@ -138,6 +138,23 @@ function acceptedSendResult(message: string) {
   });
 }
 
+function retryTelegramUpdate(message: string) {
+  return NextResponse.json({ error: message }, {
+    status: 503,
+    headers: { 'Cache-Control': 'no-store' },
+  });
+}
+
+const ACKNOWLEDGED_UPDATE_STATES = new Set([
+  'failed',
+  'human_owned',
+  'ignored',
+  'completed',
+  'dispatching',
+  'rejected',
+  'unknown',
+]);
+
 async function completeUpdate(
   admin: ReturnType<typeof createAdminClient>,
   botId: number,
@@ -233,7 +250,20 @@ export async function POST(request: Request) {
     console.error('Telegram update claim returned an invalid result');
     return NextResponse.json({ error: 'Unable to claim Telegram update' }, { status: 503 });
   }
-  if (!claim.should_process) return acceptedSendResult('Update already recorded');
+  if (!claim.should_process) {
+    if (claim.state === 'processing') {
+      return retryTelegramUpdate('Telegram update is still being processed');
+    }
+    if (!ACKNOWLEDGED_UPDATE_STATES.has(claim.state)) {
+      console.error('Telegram update claim returned an unsupported state');
+      return retryTelegramUpdate('Telegram update state is not safely acknowledgeable');
+    }
+    return acceptedSendResult('Update already recorded');
+  }
+  if (claim.state !== 'processing') {
+    console.error('Telegram update claim returned a processable non-processing state');
+    return retryTelegramUpdate('Telegram update state could not be confirmed');
+  }
   if (parsed.kind === 'unsupported') {
     if (!await completeUpdate(admin, settings.botId, parsed.updateId, 'ignored')) {
       return NextResponse.json({ error: 'Unable to record unsupported update' }, { status: 503 });

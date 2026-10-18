@@ -232,9 +232,17 @@ describe('Telegram webhook', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('durably acknowledges duplicate updates without creating a second reply', async () => {
+  it.each([
+    'completed',
+    'ignored',
+    'human_owned',
+    'dispatching',
+    'rejected',
+    'unknown',
+    'failed',
+  ])('acknowledges durable %s updates without resending', async (state) => {
     mocks.adminRpc.mockResolvedValueOnce({
-      data: [claimRow({ should_process: false, state: 'completed' })],
+      data: [claimRow({ should_process: false, state })],
       error: null,
     });
     const response = await POST(webhookRequest(makeUpdate()));
@@ -263,8 +271,42 @@ describe('Telegram webhook', () => {
       POST(webhookRequest(makeUpdate())),
     ]);
 
-    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    expect(responses.map((response) => response.status)).toEqual([200, 503]);
+    expect(await responses[1]!.json()).toEqual({
+      error: 'Telegram update is still being processed',
+    });
     expect(mocks.adminRpc.mock.calls.filter(([name]) => name === 'persist_telegram_inbound')).toHaveLength(1);
+    expect(mocks.adminRpc.mock.calls.filter(([name]) => name === 'claim_telegram_ai_reply')).toHaveLength(1);
+    expect(mocks.adminRpc.mock.calls.filter(([name]) => name === 'finish_telegram_dispatch')).toHaveLength(1);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('resumes redelivery when a prior processing lease has expired', async () => {
+    let claimAttempts = 0;
+    mocks.adminRpc.mockImplementation(async (name: string) => {
+      if (name === 'claim_telegram_update') {
+        claimAttempts += 1;
+        if (claimAttempts === 1) {
+          return { data: [claimRow({ should_process: false, state: 'processing' })], error: null };
+        }
+        return { data: [claimRow({ attempt_count: 2 })], error: null };
+      }
+      if (name === 'persist_telegram_inbound') return { data: [persistedRow()], error: null };
+      if (name === 'claim_telegram_ai_reply') return { data: [dispatchRow()], error: null };
+      return { data: [{ message_id: dispatchRow().message_id }], error: null };
+    });
+
+    const crashedWorkerResponse = await POST(webhookRequest(makeUpdate()));
+    expect(crashedWorkerResponse.status).toBe(503);
+    expect(mocks.adminRpc).toHaveBeenCalledTimes(1);
+    expect(fetch).not.toHaveBeenCalled();
+
+    const redeliveryResponse = await POST(webhookRequest(makeUpdate()));
+    expect(redeliveryResponse.status).toBe(200);
+    expect(claimAttempts).toBe(2);
+    expect(mocks.adminRpc.mock.calls.filter(([name]) => name === 'persist_telegram_inbound')).toHaveLength(1);
+    expect(mocks.adminRpc.mock.calls.filter(([name]) => name === 'claim_telegram_ai_reply')).toHaveLength(1);
+    expect(mocks.adminRpc.mock.calls.filter(([name]) => name === 'finish_telegram_dispatch')).toHaveLength(1);
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 

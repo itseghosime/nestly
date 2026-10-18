@@ -140,7 +140,7 @@ Keep website conversations on the direct Next.js session/RPC/context/reply/hando
 
 No live instance execution was independently inspected for the export findings above; execution evidence is user-reported in the section above. No provider request or external message was made in this preparation. The sanitized export, local source/tests, and disposable-database test remain the implementation evidence, not independent live-instance verification. Keep the existing Twilio callback path active until the app has public HTTPS reachability, the secrets are configured, WF01 Header Auth is coordinated, and a controlled no-send/cutover validation is complete.
 
-## Telegram channel boundary and recovery (2026-10-22)
+## Telegram channel boundary and recovery (2026-10-18)
 
 Telegram is implemented directly in Next.js and does not use, replace, or modify WF01 or WF03. The Next.js webhook validates Telegram's secret header, persists channel-scoped identities/updates/messages, invokes grounded Nia and the existing handoff model, and owns staff replies and server-side `sendMessage` dispatch. Do not route Telegram messages through the WhatsApp workflow or synthesize website sessions, phone numbers, or customer matches. The migration retains the existing `nestly.website_handoff_conversation` transaction-local check and adds a distinct Telegram setting; the website handoff RPC and staff reply were exercised against the disposable database. The live WF01 instance was not independently queried in this pass.
 

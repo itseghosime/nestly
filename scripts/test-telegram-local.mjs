@@ -259,6 +259,41 @@ psql(serviceSql(
   `select public.complete_telegram_update(${botId}, ${duplicateUpdateId}, 'ignored', 'TEST_COMPLETE')`,
 ));
 
+const crashUpdateId = newUpdateId();
+const crashUserId = syntheticUserBase + 8;
+assert.equal(psql(serviceSql(
+  `select should_process::text || '|' || state || '|' || attempt_count::text ` +
+  `from public.claim_telegram_update(${botId}, ${crashUpdateId}, ${crashUserId}, ${crashUserId})`,
+)), 'true|processing|1');
+psql(
+  `update public.telegram_updates set lease_expires_at=now()-interval '1 second' ` +
+  `where bot_id=${botId} and update_id=${crashUpdateId};`,
+);
+assert.equal(psql(serviceSql(
+  `select should_process::text || '|' || state || '|' || attempt_count::text ` +
+  `from public.claim_telegram_update(${botId}, ${crashUpdateId}, ${crashUserId}, ${crashUserId})`,
+)), 'true|processing|2', 'Redelivery must reclaim an expired processing lease after a crashed worker');
+const recoveredInbound = persistInbound(crashUpdateId, crashUserId, 'Synthetic recovered update');
+assert.equal(
+  persistInbound(crashUpdateId, crashUserId, 'Synthetic recovered update').messageId,
+  recoveredInbound.messageId,
+);
+assert.equal(psql(
+  `select count(*)::text from public.messages ` +
+  `where idempotency_key=${sqlLiteral(`telegram:${botId}:${crashUpdateId}`)};`,
+), '1', 'Crash recovery must preserve exactly one inbound message');
+const recoveredDispatch = telegramDispatchClaim(serviceSql(
+  `select message_id::text || '|' || chat_id::text || '|' || should_dispatch::text || '|' || dispatch_status ` +
+  `from public.claim_telegram_ai_reply(${botId}, ${crashUpdateId}, 'Synthetic recovered answer', '{}'::jsonb)`,
+));
+assert.ok(recoveredDispatch?.shouldDispatch);
+assert.equal(psql(serviceSql(claimUpdateSql(crashUpdateId, crashUserId, crashUserId))),
+  'false|dispatching', 'A duplicate must not re-enter an already claimed dispatch');
+assert.equal(psql(
+  `select count(*)::text from public.telegram_message_dispatches ` +
+  `where bot_id=${botId} and update_id=${crashUpdateId};`,
+), '1', 'A recovered update must have at most one provider dispatch claim');
+
 const firstIdentityUpdate = newUpdateId();
 psql(serviceSql(claimUpdateSql(firstIdentityUpdate, syntheticUserBase + 2, syntheticUserBase + 2)));
 const firstIdentity = persistInbound(firstIdentityUpdate, syntheticUserBase + 2, 'Synthetic identity one');
