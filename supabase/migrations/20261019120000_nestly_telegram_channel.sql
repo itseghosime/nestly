@@ -75,6 +75,14 @@ create table public.telegram_message_dispatches (
   foreign key (bot_id, update_id) references public.telegram_updates(bot_id, update_id) on delete restrict
 );
 
+create table public.telegram_dispatch_reviews (
+  message_id uuid primary key references public.messages(id) on delete restrict,
+  conversation_id uuid not null references public.conversations(id) on delete restrict,
+  reviewed_by uuid not null references auth.users(id) on delete restrict,
+  decision text not null check (decision = 'allow_new_staff_reply_without_resending'),
+  created_at timestamptz not null default now()
+);
+
 create unique index telegram_message_dispatch_provider_id
   on public.telegram_message_dispatches(bot_id, chat_id, telegram_message_id)
   where telegram_message_id is not null;
@@ -83,9 +91,17 @@ create index telegram_updates_recovery_queue
   on public.telegram_updates(state, lease_expires_at)
   where state in ('processing', 'failed', 'dispatching');
 
+create index telegram_message_dispatches_recovery_queue
+  on public.telegram_message_dispatches(lease_expires_at)
+  where state = 'dispatching';
+
+create index telegram_dispatch_reviews_conversation_created
+  on public.telegram_dispatch_reviews(conversation_id, created_at desc);
+
 alter table public.telegram_identities enable row level security;
 alter table public.telegram_updates enable row level security;
 alter table public.telegram_message_dispatches enable row level security;
+alter table public.telegram_dispatch_reviews enable row level security;
 
 create policy telegram_identities_staff_read
   on public.telegram_identities
@@ -100,6 +116,7 @@ create policy telegram_identities_staff_read
 
 revoke all on public.telegram_identities, public.telegram_updates, public.telegram_message_dispatches
   from public, anon, authenticated, service_role;
+revoke all on public.telegram_dispatch_reviews from public, anon, authenticated, service_role;
 grant select on public.telegram_identities to authenticated;
 
 create or replace function public.nestly_handoff_notifications()
@@ -211,6 +228,12 @@ $$;
 
 comment on function public.can_access_conversation(uuid) is
   'Telegram has no property or zone identity. Existing conversation staff roles can access its queue; staff dispatch still requires self-assignment.';
+
+create policy telegram_dispatch_reviews_staff_read
+  on public.telegram_dispatch_reviews
+  for select to authenticated
+  using (public.can_access_conversation(conversation_id));
+grant select on public.telegram_dispatch_reviews to authenticated;
 
 create or replace function public.claim_telegram_update(
   p_bot_id bigint,
@@ -611,7 +634,16 @@ begin
     where m.conversation_id = conversation_row.id
       and m.direction = 'outbound'
       and m.sender_type in ('agent', 'nia')
-      and m.dispatch_status in ('dispatching', 'unknown')
+      and (
+        m.dispatch_status = 'dispatching'
+        or (
+          m.dispatch_status = 'unknown'
+          and not exists (
+            select 1 from public.telegram_dispatch_reviews r
+            where r.message_id = m.id
+          )
+        )
+      )
   ) then
     raise exception 'An earlier Telegram send has an unresolved outcome'
       using errcode = '55000';
@@ -733,7 +765,16 @@ begin
     where m.conversation_id = conversation_row.id
       and m.direction = 'outbound'
       and m.sender_type in ('agent', 'nia')
-      and m.dispatch_status in ('dispatching', 'unknown')
+      and (
+        m.dispatch_status = 'dispatching'
+        or (
+          m.dispatch_status = 'unknown'
+          and not exists (
+            select 1 from public.telegram_dispatch_reviews r
+            where r.message_id = m.id
+          )
+        )
+      )
   ) then
     raise exception 'A previous Telegram send has an unresolved outcome'
       using errcode = '55000';
@@ -854,11 +895,19 @@ as $$
 declare
   changed_count integer;
 begin
-  with expired as (
+  with expired_candidates as (
+    select d.message_id
+    from public.telegram_message_dispatches d
+    where d.state = 'dispatching'
+      and d.lease_expires_at <= now()
+    for update skip locked
+  ), expired as (
     update public.telegram_message_dispatches d
     set state = 'unknown', error_code = 'DISPATCH_LEASE_EXPIRED',
         lease_expires_at = null, updated_at = now()
-    where d.state = 'dispatching' and d.lease_expires_at <= now()
+    from expired_candidates e
+    where d.message_id = e.message_id
+      and d.state = 'dispatching'
     returning d.message_id, d.bot_id, d.update_id
   ), updated_messages as (
     update public.messages m
@@ -867,15 +916,109 @@ begin
     from expired e
     where m.id = e.message_id and m.dispatch_status = 'dispatching'
     returning m.id
+  ), updated_updates as (
+    update public.telegram_updates u
+    set state = 'unknown', error_code = 'DISPATCH_LEASE_EXPIRED',
+        lease_expires_at = null, updated_at = now()
+    from expired e
+    where e.update_id is not null
+      and u.bot_id = e.bot_id and u.update_id = e.update_id
+    returning u.bot_id, u.update_id
   )
-  update public.telegram_updates u
-  set state = 'unknown', error_code = 'DISPATCH_LEASE_EXPIRED',
-      lease_expires_at = null, updated_at = now()
-  from expired e
-  where e.update_id is not null
-    and u.bot_id = e.bot_id and u.update_id = e.update_id;
-  get diagnostics changed_count = row_count;
+  select count(*)::integer into changed_count from expired;
   return changed_count;
+end;
+$$;
+
+create or replace function public.acknowledge_telegram_unknown_send(
+  p_conversation_id uuid,
+  p_message_id uuid,
+  p_acknowledged boolean
+)
+returns table (message_id uuid, conversation_id uuid, reviewed_by uuid, created_at timestamptz)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  conversation_row public.conversations%rowtype;
+  message_row public.messages%rowtype;
+  review_row public.telegram_dispatch_reviews%rowtype;
+  actor_role text;
+begin
+  if auth.uid() is null
+   or p_acknowledged is distinct from true then
+  raise exception 'Explicit staff acknowledgement is required'
+    using errcode = '42501';
+  end if;
+  actor_role := public.caller_role();
+  if actor_role not in ('Platform Admin', 'Operations Lead', 'Field Vetting Agent', 'Customer Care')
+   or not public.can_manage_conversation(p_conversation_id) then
+  raise exception 'Conversation is not accessible to this staff member'
+    using errcode = '42501';
+  end if;
+
+  select c.* into conversation_row
+  from public.conversations c
+  where c.id = p_conversation_id
+  for update;
+  if not found then
+  raise exception 'Conversation not found' using errcode = 'P0002';
+  end if;
+  if conversation_row.channel <> 'telegram'
+   or conversation_row.mode <> 'HUMAN_ACTIVE'
+   or conversation_row.assigned_staff_id is distinct from auth.uid() then
+  raise exception 'A Telegram human takeover assigned to you is required'
+    using errcode = '42501';
+  end if;
+
+  select m.* into message_row
+  from public.messages m
+  where m.id = p_message_id
+  and m.conversation_id = p_conversation_id
+  and m.direction = 'outbound'
+  and m.sender_type in ('agent', 'nia')
+  and m.dispatch_status = 'unknown'
+  for update;
+  if not found or not exists (
+  select 1
+  from public.telegram_message_dispatches d
+  where d.message_id = p_message_id and d.state = 'unknown'
+  ) then
+  raise exception 'The Telegram send is not in an unknown state'
+    using errcode = '22023';
+  end if;
+
+  insert into public.telegram_dispatch_reviews (
+  message_id, conversation_id, reviewed_by, decision
+  ) values (
+  p_message_id, p_conversation_id, auth.uid(), 'allow_new_staff_reply_without_resending'
+  ) on conflict do nothing
+  returning * into review_row;
+
+  if review_row.message_id is null then
+  select r.* into review_row
+  from public.telegram_dispatch_reviews r
+  where r.message_id = p_message_id;
+  else
+  insert into public.audit_logs (
+    actor_id, actor_type, action, entity_type, entity_id, metadata
+  ) values (
+    auth.uid(),
+    case when actor_role = 'Platform Admin' then 'admin' else 'agent' end,
+    'telegram.dispatch.unknown_follow_up_acknowledged',
+    'message',
+    p_message_id,
+    jsonb_build_object(
+      'conversation_id', p_conversation_id,
+      'previous_dispatch_status', 'unknown',
+      'decision', 'allow_new_staff_reply_without_resending'
+    )
+  );
+  end if;
+
+  return query select review_row.message_id, review_row.conversation_id,
+  review_row.reviewed_by, review_row.created_at;
 end;
 $$;
 
@@ -983,6 +1126,7 @@ revoke all on function public.claim_telegram_handoff_reply(bigint, bigint, text)
 revoke all on function public.claim_telegram_ai_reply(bigint, bigint, text, jsonb) from public, anon, authenticated;
 revoke all on function public.claim_telegram_staff_reply(uuid, text, text) from public, anon, service_role;
 revoke all on function public.finish_telegram_dispatch(uuid, text, bigint, text) from public, anon, authenticated;
+revoke all on function public.acknowledge_telegram_unknown_send(uuid, uuid, boolean) from public, anon, service_role;
 revoke all on function public.mark_expired_telegram_dispatches_unknown() from public, anon, authenticated, service_role;
 revoke all on function public.guard_telegram_pending_assignment_change() from public, anon, authenticated, service_role;
 
@@ -993,4 +1137,5 @@ grant execute on function public.claim_telegram_handoff_reply(bigint, bigint, te
 grant execute on function public.claim_telegram_ai_reply(bigint, bigint, text, jsonb) to service_role;
 grant execute on function public.claim_telegram_staff_reply(uuid, text, text) to authenticated;
 grant execute on function public.finish_telegram_dispatch(uuid, text, bigint, text) to service_role;
+grant execute on function public.acknowledge_telegram_unknown_send(uuid, uuid, boolean) to authenticated;
 grant execute on function public.mark_expired_telegram_dispatches_unknown() to service_role;

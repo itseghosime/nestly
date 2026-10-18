@@ -81,6 +81,20 @@ export async function GET(
     }
     messageRows = legacyMessageResult.data || [];
   }
+  let telegramReviewRows: { message_id: string; created_at: string }[] = [];
+  if (data.channel === 'telegram') {
+    const reviewResult = await context.client.from('telegram_dispatch_reviews')
+      .select('message_id, created_at')
+      .eq('conversation_id', id);
+    if (reviewResult.error) {
+      console.error('Telegram dispatch review lookup failed', reviewResult.error.code || 'unknown');
+      return NextResponse.json({ error: 'Unable to load Telegram send reviews' }, { status: 503 });
+    }
+    telegramReviewRows = reviewResult.data || [];
+  }
+  const telegramReviewTimes = new Map(
+    telegramReviewRows.map((review) => [review.message_id, review.created_at]),
+  );
   const customer = one(data.customer);
   const telegramIdentity = one(data.telegram_identity);
   const property = one(data.property);
@@ -118,6 +132,10 @@ export async function GET(
         && data.mode === 'HUMAN_ACTIVE'
         && isAssignedToCurrentStaff
         && WHATSAPP_REPLY_ROLES.has(context.role),
+      canReviewTelegramUnknown: data.channel === 'telegram'
+        && data.mode === 'HUMAN_ACTIVE'
+        && isAssignedToCurrentStaff
+        && WHATSAPP_REPLY_ROLES.has(context.role),
       createdAt: data.created_at,
       customer: {
         displayName: telegramIdentity?.display_name || customer?.display_name || 'Customer',
@@ -143,6 +161,8 @@ export async function GET(
           && typeof message.provider_message_id === 'string',
         has_valid_provider_message_sid: 'provider_message_id' in message
           && isTwilioMessageSid(message.provider_message_id),
+        telegram_follow_up_reviewed: telegramReviewTimes.has(message.id),
+        telegram_follow_up_reviewed_at: telegramReviewTimes.get(message.id) || null,
       })),
       messageLimit: 100,
     },

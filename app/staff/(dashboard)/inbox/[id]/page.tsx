@@ -35,6 +35,8 @@ type ThreadMessage = {
   dispatch_updated_at: string | null;
   has_provider_message_id: boolean;
   has_valid_provider_message_sid: boolean;
+  telegram_follow_up_reviewed: boolean;
+  telegram_follow_up_reviewed_at: string | null;
   created_at: string;
 };
 
@@ -55,6 +57,7 @@ type Conversation = {
   telegramSendConfigured: boolean;
   telegramWebhookSecretConfigured: boolean;
   canSendTelegram: boolean;
+  canReviewTelegramUnknown: boolean;
   createdAt: string;
   customer: { displayName: string; email: string; phone: string; username: string | null };
   property: { id: string | null; title: string; reference: string; location: string } | null;
@@ -84,6 +87,8 @@ function parseThreadMessage(value: unknown): ThreadMessage | null {
     || !(value.dispatch_updated_at === null || typeof value.dispatch_updated_at === 'string')
     || typeof value.has_provider_message_id !== 'boolean'
     || typeof value.has_valid_provider_message_sid !== 'boolean'
+    || typeof value.telegram_follow_up_reviewed !== 'boolean'
+    || !(value.telegram_follow_up_reviewed_at === null || typeof value.telegram_follow_up_reviewed_at === 'string')
     || typeof value.created_at !== 'string'
   ) return null;
   return {
@@ -97,6 +102,8 @@ function parseThreadMessage(value: unknown): ThreadMessage | null {
     dispatch_updated_at: value.dispatch_updated_at,
     has_provider_message_id: value.has_provider_message_id,
     has_valid_provider_message_sid: value.has_valid_provider_message_sid,
+    telegram_follow_up_reviewed: value.telegram_follow_up_reviewed,
+    telegram_follow_up_reviewed_at: value.telegram_follow_up_reviewed_at,
     created_at: value.created_at,
   };
 }
@@ -124,6 +131,7 @@ export default function ConversationDetailPage({
   const [saving, setSaving] = useState(false);
   const [sendingReply, setSendingReply] = useState(false);
   const [reconcilingMessageId, setReconcilingMessageId] = useState<string | null>(null);
+  const [reviewingTelegramMessageId, setReviewingTelegramMessageId] = useState<string | null>(null);
   const [reconciliationSids, setReconciliationSids] = useState<Record<string, string>>({});
   const [currentTime, setCurrentTime] = useState(0);
   const [error, setError] = useState('');
@@ -154,7 +162,11 @@ export default function ConversationDetailPage({
   const unresolvedTelegramSend = conversation?.channel === 'telegram'
     && messages.some((message) => (
       message.direction === 'outbound'
-      && (message.dispatch_status === 'dispatching' || message.dispatch_status === 'unknown')
+      && (message.sender_type === 'agent' || message.sender_type === 'nia')
+      && (
+        message.dispatch_status === 'dispatching'
+        || (message.dispatch_status === 'unknown' && !message.telegram_follow_up_reviewed)
+      )
     ));
 
   const loadConversation = useCallback(async (showLoading = true) => {
@@ -391,6 +403,49 @@ export default function ConversationDetailPage({
         : 'Unable to verify Twilio status; do not resend this message.');
     } finally {
       setReconcilingMessageId(null);
+    }
+  };
+
+  const acknowledgeUnknownTelegramSend = async (message: ThreadMessage) => {
+    if (
+      !conversation
+      || conversation.channel !== 'telegram'
+      || !conversation.canReviewTelegramUnknown
+      || message.dispatch_status !== 'unknown'
+      || message.telegram_follow_up_reviewed
+      || reviewingTelegramMessageId
+    ) return;
+    const confirmed = window.confirm(
+      'Telegram may already have accepted this message. Its status will remain unknown and the original will not be resent. Allow a separate staff reply?',
+    );
+    if (!confirmed) return;
+
+    setReviewingTelegramMessageId(message.id);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch(`/api/staff/conversations/${conversation.id}/telegram-recovery`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId: message.id, acknowledgeUnknown: true }),
+      });
+      const resultValue: unknown = await response.json();
+      const result = isRecord(resultValue) ? resultValue : {};
+      if (!response.ok) {
+        throw new Error(typeof result.error === 'string'
+          ? result.error
+          : 'Unable to record the Telegram review decision');
+      }
+      await loadConversation(false);
+      setNotice(typeof result.notice === 'string'
+        ? result.notice
+        : 'The original message remains unknown. No message was resent.');
+    } catch (reviewError) {
+      setError(reviewError instanceof Error
+        ? reviewError.message
+        : 'Unable to record the Telegram review decision');
+    } finally {
+      setReviewingTelegramMessageId(null);
     }
   };
 
@@ -715,10 +770,29 @@ export default function ConversationDetailPage({
                       )}
                       {conversation.channel === 'telegram'
                         && (msg.dispatch_status === 'dispatching' || msg.dispatch_status === 'unknown') && (
-                        <div className="mt-3 max-w-[min(85vw,24rem)] rounded-xl border border-amber-300 bg-amber-50 p-3 text-left text-[11px] leading-relaxed text-amber-950">
+                        <div className="mt-3 max-w-[min(85vw,24rem)] space-y-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-left text-[11px] leading-relaxed text-amber-950">
                           {msg.dispatch_status === 'unknown'
-                            ? 'Telegram send outcome is unknown. The app did not retry it. Telegram provides no delivery/read callback or reliable lookup for a timed-out send; do not send a duplicate.'
+                            ? msg.telegram_follow_up_reviewed
+                              ? `A staff member acknowledged the uncertainty at ${localTimestamp(msg.telegram_follow_up_reviewed_at || msg.created_at)}. The original remains unknown and will not be resent; a separate reply may be attempted only when Telegram sending is enabled and configured.`
+                              : msg.sender_type === 'system'
+                                ? 'The automatic handoff acknowledgement may not have reached Telegram. It will not be retried; staff may continue the conversation.'
+                                : 'Telegram may have accepted this message, but delivery cannot be verified. The app will not resend it. Review the uncertainty before sending a separate staff reply.'
                             : 'Telegram API request is still pending. Do not retry until its outcome is recorded.'}
+                          {msg.dispatch_status === 'unknown'
+                            && !msg.telegram_follow_up_reviewed
+                            && (msg.sender_type === 'agent' || msg.sender_type === 'nia')
+                            && conversation.canReviewTelegramUnknown && (
+                            <button
+                              type="button"
+                              onClick={() => void acknowledgeUnknownTelegramSend(msg)}
+                              disabled={reviewingTelegramMessageId !== null}
+                              className="rounded-full border border-amber-800 px-3 py-1.5 font-bold text-amber-950 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {reviewingTelegramMessageId === msg.id
+                                ? 'Recording review…'
+                                : 'Acknowledge uncertainty and allow a new reply'}
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

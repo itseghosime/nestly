@@ -223,6 +223,8 @@ function apiMessage(
     dispatch_updated_at: createdAt,
     has_provider_message_id: hasProviderMessageId,
     has_valid_provider_message_sid: isTwilioMessageSid(providerMessageSid),
+    telegram_follow_up_reviewed: false,
+    telegram_follow_up_reviewed_at: null,
     created_at: createdAt,
   };
 }
@@ -261,6 +263,8 @@ function telegramApiMessage(row: TelegramDispatchRow, content: string) {
     dispatch_updated_at: row.created_at,
     has_provider_message_id: false,
     has_valid_provider_message_sid: false,
+    telegram_follow_up_reviewed: false,
+    telegram_follow_up_reviewed_at: null,
     created_at: row.created_at,
   };
 }
@@ -427,6 +431,8 @@ export async function POST(
         dispatch_updated_at: null,
         has_provider_message_id: false,
         has_valid_provider_message_sid: false,
+        telegram_follow_up_reviewed: false,
+        telegram_follow_up_reviewed_at: null,
         created_at: message.created_at,
       },
     }, { status: 201, headers: { 'Cache-Control': 'no-store' } });

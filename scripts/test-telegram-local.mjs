@@ -1,13 +1,12 @@
 import assert from 'node:assert/strict';
 import { execFile, execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 const container = process.env.SUPABASE_TEST_DB_CONTAINER;
-if (!container || !/^supabase_db_.*isolated.*$/i.test(container)) {
-  throw new Error('Set SUPABASE_TEST_DB_CONTAINER to a running disposable Supabase DB container whose name includes "isolated"');
+if (!container || !/^supabase_db_.*(?:isolated|telegram-fresh).*$/i.test(container)) {
+  throw new Error('Set SUPABASE_TEST_DB_CONTAINER to a running disposable Supabase DB container named with "isolated" or "telegram-fresh"');
 }
 
 function docker(args, input) {
@@ -99,76 +98,54 @@ function expectAuthenticatedSqlState(userId, state, statement) {
   assert.equal(psql(authenticatedSql(userId, body)), `caught-${state}`);
 }
 
-const migration = readFileSync(
-  new URL('../supabase/migrations/20261019120000_nestly_telegram_channel.sql', import.meta.url),
-  'utf8',
-);
-
-function applyMigrationFunction(startMarker, endMarker) {
-  const start = migration.indexOf(startMarker);
-  const end = migration.indexOf(endMarker, start);
-  if (start < 0 || end < 0) throw new Error('Telegram migration test setup could not locate function definitions');
-  psql(migration.slice(start, end));
-}
-
 const schemaReady = psql(
   "select (to_regclass('public.telegram_identities') is not null)::text || '|' || " +
   "(to_regclass('public.telegram_updates') is not null)::text || '|' || " +
   "(to_regclass('public.telegram_message_dispatches') is not null)::text || '|' || " +
+  "(to_regclass('public.telegram_dispatch_reviews') is not null)::text || '|' || " +
   "(to_regprocedure('public.claim_telegram_update(bigint,bigint,bigint,bigint)') is not null)::text || '|' || " +
   "(to_regprocedure('public.persist_telegram_inbound(bigint,bigint,bigint,bigint,text,text,text)') is not null)::text || '|' || " +
   "(to_regprocedure('public.claim_telegram_ai_reply(bigint,bigint,text,jsonb)') is not null)::text || '|' || " +
   "(to_regprocedure('public.claim_telegram_staff_reply(uuid,text,text)') is not null)::text || '|' || " +
-  "(to_regprocedure('public.finish_telegram_dispatch(uuid,text,bigint,text)') is not null)::text;",
+  "(to_regprocedure('public.finish_telegram_dispatch(uuid,text,bigint,text)') is not null)::text || '|' || " +
+  "(to_regprocedure('public.mark_expired_telegram_dispatches_unknown()') is not null)::text || '|' || " +
+  "(to_regprocedure('public.acknowledge_telegram_unknown_send(uuid,uuid,boolean)') is not null)::text;",
 );
-assert.equal(schemaReady, 'true|true|true|true|true|true|true|true', 'Apply the Telegram migration to the disposable local database first');
-
-applyMigrationFunction(
-  'create or replace function public.nestly_handoff_notifications()',
-  'create or replace function public.can_access_conversation(',
-);
-applyMigrationFunction(
-  'create or replace function public.can_access_conversation(',
-  'create or replace function public.claim_telegram_update(',
-);
-applyMigrationFunction(
-  'create or replace function public.guard_telegram_pending_assignment_change()',
-  'drop trigger if exists nestly_telegram_pending_assignment_guard',
-);
-applyMigrationFunction(
-  'create or replace function public.claim_telegram_update(',
-  'create or replace function public.complete_telegram_update(',
-);
-applyMigrationFunction(
-  'create or replace function public.persist_telegram_inbound(',
-  'create or replace function public.claim_telegram_handoff_reply(',
-);
-applyMigrationFunction(
-  'create or replace function public.claim_telegram_handoff_reply(',
-  'create or replace function public.claim_telegram_ai_reply(',
-);
-applyMigrationFunction(
-  'create or replace function public.claim_telegram_ai_reply(',
-  'create or replace function public.claim_telegram_staff_reply(',
-);
+assert.equal(schemaReady, 'true|true|true|true|true|true|true|true|true|true|true',
+  'Run all repository migrations on the fresh disposable Supabase database first');
 
 const privileges = psql(
   "select has_table_privilege('anon', 'public.telegram_identities', 'SELECT')::text || '|' || " +
   "has_table_privilege('authenticated', 'public.telegram_identities', 'SELECT')::text || '|' || " +
   "has_table_privilege('service_role', 'public.telegram_updates', 'SELECT')::text || '|' || " +
+  "has_table_privilege('anon', 'public.telegram_dispatch_reviews', 'SELECT')::text || '|' || " +
+  "has_table_privilege('authenticated', 'public.telegram_dispatch_reviews', 'SELECT')::text || '|' || " +
+  "has_function_privilege('anon', 'public.acknowledge_telegram_unknown_send(uuid,uuid,boolean)', 'EXECUTE')::text || '|' || " +
+  "has_function_privilege('authenticated', 'public.acknowledge_telegram_unknown_send(uuid,uuid,boolean)', 'EXECUTE')::text || '|' || " +
   "has_function_privilege('anon', 'public.claim_telegram_update(bigint,bigint,bigint,bigint)', 'EXECUTE')::text || '|' || " +
   "has_function_privilege('service_role', 'public.claim_telegram_update(bigint,bigint,bigint,bigint)', 'EXECUTE')::text;",
 );
-assert.equal(privileges, 'false|true|false|false|true', 'Telegram identities and processing ledgers must remain private');
+assert.equal(privileges, 'false|true|false|false|true|false|true|false|true',
+  'Telegram internals must remain private with reviewed state limited to accessible staff');
 
-const [staffId, otherStaffId] = psql(
-  "select id::text from public.profiles where role='Platform Admin' order by id limit 2;",
-).split('\n');
-assert.match(staffId || '', /^[0-9a-f-]{36}$/i, 'Two synthetic local Platform Admin profiles are required');
-assert.match(otherStaffId || '', /^[0-9a-f-]{36}$/i, 'Two synthetic local Platform Admin profiles are required');
-const restrictedStaffId = psql(
-  "select id::text from public.profiles where role='Legal & Compliance' order by id limit 1;",
-) || randomUUID();
+const staffId = randomUUID();
+const otherStaffId = randomUUID();
+const restrictedStaffId = randomUUID();
+for (const [userId, label, role] of [
+  [staffId, 'Synthetic Telegram Staff One', 'Platform Admin'],
+  [otherStaffId, 'Synthetic Telegram Staff Two', 'Platform Admin'],
+  [restrictedStaffId, 'Synthetic Telegram Restricted Staff', 'Legal & Compliance'],
+]) {
+  psql(
+    `insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data) ` +
+    `values (${sqlLiteral(userId)}::uuid, 'authenticated', 'authenticated', ` +
+    `${sqlLiteral(`${userId}@telegram.test.invalid`)}, now(), ` +
+    `'{"provider":"email","providers":["email"]}'::jsonb, ` +
+    `${sqlLiteral(JSON.stringify({ full_name: label }))}::jsonb); ` +
+    `insert into public.profiles (id, display_name, role) values ` +
+    `(${sqlLiteral(userId)}::uuid, ${sqlLiteral(label)}, ${sqlLiteral(role)});`,
+  );
+}
 
 const websiteCustomerId = psql(
   `insert into public.customers (full_name, display_name, email, phone, whatsapp_phone) ` +
@@ -191,6 +168,11 @@ const websiteHandoff = psql(anonymousSql(
 ));
 assert.equal(websiteHandoff, `${websiteConversationId}|HUMAN_ACTIVE`,
   'The existing transaction-local website handoff setting must remain authorized');
+psql(authenticatedSql(
+  staffId,
+  `update public.conversations set assigned_staff_id=${sqlLiteral(staffId)}::uuid ` +
+  `where id=${sqlLiteral(websiteConversationId)}::uuid`,
+));
 const websiteStaffReply = psql(authenticatedSql(
   staffId,
   `select message_id::text from public.send_website_staff_reply(` +
@@ -380,6 +362,49 @@ assert.equal(psql(
   `select nia_context->>'selectedPropertyId' from public.conversations where id=${sqlLiteral(aiInbound.conversationId)}::uuid;`,
 ), 'synthetic-property');
 
+const raceUpdateId = newUpdateId();
+psql(serviceSql(claimUpdateSql(raceUpdateId, syntheticUserBase + 7, syntheticUserBase + 7)));
+const raceInbound = persistInbound(raceUpdateId, syntheticUserBase + 7, 'Synthetic takeover race');
+const raceAiClaimSql = `select message_id::text || '|' || chat_id::text || '|' || should_dispatch::text || '|' || dispatch_status ` +
+  `from public.claim_telegram_ai_reply(${botId}, ${raceUpdateId}, 'Synthetic race answer', '{}'::jsonb)`;
+const takeoverRaceSql = `
+  do $test$
+  declare blocked boolean := false;
+  begin
+    begin
+      update public.conversations
+      set mode='HUMAN_ACTIVE', assigned_staff_id=${sqlLiteral(staffId)}::uuid
+      where id=${sqlLiteral(raceInbound.conversationId)}::uuid;
+    exception when sqlstate '55000' then
+      blocked := true;
+    end;
+    perform set_config('nestly.test_takeover_blocked', blocked::text, true);
+  end
+  $test$;
+  select current_setting('nestly.test_takeover_blocked');
+`;
+const [raceAiOutput, raceTakeoverOutput] = await Promise.all([
+  psqlAsync(serviceSql(`${raceAiClaimSql}; select pg_sleep(0.5)`)),
+  psqlAsync(authenticatedSql(staffId, takeoverRaceSql)),
+]);
+const raceAiRow = raceAiOutput.split(/\r?\n/)[0] || '';
+const raceAiDispatched = raceAiRow.split('|')[2] === 'true';
+const raceTakeoverBlocked = raceTakeoverOutput === 'true';
+assert.equal(raceTakeoverBlocked, raceAiDispatched,
+  'Exactly one of AI dispatch or staff takeover may win the ownership race');
+if (raceAiDispatched) {
+  const [raceMessageId] = raceAiRow.split('|');
+  assert.deepEqual(finishDispatch(raceMessageId, 'rejected', null, 'OUTBOUND_DISABLED'), {
+    dispatchStatus: 'failed',
+    deliveryStatus: 'failed',
+  });
+  psql(authenticatedSql(
+    staffId,
+    `update public.conversations set mode='HUMAN_ACTIVE', assigned_staff_id=${sqlLiteral(staffId)}::uuid ` +
+    `where id=${sqlLiteral(raceInbound.conversationId)}::uuid`,
+  ));
+}
+
 const uncertainUpdateId = newUpdateId();
 psql(serviceSql(claimUpdateSql(uncertainUpdateId, syntheticUserBase + 5, syntheticUserBase + 5)));
 const uncertainInbound = persistInbound(uncertainUpdateId, syntheticUserBase + 5, 'Synthetic uncertain send');
@@ -398,10 +423,53 @@ psql(authenticatedSql(
   `update public.conversations set mode='HUMAN_ACTIVE', assigned_staff_id=${sqlLiteral(staffId)}::uuid ` +
   `where id=${sqlLiteral(uncertainInbound.conversationId)}::uuid`,
 ));
-expectAuthenticatedSqlState(staffId, '55000', staffClaimStatement.replace(
-  sqlLiteral(handoffInbound.conversationId),
-  sqlLiteral(uncertainInbound.conversationId),
-).replace(staffReplyKey, `synthetic-uncertain-follow-up-${randomUUID()}`));
+const uncertainStaffKey = `synthetic-uncertain-follow-up-${randomUUID()}`;
+const uncertainStaffClaimSql = `select message_id::text || '|' || should_dispatch::text ` +
+  `from public.claim_telegram_staff_reply(${sqlLiteral(uncertainInbound.conversationId)}::uuid, ` +
+  `'Synthetic follow-up after review', ${sqlLiteral(uncertainStaffKey)})`;
+expectAuthenticatedSqlState(staffId, '55000', uncertainStaffClaimSql);
+expectAuthenticatedSqlState(otherStaffId, '42501',
+  `select * from public.acknowledge_telegram_unknown_send(${sqlLiteral(uncertainInbound.conversationId)}::uuid, ` +
+  `${sqlLiteral(uncertainClaim.messageId)}::uuid, true)`);
+expectAuthenticatedSqlState(staffId, '42501',
+  `select * from public.acknowledge_telegram_unknown_send(${sqlLiteral(uncertainInbound.conversationId)}::uuid, ` +
+  `${sqlLiteral(uncertainClaim.messageId)}::uuid, false)`);
+const uncertaintyReview = psql(authenticatedSql(
+  staffId,
+  `select message_id::text || '|' || conversation_id::text || '|' || reviewed_by::text ` +
+  `from public.acknowledge_telegram_unknown_send(${sqlLiteral(uncertainInbound.conversationId)}::uuid, ` +
+  `${sqlLiteral(uncertainClaim.messageId)}::uuid, true)`,
+));
+assert.equal(uncertaintyReview,
+  `${uncertainClaim.messageId}|${uncertainInbound.conversationId}|${staffId}`);
+assert.equal(psql(
+  `select count(*)::text from public.audit_logs where action='telegram.dispatch.unknown_follow_up_acknowledged' ` +
+  `and entity_id=${sqlLiteral(uncertainClaim.messageId)}::uuid`,
+), '1', 'Explicit uncertainty review must be recorded in the audit log');
+assert.equal(psql(
+  `select dispatch_status from public.messages where id=${sqlLiteral(uncertainClaim.messageId)}::uuid`,
+), 'unknown', 'Acknowledging uncertainty must not turn it into delivery evidence');
+assert.equal(psql(authenticatedSql(
+  staffId,
+  `select message_id::text || '|' || conversation_id::text || '|' || reviewed_by::text ` +
+  `from public.acknowledge_telegram_unknown_send(${sqlLiteral(uncertainInbound.conversationId)}::uuid, ` +
+  `${sqlLiteral(uncertainClaim.messageId)}::uuid, true)`,
+)), uncertaintyReview, 'Repeated acknowledgement must be idempotent');
+assert.equal(psql(
+  `select count(*)::text from public.audit_logs where action='telegram.dispatch.unknown_follow_up_acknowledged' ` +
+  `and entity_id=${sqlLiteral(uncertainClaim.messageId)}::uuid`,
+), '1', 'Repeated acknowledgement must not duplicate its audit event');
+const followUpClaim = psql(authenticatedSql(staffId, uncertainStaffClaimSql));
+const [followUpMessageId, followUpShouldDispatch] = followUpClaim.split('|');
+assert.match(followUpMessageId || '', /^[0-9a-f-]{36}$/i);
+assert.equal(followUpShouldDispatch, 'true',
+  'An acknowledged unknown must permit a new staff reply without retrying the original');
+assert.equal(psql(authenticatedSql(staffId, uncertainStaffClaimSql)), `${followUpMessageId}|false`,
+  'Retrying the new staff request with its same idempotency key must not send twice');
+assert.deepEqual(finishDispatch(followUpMessageId, 'rejected', null, 'OUTBOUND_DISABLED'), {
+  dispatchStatus: 'failed',
+  deliveryStatus: 'failed',
+});
 
 const expiryUpdateId = newUpdateId();
 psql(serviceSql(claimUpdateSql(expiryUpdateId, syntheticUserBase + 6, syntheticUserBase + 6)));
@@ -415,10 +483,31 @@ psql(
   `update public.telegram_message_dispatches set lease_expires_at=now()-interval '1 second' ` +
   `where message_id=${sqlLiteral(expiryClaim.messageId)}::uuid;`,
 );
-assert.ok(Number(psql(serviceSql('select public.mark_expired_telegram_dispatches_unknown()'))) >= 1);
+const overlappingRecoveryRuns = await Promise.all([
+  psqlAsync(serviceSql('select public.mark_expired_telegram_dispatches_unknown()')),
+  psqlAsync(serviceSql('select public.mark_expired_telegram_dispatches_unknown()')),
+]);
+assert.deepEqual(overlappingRecoveryRuns.sort(), ['0', '1'],
+  'Overlapping recovery jobs must mark an expired dispatch unknown exactly once');
 assert.equal(psql(
   `select dispatch_status from public.messages where id=${sqlLiteral(expiryClaim.messageId)}::uuid;`,
 ), 'unknown');
+assert.equal(psql(
+  `select state from public.telegram_message_dispatches where message_id=${sqlLiteral(expiryClaim.messageId)}::uuid;`,
+), 'unknown');
+assert.equal(psql(
+  `select state from public.telegram_updates where bot_id=${botId} and update_id=${expiryUpdateId};`,
+), 'unknown');
+assert.equal(psql(serviceSql(claimUpdateSql(expiryUpdateId, syntheticUserBase + 6, syntheticUserBase + 6))).split('|')[0], 'false',
+  'Recovery must not make an expired update processable for an automatic resend');
+assert.deepEqual(finishDispatch(expiryClaim.messageId, 'accepted', 70003), {
+  dispatchStatus: 'accepted',
+  deliveryStatus: 'sent',
+}, 'A late, explicitly confirmed provider response may refine unknown to accepted');
+assert.equal(psql(
+  `select telegram_message_id::text from public.telegram_message_dispatches ` +
+  `where message_id=${sqlLiteral(expiryClaim.messageId)}::uuid;`,
+), '70003');
 assert.notEqual(expiryInbound.conversationId, handoffInbound.conversationId);
 
-console.log('Disposable Supabase checks passed: website handoff GUC/staff replies, Telegram identity isolation, atomic deduplication, handoff/audit, ownership suppression, assigned staff authorization, AI resume/context persistence, API acceptance, and uncertain/expired no-resend state.');
+console.log('Fresh-migration Supabase checks passed: website handoff GUC/staff replies, grants/RLS, Telegram identity isolation, atomic deduplication, handoff/audit, takeover races, unknown-send review, overlapping recovery, late provider response, and no-resend crash recovery.');
