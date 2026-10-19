@@ -3,7 +3,7 @@ import { planNiaSearch } from '@/lib/backend/nia-search-plan';
 import { answerNiaConversationMessage } from '@/lib/backend/nia-conversation-response';
 import { createClient } from '@supabase/supabase-js';
 
-const env = { NIA_N8N_ENABLED: 'true', NIA_N8N_WEBHOOK_URL: 'https://synthetic.n8n.cloud/webhook/nestly-nia-response', TELEGRAM_WEBHOOK_SECRET: 'synthetic-secret' };
+const env = { NIA_N8N_ENABLED: 'true', NIA_N8N_WEBHOOK_URL: 'https://synthetic.n8n.cloud/webhook/nestly-nia-response', NESTLY_WF01_RELAY_SECRET: 'synthetic-secret' };
 function mockPlan(plan: object) {
   return vi.fn<typeof fetch>().mockImplementation(async (_url, init) => {
     const input = JSON.parse(String(init?.body));

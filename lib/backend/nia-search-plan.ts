@@ -14,7 +14,7 @@ export async function planNiaSearch(
 ): Promise<NiaSearchPlan | null> {
   const env = options.env ?? process.env;
   if (env.NIA_N8N_ENABLED !== 'true') return null;
-  const secret = env.TELEGRAM_WEBHOOK_SECRET?.trim();
+  const secret = env.NESTLY_WF01_RELAY_SECRET?.trim();
   if (!secret) return null;
   let url: URL;
   try {
