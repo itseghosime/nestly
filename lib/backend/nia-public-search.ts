@@ -87,6 +87,10 @@ export async function searchNiaPublicProperties(
   if (criteria.maxAnnualRent) {
     query = query.not('rent_annual', 'is', null).lte('rent_annual', criteria.maxAnnualRent);
   }
+  if (criteria.powerRequirement === '24h_solar') {
+    // A generic solar mention does not establish round-the-clock power.
+    query = query.ilike('power_rating', '%solar%').ilike('power_rating', '%24%');
+  }
   for (const keyword of criteria.keywords) {
     const safeKeyword = sanitizeNiaFilterPhrase(keyword);
     if (!safeKeyword) continue;

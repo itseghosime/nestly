@@ -647,7 +647,7 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
                   <div className="w-full rounded-2xl p-3.5 bg-rose-50 border border-rose-200 text-rose-900 space-y-2.5">
                     <div className="flex items-start gap-2">
                       <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                      <div className="text-xs leading-relaxed">
+                      <div className="text-[14px] leading-relaxed">
                         <p className="font-bold">Unable to save message</p>
                         <p className="text-rose-700 mt-0.5">{msg.text}</p>
                       </div>
@@ -676,7 +676,7 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
                 ) : (
                   <>
                     <div
-                      className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs sm:text-[13px] leading-relaxed shadow-2xs ${
+                      className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-[14px] leading-relaxed shadow-2xs ${
                         msg.sender === 'user'
                           ? 'bg-primary text-white rounded-tr-xs'
                           : msg.sender === 'agent'
@@ -837,7 +837,7 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
                     ? 'Message the Nestly team...'
                     : 'Ask Nia about listings, rent, or visits...'
               }
-              className="nia-compact-input w-full px-3.5 py-2.5 rounded-full bg-soft-stone text-xs text-charcoal placeholder-muted-ink focus:outline-none focus:ring-1 focus:ring-primary"
+              className="nia-compact-input h-9 w-full px-3.5 py-2.5 rounded-full bg-soft-stone text-[14px] text-charcoal placeholder-muted-ink focus:outline-none focus:ring-1 focus:ring-primary"
             />
             </div>
             {isReplyPending ? (
