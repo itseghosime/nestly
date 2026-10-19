@@ -1211,3 +1211,19 @@ PR #9 merged as aef8dfe760c42c9bec035990803a23d4e482a5ef; Vercel Production stat
 Live isolated synthetic website test: both messages returned HTTP 200, no-match then refusal, but no n8n production executions appeared. The no-match did not name Enugu. Therefore this was FALLBACK behavior, not verified AI integration. Production NIA_N8N_ENABLED=true and the response endpoint configuration were checked (non-secret values only). Code was using TELEGRAM_WEBHOOK_SECRET against WF02's existing Header Auth relay credential. The correction references NESTLY_WF01_RELAY_SECRET in both planner and response bridge, leaving Telegram ingress auth and all credential values unchanged. Tests now use distinct fake Telegram and relay secrets to guard this boundary. Do not claim the linked AI path verified until a new production roundtrip creates successful n8n webhook executions.
 
 Runtime log MCP access returned 403; no Vercel CLI credentials are available in this environment, so this is an observability limitation rather than evidence of no runtime warnings. Synthetic website conversation was created through the public API in a fresh cookie session; no existing conversation, provider message, or customer row was edited or replayed. No keys were retrieved, changed, or logged.
+
+
+### 2026-10-19 — Relay correction deployed; real website → n8n roundtrip
+
+PR #10 merged as 8e8b4cc4a522581e3780d72cc4e8269b4d1ac3b2; its Vercel Production deployment status succeeded. No secret values, n8n credentials, Telegram ingress, provider callbacks, or stored customer rows were changed. 96 source-only focused tests and scoped strict TypeScript passed after the correction, including distinct fake relay/Telegram secret assertions.
+
+Live production API test used a NEW anonymous cookie session, marked by "Release test" in its initial message. All three calls returned HTTP 200:
+1. Request for a two-bedroom flat in Independence Layout, Enugu: a generated friendly introduction plus a database-grounded no-match response explicitly naming Independence Layout, Enugu; zero properties.
+2. "No": acknowledged keeping requirements and not broadening; zero properties.
+3. "Hey": "Welcome back!" with saved two-bedroom / Independence Layout context; zero invented properties.
+
+n8n production webhook executions 101, 102, 103 were observed running during the calls after the relay-reference fix. Successful/failed production execution retention is configured to none, so those records disappear on completion; complete payload traces are deliberately unavailable. The generated search introduction and contextual welcome were observed in the actual HTTP responses. The refusal text equals the canonical safe acknowledgement, so text alone does not establish whether that individual acknowledgement was model-generated or fallback; its required behavior passed. No external Telegram message was sent and no prior conversation was replayed or edited. Earlier failed/fallback test evidence remains above.
+
+Production browser: new short greeting visible, desktop composer font 14px and height 36px. Preview mobile 390x844: message font 14px, native input font 16px scaled 0.875 (visual 14px), rendered height 35.998px, no horizontal overflow, unrestricted viewport zoom. No physical iPhone/Safari focus-zoom test is claimed. No full-repository local build is claimed; Vercel builds verified the actual repository compilation.
+
+Remaining scope limits: AI geography is not an exhaustive Nigerian gazetteer; ambiguous locations require a state/city clarification. Availability still comes only from public inventory. Generic solar backup does not verify round-the-clock power. Broader draft PR #3 remains separate and unmerged. No recordings, screenshots, PDF, migrations, pricing or media changes.
