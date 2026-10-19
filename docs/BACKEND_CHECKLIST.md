@@ -184,3 +184,14 @@
 - [x] Expanded source-only regression harness: 92/92 passed, including enabled n8n→single mocked Telegram send and return-visitor handling.
 - [x] Retained legacy n8n chat trigger disabled; authenticated response endpoint rejects unauthenticated requests (403).
 - [ ] Real Production backend→authenticated n8n→Telegram reply on a fresh deliberate user inbound remains pending; deployment success is not handset verification.
+
+
+## 2026-10-19 — Nia website/n8n follow-up
+- [x] PR #9: AI planner interprets Nigerian locations and preserves explicit solar/location requirements; no inventory yields a location-specific no-match.
+- [x] PR #10: n8n uses the existing relay secret; Telegram ingress keeps its separate secret. No key values changed or exposed.
+- [x] 96 focused source-only tests; scoped strict TypeScript; Vercel Preview/Production builds passed.
+- [x] Production isolated website test: Enugu no-match, refusal, and contextual welcome-back all HTTP 200. Real n8n webhook executions observed, no Telegram sends.
+- [x] Website chat messages and input visual 14px; mobile composer remains 36px and pinch zoom unrestricted.
+- [ ] Physical iPhone Safari focus-zoom check; no physical-device verification claimed.
+- [ ] Nationwide geography remains model-based; ask for state/city when ambiguous. No exhaustive location coverage claim.
+See BUILD_LOG.md for the initial failed fallback test, relay correction, exact evidence and scope limits.
