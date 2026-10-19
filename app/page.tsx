@@ -66,7 +66,9 @@ export default function HomePage() {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
   const [properties, setProperties] = useState<Property[]>(FIXTURE_PROPERTIES);
-  const [homePropertiesError, setHomePropertiesError] = useState<string | null>(null);
+  const [homePropertiesError, setHomePropertiesError] = useState<string | null>(
+    null,
+  );
   React.useEffect(() => {
     let c = false;
     fetchProperties()
@@ -77,14 +79,21 @@ export default function HomePage() {
         }
       })
       .catch((error: unknown) => {
-        if (!c) setHomePropertiesError(error instanceof Error ? error.message : 'Failed to load listings.');
+        if (!c)
+          setHomePropertiesError(
+            error instanceof Error ? error.message : "Failed to load listings.",
+          );
       });
-    return () => { c = true; };
+    return () => {
+      c = true;
+    };
   }, []);
   const filteredProperties =
     selectedCategory === "all"
       ? properties.slice(0, 3)
-      : properties.filter((property) => property.propertyType === selectedCategory).slice(0, 3);
+      : properties
+          .filter((property) => property.propertyType === selectedCategory)
+          .slice(0, 3);
 
   const handleCategoryChange = (
     cat: "all" | "Apartment" | "Self-Contained" | "Terrace Duplex",
@@ -323,7 +332,7 @@ export default function HomePage() {
             </div>
             <div data-hero-text className="lg:col-span-4 lg:pb-3">
               <p className="text-base sm:text-lg lg:text-[20px] leading-relaxed text-muted-ink font-normal max-w-[360px]">
-                Find a home that fits your life. Browse verified daylight
+                Find a home that fits your lifestyle. Browse verified daylight
                 details, ask Nia, and arrange an in-person viewing with a real
                 person.
               </p>
@@ -338,7 +347,9 @@ export default function HomePage() {
               className="hero-notch-container w-full h-[400px] sm:h-[540px] lg:h-[680px] bg-soft-stone relative shadow-sm border border-hairline"
             >
               <img
-                src="/images/editorial/home-terrace.webp" fetchPriority="high" decoding="async"
+                src="/images/editorial/home-terrace.webp"
+                fetchPriority="high"
+                decoding="async"
                 alt="Modern home with a shaded terrace, palm trees, and a green lawn"
                 className="w-full h-full object-cover object-center"
               />
@@ -378,7 +389,9 @@ export default function HomePage() {
             >
               <div className="w-full h-[190px] rounded-3xl overflow-hidden relative">
                 <img
-                  src="/images/editorial/sunlit-living-room.webp" loading="lazy" decoding="async"
+                  src="/images/editorial/sunlit-living-room.webp"
+                  loading="lazy"
+                  decoding="async"
                   alt="Sunlit living room with natural wood and indoor plants"
                   className="w-full h-full object-cover"
                 />
@@ -531,7 +544,9 @@ export default function HomePage() {
           <div data-intro-strip className="w-full">
             <div className="w-full h-[260px] sm:h-[340px] rounded-3xl sm:rounded-4xl overflow-hidden relative shadow-sm border border-hairline">
               <img
-                src="/images/editorial/architectural-interior.webp" loading="lazy" decoding="async"
+                src="/images/editorial/architectural-interior.webp"
+                loading="lazy"
+                decoding="async"
                 alt="Open-plan interior with a sculptural staircase and natural light"
                 className="w-full h-full object-cover object-center"
               />
@@ -669,7 +684,9 @@ export default function HomePage() {
               className="lg:col-span-7 relative rounded-3xl sm:rounded-4xl overflow-hidden h-[340px] sm:h-[420px] group shadow-sm border border-hairline"
             >
               <img
-                src="/images/editorial/tropical-residence.webp" loading="lazy" decoding="async"
+                src="/images/editorial/tropical-residence.webp"
+                loading="lazy"
+                decoding="async"
                 alt="Contemporary residence framed by tropical greenery"
                 className="property-card-img w-full h-full object-cover group-hover:scale-105"
               />
@@ -703,7 +720,9 @@ export default function HomePage() {
               className="lg:col-span-5 relative rounded-3xl sm:rounded-4xl overflow-hidden h-[340px] sm:h-[420px] group shadow-sm border border-hairline"
             >
               <img
-                src="/images/editorial/garden-entry.webp" loading="lazy" decoding="async"
+                src="/images/editorial/garden-entry.webp"
+                loading="lazy"
+                decoding="async"
                 alt="Garden pathway leading to a contemporary home"
                 className="property-card-img w-full h-full object-cover group-hover:scale-105"
               />
@@ -860,7 +879,9 @@ export default function HomePage() {
                 </span>
                 <div className="w-[64px] sm:w-[72px] h-[64px] sm:h-[72px] rounded-2xl overflow-hidden bg-soft-stone shrink-0 border border-hairline">
                   <img
-                    src="/images/editorial/neutral-detail.webp" loading="lazy" decoding="async"
+                    src="/images/editorial/neutral-detail.webp"
+                    loading="lazy"
+                    decoding="async"
                     alt="Soft neutral seating and natural textures"
                     className="w-full h-full object-cover"
                   />
@@ -895,7 +916,9 @@ export default function HomePage() {
                 </span>
                 <div className="w-[64px] sm:w-[72px] h-[64px] sm:h-[72px] rounded-2xl overflow-hidden bg-soft-stone shrink-0 border border-hairline">
                   <img
-                    src="/images/editorial/modern-facade.webp" loading="lazy" decoding="async"
+                    src="/images/editorial/modern-facade.webp"
+                    loading="lazy"
+                    decoding="async"
                     alt="Modern white facade with balcony and trees"
                     className="w-full h-full object-cover"
                   />
@@ -931,7 +954,9 @@ export default function HomePage() {
                 </span>
                 <div className="w-[64px] sm:w-[72px] h-[64px] sm:h-[72px] rounded-2xl overflow-hidden bg-soft-stone shrink-0 border border-hairline">
                   <img
-                    src="/images/editorial/warm-living-room.webp" loading="lazy" decoding="async"
+                    src="/images/editorial/warm-living-room.webp"
+                    loading="lazy"
+                    decoding="async"
                     alt="Warm living room with soft seating and wood finishes"
                     className="w-full h-full object-cover"
                   />
@@ -991,7 +1016,9 @@ export default function HomePage() {
               <div>
                 <div className="w-full h-[220px] sm:h-[260px] rounded-2xl overflow-hidden mb-5">
                   <img
-                    src="/images/editorial/home-terrace.webp" loading="lazy" decoding="async"
+                    src="/images/editorial/home-terrace.webp"
+                    loading="lazy"
+                    decoding="async"
                     alt="Contemporary home with a shaded terrace"
                     className="w-full h-full object-cover"
                   />
@@ -1180,7 +1207,9 @@ export default function HomePage() {
         <section className="max-w-[1180px] mx-auto px-6 lg:px-8 py-12 sm:py-16">
           <div className="relative w-full rounded-3xl sm:rounded-5xl overflow-hidden h-[380px] sm:h-[440px] flex items-center justify-center text-center p-6 sm:p-8 bg-charcoal shadow-lg">
             <img
-              src="/images/editorial/terrace-detail.webp" loading="lazy" decoding="async"
+              src="/images/editorial/terrace-detail.webp"
+              loading="lazy"
+              decoding="async"
               alt="Shaded terrace overlooking a palm-lined garden"
               className="absolute inset-0 w-full h-full object-cover opacity-45 mix-blend-luminosity"
             />

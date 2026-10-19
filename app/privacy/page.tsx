@@ -64,7 +64,7 @@ export default function PrivacyPolicyPage() {
               3. WhatsApp &amp; Concierge Messaging
             </h2>
             <p>
-              When chatting with Nia on WhatsApp or through our embedded web widget, conversational records are processed to recommend matching properties and coordinate physical showings. We do not sell your conversational data or share your phone number with unregulated real estate marketers.
+              When chatting with Nia on WhatsApp or through our embedded web widget, conversational records are processed to recommend matching properties and coordinate physical showings. Website chat messages, up to ten recent turns, search preferences, and relevant public listing details may be processed by Nestly’s n8n-hosted AI workflow and its connected AI provider to prepare replies. Website session tokens and contact fields are not sent as separate data. Please do not include sensitive personal or financial information in chat. We do not sell your conversational data or share your phone number with unregulated real estate marketers.
             </p>
           </section>
 

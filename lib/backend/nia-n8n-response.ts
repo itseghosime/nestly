@@ -23,7 +23,7 @@ export async function generateNiaAiReply(
 ): Promise<NiaAiResult> {
   const env = options.env ?? process.env;
   if (env.NIA_N8N_ENABLED !== 'true') return { status: 'fallback', reason: 'DISABLED' };
-  const secret = env.NESTLY_WF01_RELAY_SECRET?.trim();
+  const secret = env.TELEGRAM_WEBHOOK_SECRET?.trim();
   let url: URL;
   try {
     url = new URL(env.NIA_N8N_WEBHOOK_URL || '');

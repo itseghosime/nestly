@@ -509,7 +509,7 @@ describe('n8n response orchestration', () => {
   it('generates a returning greeting through n8n and sends it only once through the existing claim', async () => {
     vi.stubEnv('NIA_N8N_ENABLED', 'true');
     vi.stubEnv('NIA_N8N_WEBHOOK_URL', 'https://agent.example.test/nia');
-    vi.stubEnv('NESTLY_WF01_RELAY_SECRET', 'synthetic-relay-secret');
+    vi.stubEnv('TELEGRAM_WEBHOOK_SECRET', WEBHOOK_SECRET);
     mocks.answerNiaConversationMessage.mockResolvedValue({
       message: 'Hello', properties: [],
       context: { preferences: null, recentPropertyIds: [], selectedPropertyId: null },

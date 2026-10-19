@@ -3,6 +3,10 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { answerNiaConversationMessage } from '@/lib/backend/nia-conversation-response';
 import { isNiaHandoffRequest } from '@/lib/backend/nia-conversation-context';
+import {
+  generateNiaAiReply,
+  type NiaHistoryMessage,
+} from '@/lib/backend/nia-n8n-response';
 import { getIdempotencyKey, guardPublicRequest } from '@/lib/backend/public-request';
 import {
   createWebsiteConversationToken,
@@ -36,10 +40,36 @@ async function getConversationState(supabase: Awaited<ReturnType<typeof createCl
   if (!validMode(first.mode) || typeof first.conversation_id !== 'string') {
     throw new Error('CONVERSATION_STATE_INVALID');
   }
+  if (!rows.every((row) => (
+    row.conversation_id === first.conversation_id
+    && row.mode === first.mode
+    && (
+      row.message_id === null
+      || (
+        typeof row.message_id === 'string'
+        && (row.sender_type === 'customer' || row.sender_type === 'nia' || row.sender_type === 'agent' || row.sender_type === 'system')
+        && (row.content === null || typeof row.content === 'string')
+        && typeof row.delivery_status === 'string'
+        && typeof row.created_at === 'string'
+      )
+    )
+  ))) {
+    throw new Error('CONVERSATION_STATE_INVALID');
+  }
+  const history: NiaHistoryMessage[] = rows.flatMap((row) => {
+    if (row.message_id === null || row.content === null || row.sender_type === 'system') return [];
+    const role: NiaHistoryMessage['role'] = row.sender_type === 'customer'
+      ? 'user'
+      : row.sender_type === 'agent'
+        ? 'staff'
+        : 'assistant';
+    return [{ role, content: row.content.slice(-1500) }];
+  }).slice(-10);
   return {
-    conversationId: first.conversation_id as string,
+    conversationId: first.conversation_id,
     mode: first.mode,
     context: first.nia_context,
+    history,
   };
 }
 
@@ -123,6 +153,7 @@ export async function POST(request: Request) {
         headers: { 'Cache-Control': 'no-store' },
       }), token, isNewConversation);
     }
+    state = { ...state, history: [] };
   } else {
     if (!token) {
       return NextResponse.json({ error: 'Unable to establish the saved conversation' }, { status: 503 });
@@ -153,9 +184,24 @@ export async function POST(request: Request) {
   } else if (state.mode === 'AI_ACTIVE') {
     try {
       const answer = await answerNiaConversationMessage(supabase, parsed.data.content, state.context);
+      const aiReply = await generateNiaAiReply({
+        requestId: idempotencyKey,
+        query: parsed.data.content,
+        answer,
+        history: state.history,
+        returningUser: state.history.length > 0,
+      });
+      if (aiReply.status === 'fallback' && aiReply.reason !== 'DISABLED') {
+        console.warn('Nia website AI response used grounded fallback', aiReply.reason);
+      }
+      const aiMessage = aiReply.status === 'generated'
+        ? aiReply.kind === 'grounded'
+          ? `${aiReply.message}\n\n${answer.message}`
+          : aiReply.message
+        : answer.message;
       const { error } = await supabase.rpc('append_website_nia_reply', {
         p_token_hash: tokenHash,
-        p_content: answer.message,
+        p_content: aiMessage,
         p_idempotency_key: `${idempotencyKey}:nia`,
         p_context: answer.context,
       });
@@ -164,7 +210,7 @@ export async function POST(request: Request) {
       return attachSessionCookie(NextResponse.json({
         data: {
           mode: state.mode,
-          message: answer.message,
+          message: aiMessage,
           properties: answer.properties,
         },
       }, { headers: { 'Cache-Control': 'no-store' } }), token, isNewConversation);

@@ -1,29 +1,30 @@
 # Nia: Telegram → Nestly backend → n8n WF02 → Gemini
 
 ## Responsibilities
-Telegram remains registered to Nestly's existing webhook. The backend validates Telegram's secret, claims the update, persists the inbound message, checks AI/staff ownership, performs the existing public-property and fee lookup, and supplies at most ten previous messages from this same conversation. n8n generates conversational text. The backend validates it, appends canonical listing/fee facts, rechecks ownership in the existing reply-claim RPC, and dispatches once through Telegram. n8n never sends Telegram messages or writes conversation state on this response path.
+Telegram remains registered to Nestly's existing webhook. The website chat also uses the same authenticated Nia response workflow after the website API validates and persists the message, checks AI/staff ownership, performs the existing public-property and fee lookup, and supplies at most ten previous messages. n8n generates conversational text only; the backend validates it and appends canonical listing/fee facts where applicable. Website conversation persistence, reply storage, ownership, and property cards remain controlled by the website API. n8n never sends Telegram messages or writes conversation state on either response path.
 
-The response agent is a real Gemini-backed n8n AI Agent. This change does not replace the existing rule-based search parser with an LLM planner; natural-language search extraction is still handled by Nestly's existing parser. The existing website chat route is unchanged. Plain greetings, thanks, identity questions, acknowledgements and frustration also have friendly deterministic fallbacks.
+The response agent is a real Gemini-backed n8n AI Agent. This change does not replace the existing rule-based search parser with an LLM planner; natural-language search extraction is still handled by Nestly's existing parser. The website chat route uses this same response workflow while keeping conversation storage and property facts in the Nestly backend. Plain greetings, thanks, identity questions, acknowledgements and frustration also have friendly deterministic fallbacks when the AI workflow is disabled or unavailable.
 
 ## Workflow
 Existing WF02 `CFeb2L0Pd9uOQkVK` retained; original chat-test path retained.
 New path: Nia Backend Webhook → Validate Nia Request → Nia Telegram AI → Validate Nia Response → Return Nia JSON.
 Public endpoint: `https://itseghosime.app.n8n.cloud/webhook/nestly-nia-response`.
-Header Auth reuses the existing credential whose header is `X-Nestly-Relay-Secret`. The server sends the existing `NESTLY_WF01_RELAY_SECRET`; no secret values are documented or changed. This is a shared credential, so rotation must coordinate WF01 and WF02.
+Header Auth reuses the existing credential whose header is `X-Nestly-Relay-Secret`. The server sends the configured `TELEGRAM_WEBHOOK_SECRET`; no secret values are documented. This same value authenticates Telegram ingress and the Nia n8n request, so rotation must coordinate Vercel and the WF02 Header Auth credential.
 
 The Telegram response agent receives bounded persisted history per request rather than relying on n8n Simple Memory. This avoids creating a competing authoritative conversation store. Its connected model is the existing Google Gemini Chat Model using n8n Gateway credits. Existing WF01, WF03 and all inspection/failure workflows are unchanged.
 
 ## Contract
 Request JSON:
 - version: 1
-- requestId: correlation identifier derived from the claimed Telegram update, not a phone number
+- requestId: idempotency/correlation identifier (never a website session token)
 - query: current message, maximum 4000 characters
 - answerKind: grounded | conversation
+- visitor: returning-user flag derived from persisted conversation history
 - context: normalized saved preferences, recent property IDs and selected property ID
 - history: up to ten {role: user|assistant|staff, content}, maximum 1500 characters per message
 - grounding: freshly generated backend answer, public property summaries and optional search-result count
 
-Response JSON: {version: 1, requestId, message}. Request ID must match. Message is nonempty and at most 1200 characters; body is capped at 16 KiB. No browser can obtain the relay secret. Requests use HTTPS, forbid URL credentials/query fragments and redirects, timeout after 18 seconds, and do not retry automatically. WF02 has a 25-second execution timeout and does not retain successful/failed production execution data.
+Response JSON: {version: 1, requestId, message}. Request ID must match. Message is nonempty and at most 1200 characters; body is capped at 16 KiB. No browser can obtain the shared secret. Requests use HTTPS, forbid URL credentials/query fragments and redirects, timeout after 18 seconds, and do not retry automatically. WF02 has a 25-second execution timeout and does not retain successful/failed production execution data.
 
 For grounded answers the AI supplies only a short introduction; exact facts remain appended by the backend. Model-supplied monetary values, links or HTML are rejected, as are numeric grounded introductions. The model guard is defense in depth, not a proof against every possible hallucination or prompt injection. History and grounded facts are explicitly treated as untrusted data in the system prompt.
 
@@ -31,9 +32,9 @@ For grounded answers the AI supplies only a short introduction; exact facts rema
 Server-only Production variables:
 - NIA_N8N_ENABLED=true
 - NIA_N8N_WEBHOOK_URL=the endpoint above
-- existing NESTLY_WF01_RELAY_SECRET remains unchanged
+- TELEGRAM_WEBHOOK_SECRET=the server-side Telegram webhook secret also configured in the WF02 Header Auth credential
 
-Missing, disabled, timed-out, invalid or unavailable AI responses use the grounded fallback and log only a fixed reason code. They do not create a second dispatch. Disable NIA_N8N_ENABLED and redeploy to restore the prior response path; preserve Telegram's webhook and all historical data. No database migration is needed.
+Missing, disabled, timed-out, invalid or unavailable AI responses use the grounded fallback and log only a fixed reason code. They do not create a second dispatch. Disable NIA_N8N_ENABLED and redeploy to restore the prior response path; preserve Telegram's webhook and all historical data. No database migration is needed. Because the same secret authenticates both Telegram ingress and WF02, rotate it in Vercel and the WF02 credential together if compromised.
 
 ## Verification ledger — 2026-10-19
 - Local: 65 focused Vitest tests passed under Vitest 5.0.5 in a source-only harness. Five changed runtime modules compiled with esbuild. This is not a full repository typecheck/build.

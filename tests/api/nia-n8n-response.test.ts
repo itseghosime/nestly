@@ -5,7 +5,7 @@ import { formatTelegramPropertySearchReply } from '@/lib/backend/telegram';
 const env = {
   NIA_N8N_ENABLED: 'true',
   NIA_N8N_WEBHOOK_URL: 'https://synthetic.example.test/webhook/nia',
-  NESTLY_WF01_RELAY_SECRET: 'synthetic-server-only-secret',
+  TELEGRAM_WEBHOOK_SECRET: 'synthetic-telegram-webhook-secret',
 };
 const input = {
   requestId: 'telegram:synthetic:1', query: 'Hey',
@@ -22,11 +22,11 @@ describe('n8n Nia response bridge', () => {
     });
     const [url, request] = fetcher.mock.calls[0]!;
     expect(url).toBe(env.NIA_N8N_WEBHOOK_URL);
-    expect(request?.headers).toMatchObject({ 'X-Nestly-Relay-Secret': env.NESTLY_WF01_RELAY_SECRET });
+    expect(request?.headers).toMatchObject({ 'X-Nestly-Relay-Secret': env.TELEGRAM_WEBHOOK_SECRET });
     expect(request?.redirect).toBe('error');
     const body = JSON.parse(String(request?.body));
     expect(body).toMatchObject({ version: 1, requestId: input.requestId, answerKind: 'conversation', query: 'Hey' });
-    expect(String(request?.body)).not.toContain(env.NESTLY_WF01_RELAY_SECRET);
+    expect(String(request?.body)).not.toContain(env.TELEGRAM_WEBHOOK_SECRET);
   });
   it('performs no external call when disabled', async () => {
     const fetcher = vi.fn<typeof fetch>();
