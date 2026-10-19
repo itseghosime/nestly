@@ -56,7 +56,7 @@ const STATE_LABELS: Record<
 > = {
   idle: {
     badge: 'Property Search',
-    subtext: 'Current published listings · No live agent channel',
+    subtext: 'Here to help with your home search',
     dotClass: 'bg-emerald-400',
   },
   composing: {
@@ -84,7 +84,7 @@ const STATE_LABELS: Record<
 const WELCOME_MESSAGE: NiaMessage = {
   id: 'nia-welcome',
   sender: 'nia',
-  text: 'Good day! I’m Nia. I can search current published listings by area, bedrooms, home type, listing details, or annual rent. I only show listed rent; required fees may still need confirmation.',
+  text: 'Hey! 👋 I’m Nia, Nestly’s virtual property assistant. What kind of home are you looking for?',
   time: 'Just now',
 };
 
