@@ -10,6 +10,7 @@ export interface NiaConversationContext {
   preferences: NiaPropertySearchCriteria | null;
   recentPropertyIds: string[];
   selectedPropertyId: string | null;
+  pendingQuestion?: 'broaden_search';
 }
 
 export const EMPTY_NIA_CONTEXT: NiaConversationContext = {
@@ -18,7 +19,6 @@ export const EMPTY_NIA_CONTEXT: NiaConversationContext = {
   selectedPropertyId: null,
 };
 
-const PREFERENCE_CHANGE = /\b(actually|instead|rather|what about|how about|maybe|change|switch|same area|but|only)\b/i;
 const PREFERENCE_RECALL = /\b(?:what|which|remind|repeat|recall|remember|show|tell)\b[\s\S]{0,70}\b(?:my|saved|current|previous)\b[\s\S]{0,32}\bpreferences?\b/i;
 const PREFERENCE_RESET = /\b(?:start\s+over|start\s+fresh|begin\s+again)\b|\b(?:reset|clear|forget)\b[\s\S]{0,40}\b(?:preferences?|filters?|criteria|search)\b/i;
 const SEARCH_REQUEST = /\b(?:find|search|look(?:ing)?\s+for|show(?:\s+me)?|browse|list|do\s+you\s+have|any|need|want|try|instead|rather|what\s+about|how\s+about|add|include|change|switch|prefer)\b/i;
@@ -55,6 +55,7 @@ export function normalizeNiaContext(value: unknown): NiaConversationContext {
         ? { maxAnnualRent: value.maxAnnualRent }
         : {}),
       ...(type ? { propertyType: type } : {}),
+      ...(value.powerRequirement === '24h_solar' ? { powerRequirement: '24h_solar' as const } : {}),
       keywords: normalizeNiaSearchKeywords(
         Array.isArray(value.keywords)
           ? value.keywords.filter((word): word is string => typeof word === 'string' && word.length <= 64)
@@ -70,6 +71,7 @@ export function normalizeNiaContext(value: unknown): NiaConversationContext {
     ) preferences = normalized;
   }
   return {
+    ...(context.pendingQuestion === 'broaden_search' ? { pendingQuestion: 'broaden_search' as const } : {}),
     preferences,
     recentPropertyIds,
     selectedPropertyId: typeof context.selectedPropertyId === 'string'
@@ -100,11 +102,12 @@ export function resolveNiaPreferences(
   previous: NiaPropertySearchCriteria | null,
 ): NiaPropertySearchCriteria {
   const parsed = parseNiaPropertySearch(query);
-  if (!previous || !PREFERENCE_CHANGE.test(query)) return parsed;
+  if (!previous) return parsed;
   const location = parsed.location ?? previous.location;
   const bedrooms = parsed.bedrooms ?? previous.bedrooms;
   const maxAnnualRent = parsed.maxAnnualRent ?? previous.maxAnnualRent;
   const propertyType = parsed.propertyType ?? previous.propertyType;
+  const powerRequirement = parsed.powerRequirement ?? previous.powerRequirement;
   const keywords = normalizeNiaSearchKeywords([
     ...previous.keywords,
     ...parsed.keywords,
@@ -114,6 +117,7 @@ export function resolveNiaPreferences(
     ...(bedrooms ? { bedrooms } : {}),
     ...(maxAnnualRent ? { maxAnnualRent } : {}),
     ...(propertyType ? { propertyType } : {}),
+    ...(powerRequirement ? { powerRequirement } : {}),
     keywords,
   };
 }
@@ -130,10 +134,10 @@ export function classifyNiaMessageIntent(query: string): NiaMessageIntent {
   if (PREFERENCE_RECALL.test(query)) return 'preference_recall';
 
   const parsed = parseNiaPropertySearch(query);
-  if (parsed.location || parsed.bedrooms || parsed.maxAnnualRent || parsed.propertyType) {
+  if (parsed.location || parsed.bedrooms || parsed.maxAnnualRent || parsed.propertyType || parsed.powerRequirement) {
     return 'search';
   }
-  return parsed.keywords.length > 0 && SEARCH_REQUEST.test(query)
+  return parsed.keywords.length > 0 && (SEARCH_REQUEST.test(query) || parsed.keywords.some((word) => ['solar', 'parking', 'inverter', 'furnished'].includes(word)))
     ? 'search'
     : 'unsupported';
 }

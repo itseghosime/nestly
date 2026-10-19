@@ -28,7 +28,10 @@ export function getNiaSocialReply(query: string, hasPreferences: boolean): strin
   if (/^(?:bye|goodbye|good ?night|see you(?: later)?|talk later|catch you later)(?: nia)?$/.test(text)) {
     return "Take care! 👋 Come back whenever you're ready to continue your home search.";
   }
-  if (/^(?:ok(?:ay)?|alright|all right|cool|nice|great|awesome|perfect|yes|yeah|yep|sure|no|nope)$/.test(text)) {
+  if (/^(?:no|nope|nah|no thanks|not really)$/.test(text)) {
+    return "No problem. I'm here whenever you need a hand.";
+  }
+  if (/^(?:ok(?:ay)?|alright|all right|cool|nice|great|awesome|perfect|yes|yeah|yep|sure)$/.test(text)) {
     return hasPreferences
       ? "What would you like to do next—see more homes, change your search, or check a listing's fees?"
       : "Tell me the area you're interested in, and we'll take it from there.";

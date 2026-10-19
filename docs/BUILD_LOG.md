@@ -1184,3 +1184,21 @@ User reported iPhone focus zoom, then explicitly rejected increasing visible inp
 Preview verification: Vercel build succeeded for 83b538d. Chrome at requested 390×844: original input 314×36px, 12px font; compact version 313.998×36px, 16px native font with 0.75 transform (12px visible), wrapper 314×36px, send button 36×36px, no horizontal overflow. Input focus click worked; no message typed or sent. Viewport remains width=device-width, initial-scale=1. Temporary viewport override reset. This verifies geometry in Chrome, not physical iPhone keyboard behavior.
 
 Release held: Automatic approval review rejected squash-merging PR #8 because physical iPhone focus behavior remains unverified and explicit approval to merge this particular compact-input fix was absent. No workaround attempted. Production/main remain unchanged at the prior Nia release; PR #8 is ready for user review/approval. No larger visible fonts have been deployed.
+
+
+## 2026-10-19 — Nia geography, refusal handling and 14px chat text
+
+User approved compact-input PR #8; squash merge f463e4a075eac5d2af4c1c7094d58b4667d9cd90 is on main. Copilot subsequently connected website Nia to n8n in a0e53c17aec69a8bd5157851abd8e69b16fdfa43; its Vercel status is success. This continuation preserves that route and existing Telegram credentials, ownership, persistence and delivery.
+
+- Website customer/assistant message bubbles, errors and typed text now use 14px. Touch input remains native 16px scaled 0.875 inside its 36px wrapper (visual 14px); pinch zoom remains unrestricted. This is limited to the Nia composer, not all site inputs.
+- Shared search handling recognizes Aruogba/aruobga, keeps amenities across area clarification, and records an explicit round-the-clock solar requirement. The public query requires both solar and 24 in the recorded power_rating; it does not infer continuous supply from generic solar backup. These are listing records, not an independent guarantee of power uptime.
+- A persisted broaden_search question lets a refusal keep preferences and stop another search. The AI prompt explicitly acknowledges refusal without another question or repetitive menu.
+- Added an authenticated n8n search-planning path to existing WF02, using its existing Gemini model and Header Auth credential. The planner interprets Nigerian places nationwide rather than relying on the fallback area's short dictionary. Unknown/ambiguous places require clarification. This is not an exhaustive gazetteer or proof that every Nigerian place/spelling is recognized.
+- The planner returns bounded allowlisted criteria. Only public_properties determines available results; no match names the requested location. No raw query operators or arbitrary fields from the model reach the database. Model failure uses the existing deterministic fallback; AI planning has an eight-second timeout and no retry.
+- Natural replies still use the n8n AI on website and Telegram. Listing/fee facts remain canonical backend output; this is not unrestricted autonomous booking or fabricated inventory.
+
+Local/source-only verification: 96/96 tests passed with mocked HTTP/database requests; scoped strict TypeScript passed. Includes the reported Aruogba sequence, refusal without another query, nationwide model-output validation, invalid-filter rejection, and a no-inventory Enugu response. Full-repository verification is delegated to the actual Vercel build; it is not claimed as a local full build.
+
+n8n manual staging-style tests on the real Gemini workflow: execution 96 acknowledges No without another question; 97 extracts Independence Layout, Enugu + two bedrooms + apartment; 98 preserves Aruogba and round-the-clock solar; 99 asks which state/city for ambiguous New Town. These synthetic response-only executions send no Telegram messages and write no customer rows. Published WF02 version 7323dbb7-cd15-48b9-829d-77dd5338475d. WF01/WF03 unchanged. Canvas grouping warning remains cosmetic: the shared Gemini connections cross proposed reply/planner groups, so grouping was rejected and not applied.
+
+Pending: preview/production build and browser typography checks, actual website roundtrip through the newly deployed planner, and physical iPhone focus-zoom verification. No recordings, screenshots, PDF, migrations, listing edits, or provider messages.
