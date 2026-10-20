@@ -330,3 +330,18 @@ This dated status supersedes the stale “unverified” items above only where e
 - [ ] **Telegram lifecycle:** Blocked pending a fresh actual inbound message in the previously approved test chat. Do not replay old updates, fabricate webhook events, or change n8n workflows.
 - [ ] **Production access lifecycle:** Sign-out/re-authentication and non-admin role restrictions remain unverified without an existing safe second account/session. Invitation and recovery emails remain paused and unsent.
 - [ ] **Release:** PR #20 merged as `e4c19dd69c82551a4ee98e221441e86980308158` and the notification/availability UI is being served in Production; its Vercel merge-commit check was pending at last read. The additive migration is applied and recorded. The cancellation UI fix and final lifecycle readback remain pending.
+
+## 2026-10-20 delta — Inspection lifecycle complete; lead queue UI pending
+
+This dated status supersedes the immediately preceding pending inspection items.
+
+- [x] **Notification read/unread persistence:** Production read and unread states for the synthetic inspection notification both survived reload; the original unread state was restored.
+- [x] **Synthetic inspection lifecycle:** Existing booking `3c2e7c64-6438-448d-b22f-878f3fc0b05e` was rescheduled to the unassigned 11:30–13:00 WAT QA slot and cancelled through the deployed staff UI. It is `CANCELLED`; no physical completion or customer/gatehouse message occurred.
+- [x] **Slot capacity and audit:** Original and replacement synthetic slots each show zero reservations after cancellation; redacted audit log shows the approval, reschedule, and cancellation transitions.
+- [x] **Landlord photo behavior:** Production form clearly states that photo upload is unavailable and no photos are attached; no submission was made during this check.
+- [ ] **Staff lead queue UI:** Production staff GET APIs exposed the existing synthetic contact and landlord records and exact rent `1000000.5`. A read-only staff page and navigation link are implemented locally but await PR review/deployment; no fixture data is used.
+- [x] **Retry behavior:** Isolated full-suite tests cover duplicate clicks and ambiguous same-key network retries for contact and landlord submissions; no Production form was resubmitted.
+- [x] **WhatsApp outbound control:** Read-only Production response reported outbound disabled and staff sending unavailable. No message or secret was touched.
+- [ ] **Telegram end-to-end:** Awaiting a fresh search request from the previously approved test chat. Do not replay updates or alter n8n workflows.
+- [ ] **Staff authentication roles:** Sign-out/re-authentication and non-admin restrictions remain unverified without a safe existing non-admin session. Invitation and recovery emails remain paused and unsent.
+- [ ] **Release:** PR #21 merged as `3eca78cc98a7721ea377837a2633fb8dcfb92782`; Vercel reported deployment success. The new lead queue page remains local pending PR review.
