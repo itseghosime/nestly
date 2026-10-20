@@ -273,7 +273,7 @@ See BUILD_LOG.md, “Follow-up Production alias check — 2026-10-20,” for the
 
 - [x] User identified the approved private test conversation by the marker `NESTLY-TEST-OSI-20261020`; a read-only lookup matched one inbound row in a Telegram conversation with a linked identity.
 - [x] Read-only Telegram webhook metadata confirms the configured production URL is the Nestly webhook and there are zero pending updates. No updates were consumed or replayed.
-- [ ] Full synthetic conversation remains blocked: the local environment lacks the webhook ingress and n8n relay secrets, and no authenticated Vercel environment access is available. No message was sent.
+- [ ] Full synthetic conversation remains blocked: the local environment lacks the webhook ingress and n8n relay secrets. A Vercel dashboard session was available, but no safe variable-specific read was completed. No message was sent.
 
 ## 2026-10-20 — Production public-form verification
 
@@ -282,8 +282,18 @@ See BUILD_LOG.md, “Follow-up Production alias check — 2026-10-20,” for the
 - [x] Landlord submission accepted an annual rent input of `1000000.50`. The exact stored database value and staff-facing visibility were not independently read back.
 - [x] Production landlord form has no file input and explicitly says photo upload is unavailable; no photos were attached.
 - [x] Focused local public-lead idempotency/receipt tests passed 19/19. The mocked local retry test is not evidence of Production retry behavior.
-- [ ] Staff visibility, persisted decimal rent readback, inspection lifecycle/capacity, staff sign-in/out and roles, invitations/recovery, audit records, and permission-scoped actions remain unverified without an authorized staff session. No safe synthetic inspection slot was available, so no Production inspection was created.
+- [ ] Staff visibility, persisted decimal rent readback, inspection lifecycle/capacity, staff sign-in/out and roles, invitations/recovery, audit records, and permission-scoped actions remain unverified. An existing staff session was confirmed, but these workflows have not been exercised. The authorized synthetic inspection property/slot is available; the property-detail API failure below blocks booking.
 - [ ] Telegram end-to-end remains blocked pending authenticated Production configuration access. No webhook secret or relay secret was revealed or requested; no message was sent or replayed.
 - Production records use the marker `NESTLY-RELEASE-20261020` and are intentionally left in place; no destructive cleanup was performed. No invitation/recovery email or real-property edit occurred.
 
 See BUILD_LOG.md, “Production public-form verification — 2026-10-20,” for exact Production and local evidence.
+
+## 2026-10-20 — Current inspection and operations blockers
+
+- **Production inspection detail:** The authorized synthetic property's `GET /api/properties/{id}` returned HTTP 500 with an empty body and no content type. The Vercel project Logs view returned HTTP 403 and remained loading, so the runtime failure is not diagnosed. Do not book until the detail route is fixed and the existing slot is rechecked for capacity.
+- **Production availability:** The existing synthetic slot is active with capacity one and had zero reservations at the last read-only check. This does not verify booking, receipt, staff approval, rescheduling, cancellation, or notification behavior.
+- **Staff/Vercel access:** An existing staff session and read-only staff API access were confirmed. A Vercel dashboard session was also available, but the Production `TWILIO_OUTBOUND_ENABLED` value was not safely read; do not infer its value.
+- **Telegram:** The approved private test chat is identified, but no new message or reply was sent. The local environment lacks the Telegram ingress and n8n relay secret values; neither value was requested or displayed.
+- No code, workflow, migration, property, slot, booking, account, or customer record was changed during this inspection investigation. No invitation or recovery email was sent.
+
+See BUILD_LOG.md, “Production inspection detail API failure,” for the exact endpoint and evidence limits.
