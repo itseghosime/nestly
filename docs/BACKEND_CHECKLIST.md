@@ -1,4 +1,4 @@
-# Nestly Backend Checklist — Current Status (2026-10-18)
+# Nestly Backend Checklist — Current Status (2026-10-20)
 
 > At the 2026-10-18 linked-migration verification checkpoint, the six reviewed Twilio migrations had been applied after an exact linked dry run and verified in linked history; no hosting configuration was changed at that checkpoint. Later environment-specific changes are recorded in the dated deltas below.
 
@@ -288,7 +288,7 @@ See BUILD_LOG.md, “Follow-up Production alias check — 2026-10-20,” for the
 
 See BUILD_LOG.md, “Production public-form verification — 2026-10-20,” for exact Production and local evidence.
 
-## 2026-10-20 — Current inspection and operations blockers
+## 2026-10-20 — Historical pre-deployment inspection blockers
 
 - **Production inspection detail:** The authorized synthetic property's `GET /api/properties/{id}` returned HTTP 500 with an empty body and no content type. The public listing response established that `rent_annual` is null; a local regression test reproduced the resulting `formatPrice(null)` TypeError. A local fix and regression coverage now pass, but the Production route has not yet been redeployed or rechecked. Do not book until the deployed detail route succeeds and the existing slot is rechecked for capacity.
 - **Production availability:** The existing synthetic slot is active with capacity one and had zero reservations at the last read-only check. This does not verify booking, receipt, staff approval, rescheduling, cancellation, or notification behavior.
@@ -299,3 +299,20 @@ See BUILD_LOG.md, “Production public-form verification — 2026-10-20,” for 
 See BUILD_LOG.md, “Production inspection detail API failure,” for the exact endpoint and evidence limits.
 
 The local null-rent fix and its validation are recorded in BUILD_LOG.md, “Property detail null-rent root cause and local fix.”
+
+## 2026-10-20 — Post-deployment synthetic inspection verification
+
+This status supersedes the pre-deployment blocker above; its historical evidence is retained.
+
+- [x] PR #18 merged as `e23a5dfe24baab73e7d1ed0fc33f07f5ff15c89a`; Vercel reported the Production deployment successful at `2026-10-20T18:00:12Z`.
+- [x] Production property detail returned HTTP 200 JSON for the authorized synthetic property with nullable rent, absent media/fees, and optional fields. The page rendered safely; no move-in total was invented for unconfirmed fees.
+- [x] One synthetic inspection request returned HTTP 202 as pending; the initial receipt showed the hold rather than claiming confirmation. Staff visibility and one authorized Platform Admin approval were verified; the public receipt then showed staff confirmation for the expected appointment.
+- [x] The Production staff audit page showed the matching redacted `inspection.status_changed` record for the synthetic booking, attributed to the Platform Admin.
+- [x] Read-only staff slot verification returned capacity 1, reserved count 1, active status, and no assigned field agent. Two linked notification rows persisted on the dashboard channel (`inspection.pending` and `inspection.confirmed`); queued dashboard status does not imply external delivery.
+- [ ] Notification read/unread state is unavailable in the current notifications API/UI; no read-state behavior was verified.
+- [ ] Invitation and password-recovery email workflows require explicit approval before sending. No email was sent.
+- [ ] Sign-out/re-authentication, non-admin role restrictions, callback routing, additional permission-scoped staff actions, and duplicate-click/network-failure retry behavior remain unverified. No other synthetic accounts or bookings were created.
+- [ ] Reschedule/cancel was not attempted because the sole capacity-one slot is occupied and no replacement exists. The synthetic appointment was not marked physically completed.
+- [ ] Telegram end-to-end and Production `TWILIO_OUTBOUND_ENABLED` remain unverified; no Telegram message or workflow change occurred.
+
+See BUILD_LOG.md, “Production property-detail fix and synthetic inspection,” for the exact Production functional evidence, limits, and safety boundaries.
