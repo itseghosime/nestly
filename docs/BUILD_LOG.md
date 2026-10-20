@@ -1376,3 +1376,16 @@ The creation transaction used the synthetic reference and timestamp for idempote
 ### 20 October 2026 — Explicit approval and branch reconciliation
 
 The user explicitly approved merging PR #22 and deploying the staff/sidebar/select fixes. Reconciled the newer Lead Submissions navigation and PR #23/#24 log entries before release, preserving both histories. Updated branch build and Production readback pending; no extra migration, provider message or n8n edit.
+
+
+### 20 October 2026 — PR #22 merged; authenticated Production readback
+
+- User explicitly approved the merge. Reconciled PR #22 with newer main, preserving the Lead Submissions sidebar link/page and PR #23/#24 evidence. Reconciliation commit cc75d0ae958eb3262ef36f48fd100a2111c52f08 built successfully in Preview.
+- PR #22 merged as f4871f0e33c171e3373b64bc66892b649a31e780. Vercel Production deployment dpl_46WyCsacRSFjsmP4bs1oPZnFh3SE reached READY; nestly-sigma.vercel.app resolved to that exact revision.
+- Production, authenticated Platform Admin browser: all three native availability-page selects computed appearance:none, arrow inset 16px and trailing text reserve 44px, retaining existing 12px text. Earlier Preview public mobile checks remain separately recorded; this pass could not establish a mobile viewport because the browser override did not apply. Mobile drawer verification is not claimed. Temporary viewport override was reset and the new mobile-check tab closed.
+- Production sidebar matched a read-only database check: attention conversations 0 (badge omitted), unread notifications 17. These are current role-scoped counts, replacing hardcoded 2/3 labels.
+- Production synthetic inspection notification: Mark as read changed sidebar 17 to 16; read status survived reload. Mark as unread restored the original state and count 17. Only the signed-in staff account's notification-read marker changed.
+- Production customer directory displayed 19 profile links; a profile opened and loaded its conversation activity. No customer values were copied into this evidence. Browser console error scan on the availability page was empty.
+- Production integrations readback: Database query passed; Telegram bot and webhook verified through read-only checks; Nia enabled/configured (not a model-health or delivery assertion); WhatsApp deferred with new staff outbound disabled.
+- No messages, provider sends, replays, emails, account changes, n8n edits, migrations, price/media changes, screenshots, recordings or PDFs in this release pass. Existing remaining staff controls and non-admin/browser-flow gaps remain tracked in STAFF_DASHBOARD_AUDIT.md.
+- Test environments: earlier local audit reported 309 passed / 16 skipped; not rerun in this pass because the execution filesystem was unavailable. Reconciled Preview build and Production build/readbacks above are independent evidence. A direct API-page navigation was browser-blocked; counts were instead verified through the authorized read-only database function. Localhost on the user's Mac was not updated by this remote merge.

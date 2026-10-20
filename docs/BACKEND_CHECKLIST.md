@@ -368,3 +368,7 @@ This dated status supersedes the immediately preceding pending inspection items.
 - [ ] PR #22 protected-main merge: blocked by automatic approval review, awaiting explicit user release approval. New staff UI is not marked Production verified. Preview staff route requires separate sign-in; no auth bypass.
 
 - [ ] PR #22 release approved by user; branch reconciled with PR #23/#24. Confirm updated build, merge and live sidebar/select readback before marking deployed.
+
+
+### PR #22 Production verification — 20 October 2026
+Merged f4871f0; exact Vercel Production revision READY. Authenticated sidebar counts 0 attention / 17 unread matched the database. Synthetic notification read/unread cycle 17 → 16 → reload persisted → 17 restored. Staff select arrows have 16px inset and 44px text reserve without font increase; customer profile activity and integration status readback passed. Mobile drawer recheck remains unverified because the browser viewport override did not apply. Full evidence and limitations: BUILD_LOG.md, “PR #22 merged; authenticated Production readback”. Remaining staff controls remain open in STAFF_DASHBOARD_AUDIT.md.
