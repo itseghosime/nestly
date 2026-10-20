@@ -93,7 +93,7 @@ function formatSlot(slot: {
     dateStr: datePart('day'),
     month: datePart('month').toUpperCase(),
     timeRange,
-    status: !slot.is_active ? 'Unavailable' : slot.reserved_count > 0 ? 'Booked' : 'Available',
+    status: !slot.is_active ? 'Unavailable' : slot.reserved_count >= slot.capacity ? 'Booked' : 'Available',
     propertyTitle: property
       ? `${property.title}${property.neighborhood ? ` (${property.neighborhood})` : ''}`
       : slot.property_id,

@@ -289,8 +289,8 @@ export default function StaffDashboardPage() {
             </div>
             <p className="text-xs text-muted-ink mt-0.5">Stored conversations visible to your role</p>
             <div className="mt-4 pt-2.5 flex items-center justify-between border-t border-hairline/60">
-              <span className="text-[11px] text-charcoal/80 font-bold">Meta / WF01</span>
-              <span className="text-[10px] text-muted-ink font-semibold">Unverified</span>
+              <span className="text-[11px] text-charcoal/80 font-bold">Telegram / Nia</span>
+              <span className="text-[10px] text-muted-ink font-semibold">See integration checks</span>
             </div>
           </div>
         </div>
@@ -339,7 +339,7 @@ export default function StaffDashboardPage() {
                           <span className="truncate">{conversation.propertyTitle}</span>
                         </p>
                         <p className="text-[11px] text-muted-ink">
-                          Updated {new Date(conversation.updatedAt).toLocaleString()}
+                          Updated {new Date(conversation.updatedAt).toLocaleString('en-GB', { timeZone: 'Africa/Lagos' }) + ' WAT'}
                         </p>
                       </div>
                     </div>
@@ -442,14 +442,14 @@ export default function StaffDashboardPage() {
                 {/* Hub 2 */}
                 <div className="p-3 rounded-2xl bg-soft-stone border border-hairline flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <p className="font-bold text-charcoal">n8n WF01 / Meta</p>
+                    <p className="font-bold text-charcoal">Telegram / n8n Nia</p>
                     <p className="text-muted-ink text-[11px]">External message delivery</p>
                   </div>
                   <div className="text-right">
                     <span className="inline-flex items-center gap-1 text-amber-700 font-bold">
-                      <span className="w-2 h-2 rounded-full bg-amber-500"></span> Unconfigured
+                      <span className="w-2 h-2 rounded-full bg-amber-500"></span> See checks
                     </span>
-                    <p className="text-[10px] text-muted-ink">Live checks blocked</p>
+                    <p className="text-[10px] text-muted-ink">Check configuration and webhook</p>
                   </div>
                 </div>
               </div>
@@ -477,7 +477,7 @@ export default function StaffDashboardPage() {
                 >
                   <span className="flex items-center gap-2">
                     <Users className="w-3.5 h-3.5 text-muted-ink" />
-                    <span>Customer Directory (KYC)</span>
+                    <span>Customer Directory</span>
                   </span>
                   <ChevronRight className="w-3.5 h-3.5 text-hairline" />
                 </Link>

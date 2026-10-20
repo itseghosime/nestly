@@ -102,6 +102,7 @@ export default function NotificationsPage() {
         item.id === notification.id ? { ...item, isRead, readAt } : item
       )));
       setError("");
+      window.dispatchEvent(new Event("staff-activity-changed"));
     } catch (updateError) {
       setError(updateError instanceof Error
         ? updateError.message
@@ -192,11 +193,12 @@ export default function NotificationsPage() {
               <button
                 type="button"
                 onClick={() => {
+                  if (filter === "all" && page === 1) return;
                   setFilter("all");
                   setPage(1);
                   setLoading(true);
                 }}
-                className={`px-3.5 py-1.5 rounded-full transition-all ${
+                className={`shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-full transition-all ${
                   filter === "all"
                     ? "bg-charcoal text-white font-bold"
                     : "bg-soft-stone text-charcoal/70 hover:bg-hairline"
@@ -207,11 +209,12 @@ export default function NotificationsPage() {
               <button
                 type="button"
                 onClick={() => {
+                  if (filter === "unread" && page === 1) return;
                   setFilter("unread");
                   setPage(1);
                   setLoading(true);
                 }}
-                className={`px-3.5 py-1.5 rounded-full transition-all ${
+                className={`shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-full transition-all ${
                   filter === "unread"
                     ? "bg-charcoal text-white font-bold"
                     : "bg-soft-stone text-charcoal/70 hover:bg-hairline"
@@ -222,11 +225,12 @@ export default function NotificationsPage() {
               <button
                 type="button"
                 onClick={() => {
+                  if (filter === "failed" && page === 1) return;
                   setFilter("failed");
                   setPage(1);
                   setLoading(true);
                 }}
-                className={`px-3.5 py-1.5 rounded-full transition-all ${
+                className={`shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-full transition-all ${
                   filter === "failed"
                     ? "bg-persimmon text-white font-bold"
                     : "bg-soft-stone text-charcoal/70 hover:bg-hairline"
@@ -237,11 +241,12 @@ export default function NotificationsPage() {
               <button
                 type="button"
                 onClick={() => {
+                  if (filter === "escalation" && page === 1) return;
                   setFilter("escalation");
                   setPage(1);
                   setLoading(true);
                 }}
-                className={`px-3.5 py-1.5 rounded-full transition-all ${
+                className={`shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-full transition-all ${
                   filter === "escalation"
                     ? "bg-primary text-white font-bold"
                     : "bg-soft-stone text-charcoal/70 hover:bg-hairline"
@@ -252,11 +257,12 @@ export default function NotificationsPage() {
               <button
                 type="button"
                 onClick={() => {
+                  if (filter === "inspection" && page === 1) return;
                   setFilter("inspection");
                   setPage(1);
                   setLoading(true);
                 }}
-                className={`px-3.5 py-1.5 rounded-full transition-all ${
+                className={`shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-full transition-all ${
                   filter === "inspection"
                     ? "bg-emerald-700 text-white font-bold"
                     : "bg-soft-stone text-charcoal/70 hover:bg-hairline"
@@ -314,7 +320,7 @@ export default function NotificationsPage() {
                       : "border-hairline"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                     <div className="flex items-start gap-3.5">
                       <div
                         className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
@@ -360,13 +366,13 @@ export default function NotificationsPage() {
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-hairline text-xs">
+                  <div className="flex flex-wrap gap-3 items-center justify-between pt-2 border-t border-hairline text-xs">
                     <span className="text-[11px] text-muted-ink font-medium">
                       Channel: {n.channel} ·{" "}
                       <strong className="text-charcoal">{n.statusText}</strong>
                     </span>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[11px] text-muted-ink">
                         {n.isRead ? "Read" : "Unread"}
                       </span>
@@ -439,19 +445,19 @@ export default function NotificationsPage() {
               <div className="space-y-2 text-xs">
                 <div className="p-3 rounded-2xl bg-persimmon/10 text-charcoal flex justify-between items-center">
                   <span className="font-bold text-persimmon">
-                    Human Takeovers
+                    Handoff events
                   </span>
                   <span className="font-bold">{filteredNotifs.filter((n) => n.type === "escalation").length}</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-emerald-50 text-charcoal flex justify-between items-center">
                   <span className="font-bold text-emerald-800">
-                    Pending Inspections
+                    Inspection events
                   </span>
                   <span className="font-bold">{filteredNotifs.filter((n) => n.type === "inspection").length}</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-soft-stone text-charcoal flex justify-between items-center">
                   <span className="font-bold text-muted-ink">
-                    Listing Audits
+                    Listing events
                   </span>
                   <span className="font-bold">{filteredNotifs.filter((n) => n.type === "listing").length}</span>
                 </div>

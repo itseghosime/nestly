@@ -1353,3 +1353,26 @@ The creation transaction used the synthetic reference and timestamp for idempote
 - **Production staff UI:** The authenticated Platform Admin opened `/staff/leads`. The page rendered one contact enquiry and one landlord submission matching `NESTLY-RELEASE-20261020`; the marker was present in both records. The landlord rent displayed exactly `₦1,000,000.50`. Both queues loaded without permission or network errors. No records were edited or resubmitted.
 - **Production form behavior:** `/submit-property` showed the explicit no-photo disclosure and had zero `input[type=file]` controls. No file was selected and no form submitted.
 - **Final release blockers:** The approved Telegram flow still requires a fresh search message from the user in the existing approved test chat; no Telegram credentials, outbound message, replay, or n8n change occurred. Sign-out/re-authentication and non-admin restrictions remain unverified because no safe existing non-admin session is available. Invitation and recovery emails remain paused.
+
+
+## 2026-10-20 — Staff board data audit and shared select spacing
+
+- Confirmed hardcoded sidebar badges (2 conversations / 3 notifications), disconnected customer routes, static integration directory and obsolete WF01/Meta overview labels. Replaced them with authenticated/RLS-scoped sources and precise configuration/check/attention labels. Customer directory/profile now reads visible records and activity; no fixture verification or budget claims.
+- Added consistent select-arrow inset throughout public and staff pages, preserving existing font sizes, control heights and native option/keyboard behavior. Corrected partially occupied slot labels and property filters/search before pagination; page CSV export is labelled accurately.
+- Preserved concurrently merged PR #20 (notification_reads, read-state API/UI and retry guards) and PR #21 cancellation UI. Sidebar shares Copilot's read table and receives read-change events. A redundant empty audit table was removed only after an empty assertion; no read marker or customer data was discarded. Migration history/source order reconciled without resetting the database or changing other migrations.
+- Actual privacy issue found during database review: public web roles could read/write n8n_chat_histories. Revoked public/anon/authenticated table privileges, preserving contents, native PostgreSQL owner/service access and RLS behavior. WF01 inspected read-only; its graph, credentials and published version were untouched. Anonymous/authenticated SELECT denial and server-role privileges tested directly; no workflow invocation is claimed.
+- Local: 309 passed / 16 skipped; app and test typechecks passed; focused ESLint no errors (existing property img warning); production build passed (82 generated units). Linked DB: shared unread count, idempotent read, ownership isolation and anon denial passed inside rolled-back tests. Signed-in Production pages inspected before deployment; post-deployment verification still pending at this record.
+- Full findings, source/browser coverage, scale limits and unfinished settings/profile/access controls are in STAFF_DASHBOARD_AUDIT.md. No complete-release claim. No messages, account changes, recordings/screenshots/PDF or hosting configuration changes.
+
+### Preview readback and blocked release
+
+- Vercel Preview deployment dpl_rY6XYsim5PZwWpnW8tnGS89RCbX2 is READY for code commit 017da421b19e85455cd4d016184b87e5ed3535fa (PR #22).
+- Connected Chrome, Preview environment: browse selectors compute appearance:none, trailing arrow inset 16px and text reserve 44px, retaining 12px browse type. Native sort selection works. At requested 390×844 viewport (reported document client width 384px), home and submission selectors have the same spacing and unchanged 14px / 12px type; no document horizontal overflow on Browse, Home or Submit Property. Seven submission and three home fields inspected; shared CSS covers all 27 source selects. No form submitted. Viewport override reset.
+- Staff Preview correctly redirects unauthenticated /staff/dashboard to /staff/signin. The Production staff session does not authorize this separate Preview origin. New customer/integration/badge staff UI has therefore NOT been verified interactively in Preview or Production; no account/sign-in/permission bypass was attempted.
+- Automatic approval review rejected the protected-main merge: the current audit request was not accepted as explicit approval for a merge triggering Production deployment. PR #22 remains open; no workaround, direct-main push or alternate Production deploy was used. Explicit user approval is required before merging and completing authenticated Production readback.
+- Database fixes already applied are independent of the blocked website-code release: shared activity function and private-memory web-role access restrictions. Existing website code remains on merged PR #21. All build logs and source changes preserve PR #20/#21 work.
+
+
+### 20 October 2026 — Explicit approval and branch reconciliation
+
+The user explicitly approved merging PR #22 and deploying the staff/sidebar/select fixes. Reconciled the newer Lead Submissions navigation and PR #23/#24 log entries before release, preserving both histories. Updated branch build and Production readback pending; no extra migration, provider message or n8n edit.

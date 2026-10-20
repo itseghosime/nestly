@@ -1,357 +1,72 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { StaffHeader } from '@/components/staff/StaffHeader';
-import { CUSTOMERS } from '@/lib/fixtures/customers';
-import { getDemoFixtures } from '@/lib/demo-mode';
 import { MOTION, prefersReducedMotion } from '@/lib/motion';
-import {
-  Users,
-  Search,
-  ShieldCheck,
-  ChevronRight,
-  UserCheck,
-} from 'lucide-react';
-
-const IS_DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
-const DEMO_CUSTOMERS = getDemoFixtures(IS_DEMO_MODE, CUSTOMERS);
+import { customerName, staffDate, type StaffCustomer } from '@/lib/staff-customers';
 
 export default function CustomerDirectoryPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [locationFilter, setLocationFilter] = useState('ALL');
-  const [statusFilter] = useState('ALL');
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>(DEMO_CUSTOMERS[0]?.id ?? '');
+  const [customers, setCustomers] = useState<StaffCustomer[]>([]);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
-
-  const filteredCustomers = DEMO_CUSTOMERS.filter((cust) => {
-        const matchesSearch =
-          cust.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          cust.phone.includes(searchQuery) ||
-          cust.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          cust.preferredNeighborhoods.some((n) => n.toLowerCase().includes(searchQuery.toLowerCase()));
-
-        const matchesLocation =
-          locationFilter === 'ALL' ||
-          (locationFilter === 'BENIN' && cust.city.toLowerCase().includes('benin')) ||
-          (locationFilter === 'SAPELE' && (cust.city.toLowerCase().includes('sapele') || cust.state.toLowerCase().includes('delta')));
-
-        const matchesStatus =
-          statusFilter === 'ALL' ||
-          (statusFilter === 'SCHEDULED' && cust.status === 'Inspection Scheduled') ||
-          (statusFilter === 'ACTIVE' && cust.status === 'Active Seeker');
-
-        return matchesSearch && matchesLocation && matchesStatus;
-      });
-
-  const selectedCustomer = DEMO_CUSTOMERS.find((c) => c.id === selectedCustomerId);
-
-  useGSAP(
-    () => {
-      if (prefersReducedMotion() || !tableBodyRef.current) return;
-      const rows = tableBodyRef.current.querySelectorAll('tr');
-      if (!rows.length) return;
-      gsap.fromTo(
-        rows,
-        { y: 6, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.18, stagger: 0.022, ease: MOTION.ease.crispOut, overwrite: 'auto', clearProps: 'transform,opacity' }
-      );
-    },
-    { dependencies: [searchQuery, locationFilter], scope: tableBodyRef }
-  );
-
-  useGSAP(
-    () => {
-      if (prefersReducedMotion() || !previewRef.current) return;
-      gsap.fromTo(
-        previewRef.current,
-        { y: 6, opacity: 0.9 },
-        { y: 0, opacity: 1, duration: 0.18, ease: MOTION.ease.crispOut, clearProps: 'transform,opacity' }
-      );
-    },
-    { dependencies: [selectedCustomerId] }
-  );
-
-  if (!IS_DEMO_MODE || !selectedCustomer) {
-    return (
-      <div className="flex-1 flex flex-col min-h-screen bg-warm">
-        <StaffHeader breadcrumbs={[{ label: 'Customer Directory' }]} />
-        <main className="p-4 sm:p-8 max-w-4xl mx-auto w-full">
-          <section role="status" className="rounded-3xl border border-hairline bg-white p-6 sm:p-8 space-y-3">
-            <h1 className="font-headline text-2xl font-bold text-charcoal">Live customer records are unavailable</h1>
-            <p className="text-sm text-muted-ink leading-relaxed">
-              This page has no live customer-directory data source, so it does not display fixture records as real customers or claim that enquiries and inspections are listed here.
-            </p>
-            <p className="text-sm text-muted-ink leading-relaxed">
-              Historical WhatsApp conversations remain readable in the staff inbox; replies on that channel are unavailable.
-            </p>
-          </section>
-        </main>
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({ page: String(page), search });
+        const response = await fetch(`/api/staff/customers?${params}`, { cache: 'no-store', signal: controller.signal });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Unable to load customers');
+        if (!controller.signal.aborted) { setCustomers(result.data); setTotal(result.total); setError(''); }
+      } catch (error) {
+        if (!controller.signal.aborted) { setCustomers([]); setError(error instanceof Error ? error.message : 'Unable to load customers'); }
+      } finally { if (!controller.signal.aborted) setLoading(false); }
+    }, 250);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [search, page, retry]);
+  useGSAP(() => {
+    if (prefersReducedMotion() || !tableBodyRef.current) return;
+    gsap.fromTo(tableBodyRef.current.querySelectorAll('tr'), { y: 6, opacity: 0 }, {
+      y: 0, opacity: 1, duration: 0.18, stagger: 0.022, ease: MOTION.ease.crispOut, clearProps: 'transform,opacity',
+    });
+  }, { dependencies: [customers] });
+  return <div className="flex-1 min-h-screen bg-warm">
+    <StaffHeader breadcrumbs={[{ label: 'Customer Directory' }]} />
+    <main className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
+      <div><h1 className="font-headline text-2xl sm:text-3xl font-bold text-charcoal">Customer Directory</h1>
+        <p className="text-sm text-muted-ink mt-2">Customer records and activity visible to your staff role. Times are shown in WAT.</p></div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <label className="text-xs font-bold flex flex-col gap-2 w-full sm:max-w-md">Search customers
+          <input type="search" value={search} maxLength={120} onChange={event => { setSearch(event.target.value); setPage(1); }}
+            placeholder="Name, email or phone" className="rounded-full border border-hairline bg-white px-4 py-3 text-sm font-normal" />
+        </label>
+        <button type="button" onClick={() => setRetry(value => value + 1)} disabled={loading} className="shrink-0 rounded-full border border-hairline bg-white px-4 py-2 text-xs font-bold disabled:opacity-40">Refresh customers</button>
       </div>
-    );
-  }
-
-  return (
-    <div className="flex-1 flex flex-col min-h-screen bg-warm">
-      <StaffHeader
-        breadcrumbs={[{ label: 'Customer Directory' }]}
-      />
-
-      <div className="p-4 sm:p-8 max-w-7xl mx-auto w-full space-y-6">
-        {/* Header Block */}
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-          <div>
-            <h1 className="font-headline text-2xl sm:text-3xl font-bold text-charcoal tracking-tight">
-              Customer Directory
-            </h1>
-            <p className="text-sm text-charcoal/70 mt-1">
-              Fictional demo records only; historical messaging remains in the staff inbox.
-            </p>
-          </div>
+      {error && <p role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}</p>}
+      {loading ? <p role="status">Loading customers…</p> : !error && <>
+        <div className="rounded-3xl border border-hairline bg-white overflow-x-auto">
+          <table className="w-full min-w-[620px] text-left text-sm"><caption className="p-4 text-left text-xs text-muted-ink">{total} matching records in your authorized scope</caption>
+            <thead className="bg-soft-stone text-xs"><tr><th className="p-4">Customer</th><th className="p-4">Contact details</th><th className="p-4">Updated (WAT)</th><th className="p-4">Profile</th></tr></thead>
+            <tbody ref={tableBodyRef}>{customers.map(customer => <tr key={customer.id} className="border-t border-hairline">
+              <td className="p-4 font-semibold">{customerName(customer)}</td><td className="p-4"><p>{customer.email || 'Email not provided'}</p><p className="text-xs text-muted-ink mt-1">{customer.phone || 'Phone not provided'}</p></td>
+              <td className="p-4 text-xs">{staffDate(customer.updated_at)}</td><td className="p-4"><Link href={`/staff/customers/${customer.id}`} className="inline-flex whitespace-nowrap rounded-full border border-hairline px-3 py-2 text-xs font-bold hover:bg-soft-stone">View profile</Link></td>
+            </tr>)}</tbody>
+          </table>{!customers.length && <p className="p-8 text-sm text-muted-ink">No matching customer records.</p>}
         </div>
-
-        <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-950">
-          Demo mode is enabled. Customer names, contact details, statuses, and notes below are fictional fixtures and must not be treated as real records.
-        </div>
-
-        {/* Privacy Governance Card */}
-        <div className="rounded-3xl p-5 sm:p-6 bg-white shadow-sm border border-hairline relative overflow-hidden">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-full bg-soft-stone text-primary flex items-center justify-center shrink-0 border border-hairline">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div className="space-y-1">
-              <h2 className="text-sm font-bold text-charcoal">
-                Privacy note (demo data)
-              </h2>
-              <p className="text-xs text-charcoal/80 leading-relaxed max-w-3xl">
-                Anonymous browser <strong className="text-charcoal font-semibold">Saved Homes</strong> remain local to each browser. This demo directory does not show live submissions or connect saved homes to customer records. Historical WhatsApp conversations remain in the staff inbox.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Search & Filter Controls */}
-        <div className="bg-white rounded-3xl p-4 sm:p-5 shadow-sm border border-hairline space-y-3">
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-            {/* Search Input */}
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-muted-ink absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by customer name, phone, or neighborhood..."
-                className="w-full pl-11 pr-4 py-2.5 bg-warm rounded-full text-xs text-charcoal placeholder:text-muted-ink/60 border border-hairline focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-ink hover:text-charcoal text-xs"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
-            {/* Quick Filter Chips */}
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
-              <button
-                type="button"
-                onClick={() => setLocationFilter('ALL')}
-                className={`px-3.5 py-1.5 rounded-full transition-all ${
-                  locationFilter === 'ALL'
-                    ? 'bg-charcoal text-white font-bold'
-                    : 'bg-soft-stone text-charcoal/70 hover:bg-hairline'
-                }`}
-              >
-                All Corridors ({DEMO_CUSTOMERS.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setLocationFilter('BENIN')}
-                className={`px-3.5 py-1.5 rounded-full transition-all ${
-                  locationFilter === 'BENIN'
-                    ? 'bg-primary text-white font-bold'
-                    : 'bg-soft-stone text-charcoal/70 hover:bg-hairline'
-                }`}
-              >
-                Benin City
-              </button>
-              <button
-                type="button"
-                onClick={() => setLocationFilter('SAPELE')}
-                className={`px-3.5 py-1.5 rounded-full transition-all ${
-                  locationFilter === 'SAPELE'
-                    ? 'bg-primary text-white font-bold'
-                    : 'bg-soft-stone text-charcoal/70 hover:bg-hairline'
-                }`}
-              >
-                Sapele / Delta
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Work Area: Table Grid & Detail Drawer Preview */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-          {/* Table Container */}
-          <div className="xl:col-span-8 bg-white rounded-3xl shadow-sm border border-hairline overflow-hidden">
-            <div className="px-6 py-4 bg-soft-stone/70 border-b border-hairline flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="font-headline text-sm font-bold text-charcoal">Demo fixture customers</span>
-                <span className="px-2 py-0.5 rounded-full bg-white text-muted-ink text-[11px] font-bold border border-hairline">
-                  {filteredCustomers.length} Records
-                </span>
-              </div>
-              <span className="text-[11px] text-muted-ink">WAT Africa/Lagos</span>
-            </div>
-
-            {filteredCustomers.length === 0 ? (
-              <div className="p-12 text-center space-y-3">
-                <Users className="w-10 h-10 text-muted-ink mx-auto" />
-                <h3 className="font-headline text-base font-bold text-charcoal">No Customer Records Found</h3>
-                <p className="text-xs text-charcoal/70 max-w-sm mx-auto">
-                  No records match your active search filter. Adjust or clear your search query.
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-warm/60 text-muted-ink uppercase font-bold text-[10px] tracking-wider border-b border-hairline">
-                      <th className="py-3 px-4 whitespace-nowrap">Customer Name</th>
-                      <th className="py-3 px-2.5">Contact</th>
-                      <th className="py-3 px-2.5">Preferred Zone</th>
-                      <th className="py-3 px-2.5">Status</th>
-                      <th className="py-3 px-2.5">Fixture ID status</th>
-                      <th className="py-3 px-4 text-right whitespace-nowrap">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody ref={tableBodyRef} className="divide-y divide-hairline">
-                    {filteredCustomers.map((cust) => {
-                      const isSelected = selectedCustomerId === cust.id;
-
-                      return (
-                        <tr
-                          key={cust.id}
-                          onClick={() => setSelectedCustomerId(cust.id)}
-                          className={`hover:bg-soft-stone/50 transition-colors cursor-pointer ${
-                            isSelected ? 'bg-soft-stone/70 font-medium' : ''
-                          }`}
-                        >
-                          <td className="py-3 px-4 whitespace-nowrap">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 rounded-full bg-soft-stone text-primary font-bold flex items-center justify-center text-xs shrink-0 border border-hairline">
-                                {cust.name
-                                  .split(' ')
-                                  .map((n) => n[0])
-                                  .join('')
-                                  .slice(0, 2)}
-                              </div>
-                              <div>
-                                <span className="font-bold text-charcoal block">{cust.name}</span>
-                                <span className="text-[10px] text-muted-ink">{cust.city}, {cust.state}</span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-3 px-2.5 font-mono text-[11px] text-charcoal/80 leading-tight">
-                            {cust.phone}
-                          </td>
-                          <td className="py-3 px-2.5 text-charcoal/80">
-                            <span className="truncate max-w-[130px] block" title={cust.preferredNeighborhoods.join(', ')}>
-                              {cust.preferredNeighborhoods.join(', ')}
-                            </span>
-                          </td>
-                          <td className="py-3 px-2.5">
-                            <span
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-soft-stone text-muted-ink text-[10px] font-bold"
-                            >
-                              Demo: {cust.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-2.5 text-[11px] text-muted-ink font-semibold">
-                            <span className="inline-flex items-center gap-1">
-                              <UserCheck className="w-3.5 h-3.5 shrink-0" />
-                              <span>Demo: {cust.kycStatus}</span>
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-right whitespace-nowrap">
-                            <Link
-                              href={`/staff/customers/${cust.id}`}
-                              className="px-3.5 py-1.5 rounded-full bg-white hover:bg-persimmon hover:text-white text-charcoal font-bold text-xs transition-all border border-hairline shadow-2xs whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 nestly-press"
-                            >
-                              Detail &rarr;
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Right Column: Customer Card Fast Preview */}
-          <div ref={previewRef} className="xl:col-span-4 bg-white rounded-3xl p-6 shadow-sm border border-hairline space-y-5 sticky top-24">
-            <div className="flex items-start justify-between pb-3 border-b border-hairline">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-ink">
-                  Customer Summary
-                </span>
-                <h3 className="font-headline text-base font-bold text-charcoal mt-0.5">
-                  {selectedCustomer.name}
-                </h3>
-                <p className="text-xs text-muted-ink">{selectedCustomer.email}</p>
-              </div>
-              <span className="px-2.5 py-0.5 rounded-full bg-soft-stone text-muted-ink text-[10px] font-bold">
-                Demo: {selectedCustomer.kycStatus}
-              </span>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="p-3 rounded-2xl bg-soft-stone border border-hairline space-y-1">
-                <span className="text-[10px] font-bold uppercase text-muted-ink">Demo search fields</span>
-                <p className="font-bold text-charcoal">Demo: {selectedCustomer.budgetRange}</p>
-                <p className="text-charcoal/70 text-[11px]">
-                  Demo zones: {selectedCustomer.preferredNeighborhoods.join(' • ')}
-                </p>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-soft-stone border border-hairline space-y-1">
-                <span className="text-[10px] font-bold uppercase text-muted-ink">Demo fixture note (not saved)</span>
-                <p className="text-charcoal/80 leading-relaxed text-[11px]">
-                  &quot;{selectedCustomer.notes}&quot;
-                </p>
-              </div>
-
-              <div className="flex justify-between items-center text-charcoal/70 pt-1 text-xs">
-                <span>Demo inspection count:</span>
-                <span className="font-bold text-charcoal">{selectedCustomer.totalInspections}</span>
-              </div>
-              <div className="flex justify-between items-center text-charcoal/70 text-xs">
-                <span>Fixture activity field:</span>
-                <span className="font-semibold text-charcoal">{selectedCustomer.lastActive}</span>
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-hairline space-y-2">
-              <Link
-                href={`/staff/customers/${selectedCustomer.id}`}
-                className="w-full py-3 px-4 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-xs"
-              >
-                <span>View Full Customer Profile</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs"><span>Page {page} of {Math.max(1, Math.ceil(total / 25))}</span><div className="flex gap-2">
+          <button type="button" disabled={page <= 1} onClick={() => setPage(value => value - 1)} className="shrink-0 rounded-full border border-hairline px-4 py-2 font-bold disabled:opacity-40">Previous</button>
+          <button type="button" disabled={page * 25 >= total} onClick={() => setPage(value => value + 1)} className="shrink-0 rounded-full border border-hairline px-4 py-2 font-bold disabled:opacity-40">Next</button>
+        </div></div>
+      </>}
+    </main>
+  </div>;
 }

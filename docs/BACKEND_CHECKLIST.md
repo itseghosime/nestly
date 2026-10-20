@@ -353,3 +353,18 @@ This dated status supersedes the immediately preceding pending inspection items.
 - [x] **Photo-upload behavior:** Production landlord form has zero file inputs and explicitly states that photo upload is unavailable. No submission was made.
 - [ ] **Telegram:** Requires a fresh search message from the user in the already approved test chat. Do not replay, fabricate, or alter workflows.
 - [ ] **Staff authentication:** No safe existing non-admin session is available to verify role restrictions. Do not send invitations/recovery emails; they remain paused.
+
+
+### Staff dashboard audit — 20 October 2026
+
+- [x] Source and pre-deployment signed-in browser audit: sidebar literal badges, customer disconnected state, integration directory/overview drift confirmed.
+- [x] Implemented actual activity counts using the shared PR #20 notification read-state source; customer list/profile APIs/UI, integration read checks, full-site select-arrow inset, server property filtering and slot-capacity correction.
+- [x] Local: 309 tests passed, 16 skipped; app/test typechecks, focused lint and production build passed. Linked DB isolation/idempotency/anonymous denial checked with read changes rolled back.
+- [x] Removed anonymous/ordinary authenticated table access to private n8n chat memory; retained native PostgreSQL owner/service access and all data. No n8n execution or graph update.
+- [ ] Post-deployment staff/mobile/select browser verification — record actual results after deployment.
+- [ ] Finish unavailable settings controls, backup-code/device/access-request features; verify non-admin browser roles and large-data calendar/inbox boundaries. See STAFF_DASHBOARD_AUDIT.md; these are not silently marked complete.
+
+- [x] Preview public selects: inset 16px / reserve 44px, native selection and unchanged font sizes; Home/Browse/Submit Property mobile width checks have no document overflow. No form submission; viewport reset.
+- [ ] PR #22 protected-main merge: blocked by automatic approval review, awaiting explicit user release approval. New staff UI is not marked Production verified. Preview staff route requires separate sign-in; no auth bypass.
+
+- [ ] PR #22 release approved by user; branch reconciled with PR #23/#24. Confirm updated build, merge and live sidebar/select readback before marking deployed.

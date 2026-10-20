@@ -60,6 +60,7 @@ export default function PropertyManagementPage() {
     const ctrl = new AbortController();
     const qs = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
     if (searchQuery) qs.set('keyword', searchQuery);
+    if (statusFilter !== 'all') qs.set('staff_status', statusFilter);
     fetch(`/api/properties?${qs.toString()}`, { cache: 'no-store', signal: ctrl.signal })
       .then(async (response) => ({
         ok: response.ok,
@@ -83,7 +84,7 @@ export default function PropertyManagementPage() {
         if (!cancelled) setListLoading(false);
       });
     return () => { cancelled = true; ctrl.abort(); };
-  }, [searchQuery, page, retryCount]);
+  }, [searchQuery, statusFilter, page, retryCount]);
 
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
   const prepareListReload = () => {
@@ -99,6 +100,7 @@ export default function PropertyManagementPage() {
   };
 
   const filteredProperties = properties.filter((p) => {
+    if (!IS_DEMO_MODE) return true;
     const codeMatch = (p.code || p.id).toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSearch =
       p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -210,7 +212,7 @@ export default function PropertyManagementPage() {
               className="nestly-press flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white hover:bg-warm text-charcoal text-xs font-semibold transition-colors border border-hairline shadow-2xs shrink-0"
             >
               <Download className="w-3.5 h-3.5 text-muted-ink" />
-              <span>{csvExported ? 'CSV Downloaded!' : 'Export List (CSV)'}</span>
+              <span>{csvExported ? 'Export started' : 'Export this page (CSV)'}</span>
             </button>
           </div>
         </div>
@@ -287,7 +289,7 @@ export default function PropertyManagementPage() {
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => { prepareListReload(); setSearchQuery(''); setPage(1); }}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-ink hover:text-charcoal text-xs"
                 >
                   ✕
@@ -301,8 +303,8 @@ export default function PropertyManagementPage() {
                 <button
                   key={tab.value}
                   type="button"
-                  onClick={() => setStatusFilter(tab.value)}
-                  className={`nestly-press px-3.5 py-1.5 rounded-full transition-all capitalize ${
+                  onClick={() => { if (statusFilter === tab.value) return; prepareListReload(); setStatusFilter(tab.value); setPage(1); }}
+                  className={`nestly-press shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-full transition-all capitalize ${
                     statusFilter === tab.value
                       ? 'bg-charcoal text-white font-bold'
                       : 'bg-soft-stone hover:bg-hairline text-charcoal/70'
