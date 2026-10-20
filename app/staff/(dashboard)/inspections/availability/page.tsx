@@ -194,8 +194,8 @@ export default function AvailabilitySlotsPage() {
   const handleCreateSlot = async (e: React.FormEvent) => {
     e.preventDefault();
     const [startTime, endTime] = slotTime.split('|');
-    if (!selectedProperty || !assignedAgent || !startTime || !endTime) {
-      setError('Select a property, field agent, and valid time window.');
+    if (!selectedProperty || !startTime || !endTime) {
+      setError('Select a property and valid time window.');
       return;
     }
     setSaving(true);
@@ -484,13 +484,13 @@ export default function AvailabilitySlotsPage() {
               </div>
 
               <div>
-                <label className="block font-bold text-charcoal mb-1">Field Escort Agent</label>
+                <label className="block font-bold text-charcoal mb-1">Field Escort Agent (optional)</label>
                 <select
                   value={assignedAgent}
                   onChange={(e) => setAssignedAgent(e.target.value)}
                   className="w-full bg-warm rounded-full px-4 py-2.5 border border-hairline text-charcoal"
                 >
-                  <option value="">Select a field agent</option>
+                  <option value="">Unassigned</option>
                   {agents.map((agent) => (
                     <option key={agent.id} value={agent.id}>
                       {agent.display_name}{agent.assigned_zone ? ` (${agent.assigned_zone})` : ' (Unassigned zone)'}
@@ -514,7 +514,7 @@ export default function AvailabilitySlotsPage() {
               <div className="pt-2">
                 <button
                   type="submit"
-                  disabled={loading || saving || !properties.length || !agents.length}
+                  disabled={loading || saving || !properties.length}
                   className="w-full py-3 px-4 rounded-full bg-persimmon hover:bg-persimmon-hover text-white font-bold transition-all shadow-xs disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {saving ? 'Saving slot…' : 'Add Inspection Slot'}

@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/server';
 const SLOT_STAFF_ROLES = ['Platform Admin', 'Operations Lead', 'Field Vetting Agent'] as const;
 const slotSchema = z.object({
   propertyId: z.string().uuid(),
-  fieldAgentId: z.string().uuid(),
+  fieldAgentId: z.string().uuid().nullable().optional().default(null),
   startsAt: z.iso.datetime({ offset: true }),
   endsAt: z.iso.datetime({ offset: true }),
   capacity: z.number().int().min(1).max(50).default(1),

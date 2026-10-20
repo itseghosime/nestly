@@ -25,6 +25,8 @@ interface Notification {
   createdAt: string;
   channel: string;
   statusText: string;
+  isRead: boolean;
+  readAt: string | null;
   href: string | null;
 }
 
@@ -38,7 +40,7 @@ function formatTimestamp(value: string) {
 
 export default function NotificationsPage() {
   const [filter, setFilter] = useState<
-    "all" | "failed" | "escalation" | "inspection"
+    "all" | "failed" | "escalation" | "inspection" | "unread"
   >("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -48,6 +50,7 @@ export default function NotificationsPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [updatingNotificationIds, setUpdatingNotificationIds] = useState<string[]>([]);
 
   const loadNotifications = useCallback(async () => {
     try {
@@ -66,6 +69,47 @@ export default function NotificationsPage() {
       setLoading(false);
     }
   }, [filter, page]);
+
+  const updateReadState = async (notification: Notification) => {
+    const isRead = !notification.isRead;
+    setUpdatingNotificationIds((current) => [...current, notification.id]);
+    try {
+      const response = await fetch("/api/staff/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: notification.id, isRead }),
+      });
+      const result: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message = result && typeof result === "object" && "error" in result
+          && typeof result.error === "string"
+          ? result.error
+          : "Unable to update notification read state";
+        throw new Error(message);
+      }
+      if (
+        !result
+        || typeof result !== "object"
+        || !("isRead" in result)
+        || result.isRead !== isRead
+      ) {
+        throw new Error("The server returned an invalid notification read-state response.");
+      }
+      const readAt = "readAt" in result && typeof result.readAt === "string"
+        ? result.readAt
+        : null;
+      setNotifications((current) => current.map((item) => (
+        item.id === notification.id ? { ...item, isRead, readAt } : item
+      )));
+      setError("");
+    } catch (updateError) {
+      setError(updateError instanceof Error
+        ? updateError.message
+        : "Unable to update notification read state");
+    } finally {
+      setUpdatingNotificationIds((current) => current.filter((id) => id !== notification.id));
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -95,6 +139,7 @@ export default function NotificationsPage() {
     const matchesFilter =
       filter === "all" ||
       filter === "failed" ||
+      (filter === "unread" && !n.isRead) ||
       (filter === "escalation" && n.type === "escalation") ||
       (filter === "inspection" && n.type === "inspection");
 
@@ -158,6 +203,21 @@ export default function NotificationsPage() {
                 }`}
               >
                 All ({filter === "all" ? total : "—"})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilter("unread");
+                  setPage(1);
+                  setLoading(true);
+                }}
+                className={`px-3.5 py-1.5 rounded-full transition-all ${
+                  filter === "unread"
+                    ? "bg-charcoal text-white font-bold"
+                    : "bg-soft-stone text-charcoal/70 hover:bg-hairline"
+                }`}
+              >
+                Unread on page
               </button>
               <button
                 type="button"
@@ -276,6 +336,9 @@ export default function NotificationsPage() {
 
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
+                          {!n.isRead && (
+                            <span className="w-2 h-2 rounded-full bg-persimmon" aria-label="Unread" />
+                          )}
                           {n.statusText === "failed" && (
                             <span className="w-2 h-2 rounded-full bg-persimmon animate-pulse"></span>
                           )}
@@ -304,6 +367,22 @@ export default function NotificationsPage() {
                     </span>
 
                     <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-muted-ink">
+                        {n.isRead ? "Read" : "Unread"}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`${n.isRead ? "Mark as unread" : "Mark as read"}: ${n.title}`}
+                        onClick={() => void updateReadState(n)}
+                        disabled={updatingNotificationIds.includes(n.id)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-hairline bg-soft-stone hover:bg-hairline text-charcoal text-xs font-semibold disabled:opacity-50"
+                      >
+                        {updatingNotificationIds.includes(n.id)
+                          ? "Updating…"
+                          : n.isRead
+                            ? "Mark unread"
+                            : "Mark read"}
+                      </button>
                       {n.href ? (
                         <Link
                           href={n.href}

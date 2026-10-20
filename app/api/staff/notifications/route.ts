@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { assertSameOrigin } from '@/lib/backend/public-request';
 import { requireStaff } from '@/lib/backend/staff-context';
 
 const STAFF_ROLES = [
@@ -15,6 +16,10 @@ const notificationQuery = z.object({
   channel: z.enum(['whatsapp', 'email', 'dashboard']).optional(),
   status: z.enum(['queued', 'sent', 'delivered', 'failed', 'cancelled']).optional(),
   kind: z.enum(['escalation', 'inspection']).optional(),
+});
+const notificationReadUpdate = z.object({
+  id: z.string().uuid(),
+  isRead: z.boolean(),
 });
 
 function notificationTitle(templateKey: string) {
@@ -70,8 +75,25 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unable to load notifications' }, { status: 503 });
   }
 
+  const notifications = data || [];
+  let readRows: { notification_id: string; read_at: string }[] = [];
+  if (notifications.length) {
+    const { data: readData, error: readError } = await context.client.from('notification_reads')
+      .select('notification_id, read_at')
+      .eq('profile_id', context.userId)
+      .in('notification_id', notifications.map((notification) => notification.id));
+    if (readError) {
+      console.error('Staff notification read-state query failed', readError.code);
+      return NextResponse.json({ error: 'Unable to load notification read state' }, { status: 503 });
+    }
+    readRows = readData || [];
+  }
+  const readAtByNotification = new Map(
+    readRows.map((read) => [read.notification_id, read.read_at]),
+  );
+
   return NextResponse.json({
-    data: (data || []).map((notification) => ({
+    data: notifications.map((notification) => ({
       id: notification.id,
       type: notificationKind(notification.template_key),
       title: notificationTitle(notification.template_key),
@@ -80,6 +102,8 @@ export async function GET(request: Request) {
       createdAt: notification.created_at,
       channel: notification.channel,
       statusText: notification.status,
+      isRead: readAtByNotification.has(notification.id),
+      readAt: readAtByNotification.get(notification.id) || null,
       href: notification.conversation_id
         ? `/staff/inbox/${notification.conversation_id}`
         : notification.inspection_id
@@ -89,5 +113,74 @@ export async function GET(request: Request) {
     page: parsed.data.page,
     pageSize: 50,
     total: count || 0,
+  });
+}
+
+export async function PATCH(request: Request) {
+  const originFailure = assertSameOrigin(request);
+  if (originFailure) return originFailure;
+  const { context, response } = await requireStaff(STAFF_ROLES);
+  if (response) return response;
+
+  const parsed = notificationReadUpdate.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid notification read-state update' }, { status: 400 });
+  }
+
+  const { data: notification, error: visibilityError } = await context.client.from('notifications')
+    .select('id')
+    .eq('id', parsed.data.id)
+    .maybeSingle();
+  if (visibilityError) {
+    if (visibilityError.code === '42501') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    console.error('Staff notification visibility check failed', visibilityError.code);
+    return NextResponse.json({ error: 'Unable to verify notification access' }, { status: 503 });
+  }
+  if (!notification) {
+    return NextResponse.json({ error: 'Notification not found or inaccessible' }, { status: 404 });
+  }
+
+  if (parsed.data.isRead) {
+    const { error: writeError } = await context.client.from('notification_reads').upsert(
+      { notification_id: parsed.data.id, profile_id: context.userId },
+      { onConflict: 'notification_id,profile_id', ignoreDuplicates: true },
+    );
+    if (writeError) {
+      if (writeError.code === '42501') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      console.error('Staff notification read-state write failed', writeError.code);
+      return NextResponse.json({ error: 'Unable to update notification read state' }, { status: 503 });
+    }
+
+    const { data: readState, error: readError } = await context.client.from('notification_reads')
+      .select('read_at')
+      .eq('notification_id', parsed.data.id)
+      .eq('profile_id', context.userId)
+      .maybeSingle();
+    if (readError || !readState) {
+      if (readError) console.error('Staff notification read-state confirmation failed', readError.code);
+      return NextResponse.json({ error: 'Unable to confirm notification read state' }, { status: 503 });
+    }
+    return NextResponse.json({
+      id: parsed.data.id,
+      isRead: true,
+      readAt: readState.read_at,
+    });
+  }
+
+  const { error: deleteError } = await context.client.from('notification_reads')
+    .delete()
+    .eq('notification_id', parsed.data.id)
+    .eq('profile_id', context.userId);
+  if (deleteError) {
+    if (deleteError.code === '42501') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    console.error('Staff notification unread-state update failed', deleteError.code);
+    return NextResponse.json({ error: 'Unable to update notification read state' }, { status: 503 });
+  }
+  return NextResponse.json({
+    id: parsed.data.id,
+    isRead: false,
+    readAt: null,
   });
 }

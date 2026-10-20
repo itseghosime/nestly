@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const routeMocks = vi.hoisted(() => ({
   guardPublicRequest: vi.fn(),
@@ -65,6 +65,10 @@ function requestWithKey(path: string, payload: unknown, key: string): Request {
 }
 
 describe('public lead receipt-backed submissions', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     routeMocks.guardPublicRequest.mockResolvedValue(null);
@@ -221,6 +225,117 @@ describe('public lead receipt-backed submissions', () => {
       p_receipt_hash: `hash:landlord-submission:${key}`,
       p_idempotency_key: key,
     });
+  });
+
+  it('deduplicates concurrent contact-form clicks that carry the same key', async () => {
+    const key = 'contact-double-click-key-001';
+    const persisted = new Map<string, { status: string; public_reference: string }>();
+    routeMocks.rpc.mockImplementation(async (_name: string, args: Record<string, unknown>) => {
+      const idempotencyKey = String(args.p_idempotency_key);
+      let row = persisted.get(idempotencyKey);
+      if (!row) {
+        row = { status: 'new', public_reference: 'C-SYNTHETIC-001' };
+        persisted.set(idempotencyKey, row);
+      }
+      await Promise.resolve();
+      return { data: [row], error: null };
+    });
+
+    const responses = await Promise.all([
+      submitContactEnquiry(requestWithKey('/api/leads/contact', contactPayload, key)),
+      submitContactEnquiry(requestWithKey('/api/leads/contact', contactPayload, key)),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([202, 202]);
+    expect(persisted.size).toBe(1);
+    expect(routeMocks.rpc).toHaveBeenCalledTimes(2);
+    expect(routeMocks.rpc.mock.calls[0]).toEqual(routeMocks.rpc.mock.calls[1]);
+  });
+
+  it('deduplicates concurrent landlord-form clicks that carry the same key', async () => {
+    const key = 'landlord-double-click-key-001';
+    const persisted = new Map<string, { status: string; public_reference: string }>();
+    routeMocks.rpc.mockImplementation(async (_name: string, args: Record<string, unknown>) => {
+      const idempotencyKey = String(args.p_idempotency_key);
+      let row = persisted.get(idempotencyKey);
+      if (!row) {
+        row = { status: 'new', public_reference: 'L-SYNTHETIC-001' };
+        persisted.set(idempotencyKey, row);
+      }
+      await Promise.resolve();
+      return { data: [row], error: null };
+    });
+
+    const responses = await Promise.all([
+      submitLandlordProperty(requestWithKey('/api/leads/landlord', landlordPayload, key)),
+      submitLandlordProperty(requestWithKey('/api/leads/landlord', landlordPayload, key)),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([202, 202]);
+    expect(persisted.size).toBe(1);
+    expect(routeMocks.rpc).toHaveBeenCalledTimes(2);
+    expect(routeMocks.rpc.mock.calls[0]).toEqual(routeMocks.rpc.mock.calls[1]);
+  });
+
+  it('keeps contact retries safe when the first database response is lost', async () => {
+    const key = 'contact-ambiguous-retry-key-01';
+    let committedRows = 0;
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+    routeMocks.rpc
+      .mockImplementationOnce(async () => {
+        committedRows += 1;
+        throw new TypeError('synthetic network reset after commit');
+      })
+      .mockResolvedValueOnce({
+        data: [{ status: 'new', public_reference: 'C-SYNTHETIC-002' }],
+        error: null,
+      });
+
+    const firstResponse = await submitContactEnquiry(
+      requestWithKey('/api/leads/contact', contactPayload, key),
+    );
+    const retryResponse = await submitContactEnquiry(
+      requestWithKey('/api/leads/contact', contactPayload, key),
+    );
+
+    expect(firstResponse.status).toBe(503);
+    expect(await firstResponse.json()).toMatchObject({ error: expect.stringContaining('Retry with the unchanged form') });
+    expect(retryResponse.status).toBe(202);
+    expect(await retryResponse.json()).toEqual({ requestReceived: true, confirmed: false });
+    expect(committedRows).toBe(1);
+    expect(routeMocks.rpc.mock.calls[0]).toEqual(routeMocks.rpc.mock.calls[1]);
+    expect(errorLog).toHaveBeenCalledWith(
+      'Contact enquiry submission failed before receipt confirmation',
+      'TypeError',
+    );
+  });
+
+  it('keeps landlord retries safe when the first database response is lost', async () => {
+    const key = 'landlord-ambiguous-retry-key-01';
+    let committedRows = 0;
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    routeMocks.rpc
+      .mockImplementationOnce(async () => {
+        committedRows += 1;
+        throw new TypeError('synthetic network reset after commit');
+      })
+      .mockResolvedValueOnce({
+        data: [{ status: 'new', public_reference: 'L-SYNTHETIC-002' }],
+        error: null,
+      });
+
+    const firstResponse = await submitLandlordProperty(
+      requestWithKey('/api/leads/landlord', landlordPayload, key),
+    );
+    const retryResponse = await submitLandlordProperty(
+      requestWithKey('/api/leads/landlord', landlordPayload, key),
+    );
+
+    expect(firstResponse.status).toBe(503);
+    expect(retryResponse.status).toBe(202);
+    expect(await retryResponse.json()).toEqual({ requestReceived: true, confirmed: false });
+    expect(committedRows).toBe(1);
+    expect(routeMocks.rpc.mock.calls[0]).toEqual(routeMocks.rpc.mock.calls[1]);
   });
 
   it('does not treat an idempotency conflict as a confirmed receipt', async () => {
