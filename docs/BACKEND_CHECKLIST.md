@@ -345,3 +345,11 @@ This dated status supersedes the immediately preceding pending inspection items.
 - [ ] **Telegram end-to-end:** Awaiting a fresh search request from the previously approved test chat. Do not replay updates or alter n8n workflows.
 - [ ] **Staff authentication roles:** Sign-out/re-authentication and non-admin restrictions remain unverified without a safe existing non-admin session. Invitation and recovery emails remain paused and unsent.
 - [ ] **Release:** PR #21 merged as `3eca78cc98a7721ea377837a2633fb8dcfb92782`; Vercel reported deployment success. The new lead queue page remains local pending PR review.
+
+## 2026-10-20 delta — Lead queue deployed; final external blockers
+
+- [x] PR #23 merged as `54724d3b70b913bfe53f1cda69d07df2b45466ec`; Vercel reported deployment success.
+- [x] **Production lead UI:** The authenticated staff page displayed exactly one marker-matched contact enquiry and one landlord submission; the landlord annual rent displayed as `₦1,000,000.50`.
+- [x] **Photo-upload behavior:** Production landlord form has zero file inputs and explicitly states that photo upload is unavailable. No submission was made.
+- [ ] **Telegram:** Requires a fresh search message from the user in the already approved test chat. Do not replay, fabricate, or alter workflows.
+- [ ] **Staff authentication:** No safe existing non-admin session is available to verify role restrictions. Do not send invitations/recovery emails; they remain paused.
