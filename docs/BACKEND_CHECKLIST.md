@@ -290,10 +290,12 @@ See BUILD_LOG.md, “Production public-form verification — 2026-10-20,” for 
 
 ## 2026-10-20 — Current inspection and operations blockers
 
-- **Production inspection detail:** The authorized synthetic property's `GET /api/properties/{id}` returned HTTP 500 with an empty body and no content type. The Vercel project Logs view returned HTTP 403 and remained loading, so the runtime failure is not diagnosed. Do not book until the detail route is fixed and the existing slot is rechecked for capacity.
+- **Production inspection detail:** The authorized synthetic property's `GET /api/properties/{id}` returned HTTP 500 with an empty body and no content type. The public listing response established that `rent_annual` is null; a local regression test reproduced the resulting `formatPrice(null)` TypeError. A local fix and regression coverage now pass, but the Production route has not yet been redeployed or rechecked. Do not book until the deployed detail route succeeds and the existing slot is rechecked for capacity.
 - **Production availability:** The existing synthetic slot is active with capacity one and had zero reservations at the last read-only check. This does not verify booking, receipt, staff approval, rescheduling, cancellation, or notification behavior.
 - **Staff/Vercel access:** An existing staff session and read-only staff API access were confirmed. A Vercel dashboard session was also available, but the Production `TWILIO_OUTBOUND_ENABLED` value was not safely read; do not infer its value.
 - **Telegram:** The approved private test chat is identified, but no new message or reply was sent. The local environment lacks the Telegram ingress and n8n relay secret values; neither value was requested or displayed.
-- No code, workflow, migration, property, slot, booking, account, or customer record was changed during this inspection investigation. No invitation or recovery email was sent.
+- During the earlier log-access investigation, no fixture, slot, booking, account, or customer record was changed; the later local route fix is recorded below. No migration, workflow change, invitation, or recovery email occurred.
 
 See BUILD_LOG.md, “Production inspection detail API failure,” for the exact endpoint and evidence limits.
+
+The local null-rent fix and its validation are recorded in BUILD_LOG.md, “Property detail null-rent root cause and local fix.”
