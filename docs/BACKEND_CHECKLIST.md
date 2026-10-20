@@ -340,3 +340,6 @@ This dated status supersedes the stale “unverified” items above only where e
 - [x] Removed anonymous/ordinary authenticated table access to private n8n chat memory; retained native PostgreSQL owner/service access and all data. No n8n execution or graph update.
 - [ ] Post-deployment staff/mobile/select browser verification — record actual results after deployment.
 - [ ] Finish unavailable settings controls, backup-code/device/access-request features; verify non-admin browser roles and large-data calendar/inbox boundaries. See STAFF_DASHBOARD_AUDIT.md; these are not silently marked complete.
+
+- [x] Preview public selects: inset 16px / reserve 44px, native selection and unchanged font sizes; Home/Browse/Submit Property mobile width checks have no document overflow. No form submission; viewport reset.
+- [ ] PR #22 protected-main merge: blocked by automatic approval review, awaiting explicit user release approval. New staff UI is not marked Production verified. Preview staff route requires separate sign-in; no auth bypass.

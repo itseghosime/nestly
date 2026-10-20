@@ -36,3 +36,12 @@ Status: corrections implemented; local and linked-database checks passed. Deploy
 **Concurrent work:** PR #20 read-state/retry work and PR #21 cancellation UI are retained. A short-lived empty audit read-state table was never exposed by a deployed app; reconciliation removed it only after an empty-table assertion. Canonical migrations 20261020190138, 20261020193000 (Copilot), 20261020193100 and 20261020193200 are ordered so a fresh replay creates the shared table before the activity RPC switches to it. Only the two audit-owned reconciliation/memory history versions were aligned to those canonical filenames; other history was untouched.
 
 **Preservation:** no n8n edits, provider sends, webhook replays, account creation, recordings, screenshots, PDF, image replacement, rent/fee edits, customer deletion or hosting configuration changes.
+
+
+## Preview verification and release gate
+
+- Vercel Preview deployment dpl_rY6XYsim5PZwWpnW8tnGS89RCbX2 is READY for code commit 017da421b19e85455cd4d016184b87e5ed3535fa (PR #22).
+- Connected Chrome, Preview environment: browse selectors compute appearance:none, trailing arrow inset 16px and text reserve 44px, retaining 12px browse type. Native sort selection works. At requested 390×844 viewport (reported document client width 384px), home and submission selectors have the same spacing and unchanged 14px / 12px type; no document horizontal overflow on Browse, Home or Submit Property. Seven submission and three home fields inspected; shared CSS covers all 27 source selects. No form submitted. Viewport override reset.
+- Staff Preview correctly redirects unauthenticated /staff/dashboard to /staff/signin. The Production staff session does not authorize this separate Preview origin. New customer/integration/badge staff UI has therefore NOT been verified interactively in Preview or Production; no account/sign-in/permission bypass was attempted.
+- Automatic approval review rejected the protected-main merge: the current audit request was not accepted as explicit approval for a merge triggering Production deployment. PR #22 remains open; no workaround, direct-main push or alternate Production deploy was used. Explicit user approval is required before merging and completing authenticated Production readback.
+- Database fixes already applied are independent of the blocked website-code release: shared activity function and private-memory web-role access restrictions. Existing website code remains on merged PR #21. All build logs and source changes preserve PR #20/#21 work.
