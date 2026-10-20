@@ -441,6 +441,14 @@ export default function InspectionRequestDetailPage({
                     <Clock className="w-4 h-4" />
                     <span>{saving ? 'Saving…' : 'Move to Selected Slot'}</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => void transitionBooking('cancelled')}
+                    disabled={saving}
+                    className="w-full rounded-full border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-bold text-red-800 disabled:opacity-50"
+                  >
+                    Cancel inspection
+                  </button>
                 </div>
               )}
 
@@ -480,14 +488,6 @@ export default function InspectionRequestDetailPage({
                       Mark no-show
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void transitionBooking('cancelled')}
-                    disabled={saving}
-                    className="w-full rounded-full border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-bold text-red-800 disabled:opacity-50"
-                  >
-                    Cancel inspection
-                  </button>
                 </div>
               )}
             </div>
