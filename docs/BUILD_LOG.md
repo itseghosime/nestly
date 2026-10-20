@@ -1279,3 +1279,22 @@ Remaining scope limits: AI geography is not an exhaustive Nigerian gazetteer; am
 - PR #16 merged normally as `dcb49ac620da8cbbfea37b0c2a35d92550673230`; it records the Production public-form observations above and changes documentation only.
 - GitHub reports Vercel `success` (“Deployment has completed”) for the merge commit at `2026-10-20T08:19:07Z`, deployment identifier `8SVAB5a62YCbp1o3pTF5WqzyQvVj`.
 - This successful status verifies deployment completion only; it does not establish the Vercel environment or assigned-domain mapping. The live form observations above were made before this docs-only merge.
+
+
+## 2026-10-20 — Authorized synthetic inspection property and slot
+
+The user explicitly requested creation of the proposed synthetic fixture and slot. Inspected the linked table constraints, lifecycle/slot guards, public discovery predicate, and booking function before creating data. No existing property/customer/booking records or staff assignments were modified. No schema migration or workflow change was made.
+
+Created in the existing linked Supabase project:
+- Synthetic property reference: NESTLY-QA-INSPECTION-001.
+- Property UUID: 6d4e2947-dd3f-45f3-ad27-59b4a7120895.
+- Slot alias (documentation mapping; inspection_slots has no name/reference column): NESTLY-QA-SLOT-001.
+- Slot UUID: 65eb5751-d74a-49b6-b412-0920c023d5c0.
+- Time: 2026-10-21 10:00–10:30 Africa/Lagos (09:00–09:30 UTC).
+- Capacity one; active; agent_id null (no real staff member assigned).
+- Title/tagline/description explicitly identify a synthetic test, no real property/address/viewing. No landlord/customer/contact/image data were copied. Zero price is a test placeholder with unspecified period, not a rental offer.
+- Property uses published/available/vetted lifecycle solely to exercise the existing public booking gate. This fixture status does not represent physical vetting of a real home. The synthetic listing is temporarily publicly discoverable for the authorized test.
+
+Linked readback confirmed exactly one matching slot and zero bookings. Production unauthenticated GET /api/inspections/slots?property_id=6d4e2947-dd3f-45f3-ad27-59b4a7120895 returned the exact synthetic slot, correct UTC times, and spaces_remaining=1. This verifies availability only, not booking submission, receipt, approval, notifications or cancellation. Those remain for the authorized Copilot acceptance test.
+
+The creation transaction used the synthetic reference and timestamp for idempotency and refused a pre-existing property without the synthetic marker. It did not disable triggers or constraints. No messages, emails, bookings, recordings, screenshots or PDF were created. After testing, retire this fixture through the normal slot/property lifecycle while respecting active reservations; no cleanup was performed here.
