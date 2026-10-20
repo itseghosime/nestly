@@ -244,18 +244,26 @@ See BUILD_LOG.md, “PR #3 release continuation — 2026-10-20,” for exact loc
 
 - [x] PR #3 merged normally as `4b0cd78bc9755c2c73ca5b44c264b08b6b3f645c`; merged source head `155d610e1ac9d1d058260ad1c29d679ffb2b448a`.
 - [x] GitHub reports Vercel status `success` for the merge SHA (deployment identifier `8E81qn2B1QK91DYyR6yWNqr9j2zp`).
-- [ ] Production revision is **not verified**: the public `nestly-sigma.vercel.app/staff/signin` page still rendered the stale “14 properties scheduled”, “14/14”, and physical-vetting claims, including on a no-cache request. Vercel status success does not resolve this mismatch.
+- [x] Source comparison found those claims were already present in the PR #3 merge commit and current main; their appearance on the public page did not prove a stale alias.
+- [ ] Vercel's unauthenticated deployment page does not expose the deployment environment/domain assignment, so the exact Production deployment and domain mapping remain unconfirmed.
 - [ ] Production form receipts/staff visibility, inspection lifecycle/capacity, staff auth/roles/permissions/audit, and notification read state remain unverified. The staff lead APIs are not yet wired to a staff page; per-user notification read/unread state is not implemented.
 - [ ] Telegram end-to-end remains blocked until the existing approved synthetic test chat is safely identified. No new or replayed Telegram message was sent. No invitation or recovery email was sent.
 
 See BUILD_LOG.md, “Post-merge production revision check — 2026-10-20,” for exact browser and HTTP evidence.
 
-## 2026-10-20 — Follow-up Production alias check
+## 2026-10-20 — Follow-up Production sign-in check
 
 - [x] PR #11 documentation update merged as `921f7efacbe0ec7e9d64aba165ee3fdff803bd47`; Vercel status reported success for that revision.
 - [x] Read-only Production pages returned HTTP 200: sign-in, contact, and landlord submission. Contact showed two Telegram links and no WhatsApp links; landlord showed no file input and disclosed photo upload unavailability.
 - [x] PR #12 merged as `6321aa4d1b1aae4e3d5a22c44b2b3e6fcbe8428f`; its Vercel status also reported success.
-- [ ] The sign-in page still showed the obsolete “14 properties scheduled”, “14/14”, and physical-vetting claims after both successful statuses. The Production alias/revision mismatch remains unresolved; do not treat the successful status as proof the merged UI is live.
+- [x] The sign-in page showed the same unsupported copy as the merged source; this is a content defect, not proof of a deployment mismatch.
+- [ ] Exact Production environment/domain mapping remains unverified because Vercel deployment details require an authenticated dashboard session.
 - [ ] No Production forms, staff actions, or database mutations were exercised. Staff access and the existing approved Telegram test chat remain unavailable for safe end-to-end verification.
 
 See BUILD_LOG.md, “Follow-up Production alias check — 2026-10-20,” for the exact observations.
+
+## 2026-10-20 — Staff sign-in truthfulness correction
+
+- [x] Replaced unsupported inspection metrics and physical-vetting claims with neutral staff-access copy; preserved the sign-in layout, image, and motion.
+- [ ] Verify the corrected sign-in copy on the public Production alias after the new commit deploys. No Vercel domain reassignment is claimed.
+- [x] Compared the pre-fix Production page to both the PR #3 merge source and main commit `9a4897a`; the matching unsupported copy was in source, so no deployment mismatch was established.
