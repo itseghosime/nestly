@@ -226,7 +226,7 @@
 - [ ] Nationwide geography remains model-based; ask for state/city when ambiguous. No exhaustive location coverage claim.
 See BUILD_LOG.md for the initial failed fallback test, relay correction, exact evidence and scope limits.
 
-## 2026-10-20 — PR #3 continuation (local; production checks pending)
+## 2026-10-20 — PR #3 continuation (historical pre-merge checkpoint)
 - [x] Integrated the current `origin/main` into the isolated PR #3 worktree and preserved current website/Telegram Nia, n8n, gallery, pricing, motion, staff ownership, and compact composer behavior.
 - [x] Corrected contact and landlord public POST routes to use the existing receipt-backed database RPCs. The migration grants function execution to anonymous/authenticated callers while revoking direct table inserts; the RPCs create the customer/lead and dashboard notification atomically. Corrected staff GET queries to read name/contact details from the linked customer relation. No schema migration or outbound email path was added.
 - [x] Local full suite: 279 passed, 16 skipped; application/test typechecks passed; production build generated 80/80 routes; full ESLint 0 errors/34 warnings.
@@ -239,3 +239,13 @@ See BUILD_LOG.md for the initial failed fallback test, relay correction, exact e
 - [ ] PR #3 remains subject to the current preview checks and production deployment verification; a successful build/deployment alone does not close the hosted behavior checks.
 
 See BUILD_LOG.md, “PR #3 release continuation — 2026-10-20,” for exact local evidence and limits.
+
+## 2026-10-20 — Post-merge Production revision check
+
+- [x] PR #3 merged normally as `4b0cd78bc9755c2c73ca5b44c264b08b6b3f645c`; merged source head `155d610e1ac9d1d058260ad1c29d679ffb2b448a`.
+- [x] GitHub reports Vercel status `success` for the merge SHA (deployment identifier `8E81qn2B1QK91DYyR6yWNqr9j2zp`).
+- [ ] Production revision is **not verified**: the public `nestly-sigma.vercel.app/staff/signin` page still rendered the stale “14 properties scheduled”, “14/14”, and physical-vetting claims, including on a no-cache request. Vercel status success does not resolve this mismatch.
+- [ ] Production form receipts/staff visibility, inspection lifecycle/capacity, staff auth/roles/permissions/audit, and notification read state remain unverified. The staff lead APIs are not yet wired to a staff page; per-user notification read/unread state is not implemented.
+- [ ] Telegram end-to-end remains blocked until the existing approved synthetic test chat is safely identified. No new or replayed Telegram message was sent. No invitation or recovery email was sent.
+
+See BUILD_LOG.md, “Post-merge production revision check — 2026-10-20,” for exact browser and HTTP evidence.
