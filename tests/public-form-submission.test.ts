@@ -35,6 +35,34 @@ describe('public form submission helpers', () => {
     expect(createKey).toHaveBeenCalledTimes(2);
   });
 
+  it('reuses the same idempotency key after an ambiguous network failure', async () => {
+    const storage = createStorage();
+    const createKey = vi.fn().mockReturnValue('network-retry-key-0001');
+    const payload = { name: 'Synthetic Contact', amount: 1_000_000.5 };
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new TypeError('synthetic network failure'))
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ requestReceived: true, confirmed: false }),
+        { status: 202, headers: { 'Content-Type': 'application/json' } },
+      ));
+
+    const firstSubmission = await getPendingFormSubmission(storage, 'contact', payload, createKey);
+    await expect(fetchMock('/api/leads/contact', {
+      headers: { 'Idempotency-Key': firstSubmission.key },
+    })).rejects.toThrow('synthetic network failure');
+
+    const retrySubmission = await getPendingFormSubmission(storage, 'contact', payload, createKey);
+    const retryResponse = await fetchMock('/api/leads/contact', {
+      headers: { 'Idempotency-Key': retrySubmission.key },
+    });
+
+    expect(retrySubmission.key).toBe(firstSubmission.key);
+    expect(await retryResponse.json()).toEqual({ requestReceived: true, confirmed: false });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][1]).toEqual(fetchMock.mock.calls[1][1]);
+    expect(createKey).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects malformed saved retry state instead of silently issuing another key', async () => {
     const storage = createStorage(new Map([['contact', '{broken']]));
     await expect(getPendingFormSubmission(storage, 'contact', { name: 'Ada' })).rejects.toThrow('saved retry key is invalid');

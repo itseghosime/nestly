@@ -316,3 +316,16 @@ This status supersedes the pre-deployment blocker above; its historical evidence
 - [ ] Telegram end-to-end and Production `TWILIO_OUTBOUND_ENABLED` remain unverified; no Telegram message or workflow change occurred.
 
 See BUILD_LOG.md, “Production property-detail fix and synthetic inspection,” for the exact Production functional evidence, limits, and safety boundaries.
+
+## 2026-10-20 delta — Release follow-up checks
+
+This dated status supersedes the stale “unverified” items above only where explicitly marked complete. See BUILD_LOG.md, “Release follow-up: staff notifications, inspection slots, and retries,” for evidence and boundaries.
+
+- [x] **Production staff API visibility:** Exactly one existing contact enquiry and one landlord submission matched `NESTLY-RELEASE-20261020`; the landlord record's stored annual rent was `1000000.5`. This does not claim a staff lead queue page is wired.
+- [x] **Production WhatsApp outbound control:** The read-only staff conversation response returned `whatsappOutboundEnabled: false` and `canSendWhatsApp: false`. No outbound message was sent, and no secret was inspected or exposed.
+- [x] **Local notification read-state implementation:** Per-profile persistence, staff API authorization, unread filtering, and explicit UI error handling are implemented and covered by focused tests. Production migration/deployment and browser reload persistence are still pending.
+- [x] **Local retry regression coverage:** Concurrent duplicate clicks and ambiguous network-failure retries passed in isolated tests for contact and landlord submissions; no Production form was repeated.
+- [ ] **Inspection reschedule/cancellation:** The approved synthetic booking remains on its original slot. Replacement-slot creation and lifecycle verification are pending release of unassigned-slot support. Do not mark the physical visit completed.
+- [ ] **Telegram lifecycle:** Blocked pending a fresh actual inbound message in the previously approved test chat. Do not replay old updates, fabricate webhook events, or change n8n workflows.
+- [ ] **Production access lifecycle:** Sign-out/re-authentication and non-admin role restrictions remain unverified without an existing safe second account/session. Invitation and recovery emails remain paused and unsent.
+- [ ] **Release:** The new code and additive notification migration are local only at this checkpoint. Linked dry-run listed only `20261020193000_nestly_notification_read_state.sql`; no database migration or deployment has occurred.

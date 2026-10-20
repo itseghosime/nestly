@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: 'Invalid enquiry details' }, { status: 400 });
 
   const client = await createClient();
-  const { data, error } = await client.rpc('submit_contact_enquiry', {
+  const submission = await client.rpc('submit_contact_enquiry', {
     p_property_id: parsed.data.propertyId ?? null,
     p_name: parsed.data.name,
     p_email: parsed.data.email.toLowerCase(),
@@ -69,7 +69,22 @@ export async function POST(request: Request) {
     p_message: parsed.data.message,
     p_receipt_hash: hashReceiptToken(receiptToken),
     p_idempotency_key: idempotencyKey,
-  });
+  }).then(
+    (result) => result,
+    (submissionError: unknown) => {
+      console.error(
+        'Contact enquiry submission failed before receipt confirmation',
+        submissionError instanceof Error ? submissionError.name : 'unknown',
+      );
+      return null;
+    },
+  );
+  if (!submission) {
+    return NextResponse.json({
+      error: 'Unable to confirm receipt. Retry with the unchanged form to avoid creating a duplicate.',
+    }, { status: 503 });
+  }
+  const { data, error } = submission;
   if (error) {
     if (error.code === '23505') return NextResponse.json({ error: 'Idempotency key was reused' }, { status: 409 });
     if (error.code === '22023') return NextResponse.json({ error: 'Property is unavailable or enquiry details are invalid' }, { status: 400 });
