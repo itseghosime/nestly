@@ -268,3 +268,9 @@ See BUILD_LOG.md, “Follow-up Production alias check — 2026-10-20,” for the
 - [x] PR #14 merged as `63df9193562dacf9c84e549a89cbbbb816e8a4c0`; Vercel reported deployment success and the public sign-in page showed the corrected copy without the unsupported claims.
 - [ ] Vercel's authenticated deployment environment/domain assignment remains unavailable for independent inspection; no internal alias reassignment was made.
 - [x] Compared the pre-fix Production page to both the PR #3 merge source and main commit `9a4897a`; the matching unsupported copy was in source, so no deployment mismatch was established.
+
+## 2026-10-20 — Approved Telegram test preflight
+
+- [x] User identified the approved private test conversation by the marker `NESTLY-TEST-OSI-20261020`; a read-only lookup matched one inbound row in a Telegram conversation with a linked identity.
+- [x] Read-only Telegram webhook metadata confirms the configured production URL is the Nestly webhook and there are zero pending updates. No updates were consumed or replayed.
+- [ ] Full synthetic conversation remains blocked: the local environment lacks the webhook ingress and n8n relay secrets, and no authenticated Vercel environment access is available. No message was sent.
