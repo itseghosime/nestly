@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { RefreshCw } from 'lucide-react';
 import { StaffHeader } from '@/components/staff/StaffHeader';
+import { CONTACT_STATUSES, LANDLORD_STATUSES, leadStatusLabel, type LeadKind } from '@/lib/lead-management';
 
 const contactEnquirySchema = z.object({
   id: z.string().uuid(),
@@ -12,6 +13,8 @@ const contactEnquirySchema = z.object({
   phone: z.string().nullable(),
   message: z.string(),
   status: z.string(),
+  updated_at: z.string().datetime({ offset: true }),
+  canUpdate: z.boolean().optional().default(false),
   created_at: z.string(),
 });
 
@@ -29,6 +32,8 @@ const landlordSubmissionSchema = z.object({
   expected_annual_rent: z.number(),
   description: z.string(),
   status: z.string(),
+  updated_at: z.string().datetime({ offset: true }),
+  canUpdate: z.boolean().optional().default(false),
   created_at: z.string(),
 });
 
@@ -84,7 +89,79 @@ async function loadQueue<T>(
   }
 }
 
-function ContactQueue({ state }: { state: QueueState<ContactEnquiry> }) {
+
+type LeadRevision = { id: string; status: string; updated_at: string };
+const leadRevisionSchema = z.object({
+  data: z.object({ id: z.string().uuid(), status: z.string(), updated_at: z.string().datetime({ offset: true }) }),
+});
+
+function LeadStatusControl({ kind, lead, onSaved }: {
+  kind: LeadKind;
+  lead: LeadRevision & { canUpdate: boolean };
+  onSaved: (revision: LeadRevision) => void;
+}) {
+  const choices = (kind === 'contact' ? CONTACT_STATUSES : LANDLORD_STATUSES)
+    .filter(status => status !== 'new' && status !== lead.status);
+  const [selected, setSelected] = useState<string>('');
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState('');
+  const inFlight = useRef(false);
+  const target = choices.some(status => status === selected) ? selected : choices[0] || '';
+  if (!lead.canUpdate) {
+    return <p className="mt-3 text-xs text-muted-ink">Your role can view this submission.</p>;
+  }
+  const save = async () => {
+    if (inFlight.current || !target) return;
+    inFlight.current = true;
+    setSaving(true);
+    setFeedback('');
+    try {
+      const response = await fetch(`/api/leads/${kind}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: lead.id, status: target, expectedUpdatedAt: lead.updated_at }),
+      });
+      const body: unknown = await response.json().catch(() => null);
+      const parsed = leadRevisionSchema.safeParse(body);
+      if (!response.ok || !parsed.success || parsed.data.data.id !== lead.id) {
+        const error = body && typeof body === 'object' && 'error' in body && typeof body.error === 'string'
+          ? body.error : 'Unable to confirm the status update. Refresh before retrying.';
+        throw new Error(error);
+      }
+      onSaved(parsed.data.data);
+      setSelected('');
+      setFeedback('Status saved.');
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'Unable to confirm the status update. Refresh before retrying.');
+    } finally {
+      inFlight.current = false;
+      setSaving(false);
+    }
+  };
+  return (
+    <div className="mt-4 border-t border-hairline pt-3">
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-0 flex-1">
+          <label htmlFor={`lead-status-${lead.id}`} className="mb-1 block text-xs font-semibold text-charcoal">Update status</label>
+          <select id={`lead-status-${lead.id}`} value={target} onChange={event => setSelected(event.target.value)}
+            disabled={saving} className="w-full rounded-xl border border-hairline bg-white py-2 pl-3 text-xs disabled:opacity-50">
+            {choices.map(status => <option key={status} value={status}>{leadStatusLabel(status)}</option>)}
+          </select>
+        </div>
+        <button type="button" onClick={() => void save()} disabled={saving || !target}
+          className="shrink-0 rounded-full bg-charcoal px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">
+          {saving ? 'Saving…' : 'Save status'}
+        </button>
+      </div>
+      <p className="mt-2 text-xs text-muted-ink">
+        {kind === 'landlord' ? 'Acceptance records staff review; it does not publish a listing.' : 'Status changes do not send a message to the customer.'}
+      </p>
+      {feedback && <p role="status" aria-live="polite" className="mt-2 text-xs text-charcoal">{feedback}</p>}
+    </div>
+  );
+}
+
+function ContactQueue({ state, onSaved }: { state: QueueState<ContactEnquiry>; onSaved: (revision: LeadRevision) => void }) {
   return (
     <section className="rounded-3xl border border-hairline bg-white p-5 shadow-sm sm:p-6">
       <h2 className="font-headline text-lg font-bold text-charcoal">Contact enquiries</h2>
@@ -108,11 +185,12 @@ function ContactQueue({ state }: { state: QueueState<ContactEnquiry> }) {
                   </p>
                 </div>
                 <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase text-muted-ink">
-                  {enquiry.status}
+                  {leadStatusLabel(enquiry.status)}
                 </span>
               </div>
               <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-charcoal/80">{enquiry.message}</p>
               <p className="mt-3 text-[11px] text-muted-ink">{formatDate(enquiry.created_at)}</p>
+              <LeadStatusControl kind="contact" lead={enquiry} onSaved={onSaved} />
             </li>
           ))}
         </ul>
@@ -121,7 +199,7 @@ function ContactQueue({ state }: { state: QueueState<ContactEnquiry> }) {
   );
 }
 
-function LandlordQueue({ state }: { state: QueueState<LandlordSubmission> }) {
+function LandlordQueue({ state, onSaved }: { state: QueueState<LandlordSubmission>; onSaved: (revision: LeadRevision) => void }) {
   return (
     <section className="rounded-3xl border border-hairline bg-white p-5 shadow-sm sm:p-6">
       <h2 className="font-headline text-lg font-bold text-charcoal">Landlord submissions</h2>
@@ -145,7 +223,7 @@ function LandlordQueue({ state }: { state: QueueState<LandlordSubmission> }) {
                   </p>
                 </div>
                 <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase text-muted-ink">
-                  {submission.status}
+                  {leadStatusLabel(submission.status)}
                 </span>
               </div>
               <p className="mt-3 text-sm font-semibold text-charcoal">
@@ -161,6 +239,7 @@ function LandlordQueue({ state }: { state: QueueState<LandlordSubmission> }) {
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-charcoal/80">{submission.description}</p>
               )}
               <p className="mt-3 text-[11px] text-muted-ink">{formatDate(submission.created_at)}</p>
+              <LeadStatusControl kind="landlord" lead={submission} onSaved={onSaved} />
             </li>
           ))}
         </ul>
@@ -209,12 +288,14 @@ export default function StaffLeadsPage() {
         <div>
           <h1 className="font-headline text-2xl font-bold tracking-tight text-charcoal sm:text-3xl">Lead Submissions</h1>
           <p className="mt-1 text-sm text-charcoal/70">
-            Live contact enquiries and property submissions visible to your staff role.
+            Contact enquiries and property submissions visible to your staff role. Showing up to 100 recent entries per queue.
           </p>
         </div>
         <div className="grid gap-6 xl:grid-cols-2">
-          <ContactQueue state={contactState} />
-          <LandlordQueue state={landlordState} />
+          <ContactQueue state={contactState} onSaved={revision => setContactState(previous => previous.status === 'ready'
+            ? { status: 'ready', data: previous.data.map(lead => lead.id === revision.id ? { ...lead, ...revision } : lead) } : previous)} />
+          <LandlordQueue state={landlordState} onSaved={revision => setLandlordState(previous => previous.status === 'ready'
+            ? { status: 'ready', data: previous.data.map(lead => lead.id === revision.id ? { ...lead, ...revision } : lead) } : previous)} />
         </div>
       </main>
     </div>

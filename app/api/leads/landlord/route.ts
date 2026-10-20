@@ -8,6 +8,7 @@ import {
   hashReceiptToken,
 } from '@/lib/backend/public-request';
 import { requireStaff } from '@/lib/backend/staff-context';
+import { updateStaffLead } from '@/lib/backend/staff-lead-update';
 import { createClient } from '@/lib/supabase/server';
 
 const landlordSchema = z.object({
@@ -24,7 +25,8 @@ const landlordSchema = z.object({
   description: z.string().trim().max(4000).optional().default(''),
 }).refine((value) => value.email.length > 0 || value.phone.length >= 5);
 
-const LANDLORD_STAFF_ROLES = ['Platform Admin', 'Operations Lead', 'Field Vetting Agent', 'Legal & Compliance'] as const;
+const LANDLORD_STAFF_ROLES = ['Platform Admin', 'Operations Lead', 'Customer Care'] as const;
+const LANDLORD_MANAGERS = ['Platform Admin', 'Operations Lead'] as const;
 
 export async function GET() {
   const { context, response } = await requireStaff(LANDLORD_STAFF_ROLES);
@@ -52,6 +54,7 @@ export async function GET() {
         expected_annual_rent: submission.expected_annual_rent,
         description: submission.description,
         status: submission.status,
+        canUpdate: context.role === 'Platform Admin' || context.role === 'Operations Lead',
         created_at: submission.created_at,
         updated_at: submission.updated_at,
       };
@@ -113,19 +116,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const originFailure = assertSameOrigin(request);
   if (originFailure) return originFailure;
-  const { context, response } = await requireStaff(LANDLORD_STAFF_ROLES);
+  const { context, response } = await requireStaff(LANDLORD_MANAGERS);
   if (response) return response;
-  const parsed = z.object({
-    id: z.string().uuid(),
-    status: z.enum(['in_review', 'accepted', 'rejected']),
-  }).safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: 'Invalid landlord submission update' }, { status: 400 });
-  const { data, error } = await context.client.from('landlord_submissions')
-    .update({ status: parsed.data.status, updated_at: new Date().toISOString() })
-    .eq('id', parsed.data.id)
-    .select('id, status, updated_at')
-    .maybeSingle();
-  if (error) return NextResponse.json({ error: 'Unable to update landlord submission' }, { status: 503 });
-  if (!data) return NextResponse.json({ error: 'Submission not found or inaccessible' }, { status: 404 });
-  return NextResponse.json({ data });
+  return updateStaffLead(request, context, 'landlord');
 }

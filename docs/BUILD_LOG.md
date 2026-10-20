@@ -1389,3 +1389,14 @@ The user explicitly approved merging PR #22 and deploying the staff/sidebar/sele
 - Production integrations readback: Database query passed; Telegram bot and webhook verified through read-only checks; Nia enabled/configured (not a model-health or delivery assertion); WhatsApp deferred with new staff outbound disabled.
 - No messages, provider sends, replays, emails, account changes, n8n edits, migrations, price/media changes, screenshots, recordings or PDFs in this release pass. Existing remaining staff controls and non-admin/browser-flow gaps remain tracked in STAFF_DASHBOARD_AUDIT.md.
 - Test environments: earlier local audit reported 309 passed / 16 skipped; not rerun in this pass because the execution filesystem was unavailable. Reconciled Preview build and Production build/readbacks above are independent evidence. A direct API-page navigation was browser-blocked; counts were instead verified through the authorized read-only database function. Localhost on the user's Mac was not updated by this remote merge.
+
+
+### 20 October 2026 — Two-workstream release completion started
+
+The user requested a split between ChatGPT and Antigravity. Ownership, exact branches, safeguards and remaining acceptance gates are in docs/RELEASE_WORK_OWNERSHIP.md. ChatGPT owns backend/staff operations and the settings/lead pages; Antigravity owns responsive presentation and browser validation, with separate evidence files to avoid overwriting this log.
+
+First branch implementation: status controls on the existing lead queue; landlord role-list reconciliation with linked RLS; revision-checked mutations and safe no-op retries; Nia outcome diagnostics using a one-way request fingerprint without chat/identity/secret values. Focused regression cases added. No schema, data or workflow changes and no messages or emails.
+
+Read-only linked findings: workspace name/duration/dispatch columns are absent; lead status CHECK constraints and current row policies inspected; no mutation audit trigger on lead/workspace tables. Nia WF02 is active but configured not to save success/error executions, and the execution search returned zero; therefore the earlier delayed response source is not reconstructed. External WF01 remains active even though app WhatsApp sending is deferred.
+
+Verification limitation: local execution environment unavailable. The installed Next.js docs could not be read; official route-handler source documentation was consulted as fallback while preserving existing handler conventions. Tests/typechecks/builds for these new changes are not claimed passed. No Production merge or deployment of this workstream until review and checks; existing PR #22 evidence remains valid for its own revision.

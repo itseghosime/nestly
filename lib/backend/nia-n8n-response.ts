@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { getNiaSocialReply } from '@/lib/backend/nia-social-reply';
 import type { NiaConversationAnswer } from '@/lib/backend/nia-conversation-response';
 
@@ -17,7 +18,7 @@ export function sanitizeNiaHistory(rows: unknown, currentMessageId: string): Nia
     }));
 }
 
-export async function generateNiaAiReply(
+async function generateNiaAiReplyInternal(
   input: { requestId: string; query: string; answer: NiaConversationAnswer; history: NiaHistoryMessage[]; returningUser?: boolean },
   options: { env?: NodeJS.ProcessEnv; fetcher?: typeof fetch } = {},
 ): Promise<NiaAiResult> {
@@ -84,6 +85,23 @@ export async function generateNiaAiReply(
     const welcome = getReturningNiaGreeting(input.query, input.returningUser === true);
     return { status: 'generated', message: welcome && !/welcome back/i.test(message) ? welcome : message, kind };
   } catch { return { status: 'fallback', reason: 'AGENT_UNAVAILABLE' }; }
+}
+
+
+/** Operational evidence only: never log queries, responses, identities, URLs or secrets. */
+export async function generateNiaAiReply(
+  input: Parameters<typeof generateNiaAiReplyInternal>[0],
+  options: Parameters<typeof generateNiaAiReplyInternal>[1] = {},
+): Promise<NiaAiResult> {
+  const startedAt = Date.now();
+  const result = await generateNiaAiReplyInternal(input, options);
+  console.info('Nia response outcome', {
+    requestFingerprint: createHash('sha256').update(input.requestId).digest('hex').slice(0, 20),
+    source: result.status === 'generated' ? 'n8n' : 'fallback',
+    reason: result.status === 'fallback' ? result.reason : null,
+    durationMs: Math.max(0, Date.now() - startedAt),
+  });
+  return result;
 }
 
 export function getReturningNiaGreeting(query: string, returningUser: boolean): string | null {

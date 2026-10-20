@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateNiaAiReply, sanitizeNiaHistory, getReturningNiaGreeting, hasPriorTelegramMessages } from '@/lib/backend/nia-n8n-response';
 import { formatTelegramPropertySearchReply } from '@/lib/backend/telegram';
 
@@ -14,6 +14,9 @@ const input = {
   answer: { message: 'Hello', properties: [], context: { preferences: null, recentPropertyIds: [], selectedPropertyId: null } },
 };
 const result = (message: string, requestId = input.requestId) => new Response(JSON.stringify({ version: 1, requestId, message }));
+
+beforeEach(() => { vi.spyOn(console, 'info').mockImplementation(() => {}); });
+afterEach(() => { vi.restoreAllMocks(); });
 
 describe('n8n Nia response bridge', () => {
   it('sends authenticated bounded context and accepts a matching AI response', async () => {
@@ -112,5 +115,28 @@ describe('returning Telegram visitors', () => {
     expect(reply).toMatchObject({ status: 'generated', message: 'Welcome back! 👋 How can I help you today?' });
     const [, request] = fetcher.mock.calls[0]!;
     expect(JSON.parse(String(request?.body)).visitor).toEqual({ returningUser: true });
+  });
+});
+
+describe('Nia response evidence without chat disclosure', () => {
+  it('records a generated source and bounded correlation fingerprint without payload values', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(result('Hey! Happy to help.'));
+    await generateNiaAiReply({ ...input, query: 'private user content', history: [{ role: 'user', content: 'private history' }] }, { env, fetcher });
+    expect(console.info).toHaveBeenCalledWith('Nia response outcome', {
+      requestFingerprint: expect.stringMatching(/^[a-f0-9]{20}$/),
+      source: 'n8n', reason: null, durationMs: expect.any(Number),
+    });
+    const output = JSON.stringify(vi.mocked(console.info).mock.calls);
+    for (const privateValue of [input.requestId, 'private user content', 'private history', env.NESTLY_WF01_RELAY_SECRET, env.NIA_N8N_WEBHOOK_URL, 'Hey! Happy to help.']) {
+      expect(output).not.toContain(privateValue);
+    }
+  });
+  it('records the fallback outcome once, without attempting any send or retry', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockRejectedValue(new Error('private provider detail'));
+    await generateNiaAiReply(input, { env, fetcher });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(console.info).toHaveBeenCalledTimes(1);
+    expect(console.info).toHaveBeenCalledWith('Nia response outcome', expect.objectContaining({ source: 'fallback', reason: 'AGENT_UNAVAILABLE' }));
+    expect(JSON.stringify(vi.mocked(console.info).mock.calls)).not.toContain('private provider detail');
   });
 });
