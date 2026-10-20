@@ -30,11 +30,33 @@ export async function GET() {
   const { context, response } = await requireStaff(LANDLORD_STAFF_ROLES);
   if (response) return response;
   const { data, error } = await context.client.from('landlord_submissions')
-    .select('id, customer_id, name, email, phone, property_type, state, city, neighborhood, address, bedrooms, expected_annual_rent, description, status, created_at, updated_at')
+    .select('id, customer_id, property_type, state, city, neighborhood, address, bedrooms, expected_annual_rent, description, status, created_at, updated_at, customer:customers!landlord_submissions_customer_id_fkey(full_name, display_name, email, phone)')
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) return NextResponse.json({ error: 'Unable to load landlord submissions' }, { status: 503 });
-  return NextResponse.json({ data });
+  return NextResponse.json({
+    data: (data || []).map((submission) => {
+      const customer = Array.isArray(submission.customer) ? submission.customer[0] : submission.customer;
+      return {
+        id: submission.id,
+        customer_id: submission.customer_id,
+        name: customer?.display_name || customer?.full_name || null,
+        email: customer?.email || null,
+        phone: customer?.phone || null,
+        property_type: submission.property_type,
+        state: submission.state,
+        city: submission.city,
+        neighborhood: submission.neighborhood,
+        address: submission.address,
+        bedrooms: submission.bedrooms,
+        expected_annual_rent: submission.expected_annual_rent,
+        description: submission.description,
+        status: submission.status,
+        created_at: submission.created_at,
+        updated_at: submission.updated_at,
+      };
+    }),
+  });
 }
 
 export async function POST(request: Request) {

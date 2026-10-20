@@ -6,6 +6,11 @@ const routeMocks = vi.hoisted(() => ({
   rpc: vi.fn(),
   deriveReceiptToken: vi.fn(),
   hashReceiptToken: vi.fn(),
+  requireStaff: vi.fn(),
+  staffFrom: vi.fn(),
+  staffSelect: vi.fn(),
+  staffOrder: vi.fn(),
+  staffLimit: vi.fn(),
 }));
 
 vi.mock('@/lib/backend/public-request', () => ({
@@ -20,8 +25,12 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: routeMocks.createClient,
 }));
 
-import { POST as submitContactEnquiry } from '@/app/api/leads/contact/route';
-import { POST as submitLandlordProperty } from '@/app/api/leads/landlord/route';
+vi.mock('@/lib/backend/staff-context', () => ({
+  requireStaff: routeMocks.requireStaff,
+}));
+
+import { GET as loadContactEnquiries, POST as submitContactEnquiry } from '@/app/api/leads/contact/route';
+import { GET as loadLandlordSubmissions, POST as submitLandlordProperty } from '@/app/api/leads/landlord/route';
 
 const contactPayload = {
   name: 'Synthetic Contact',
@@ -66,6 +75,99 @@ describe('public lead receipt-backed submissions', () => {
       data: [{ status: 'new', public_reference: 'SYNTHETIC-REFERENCE' }],
       error: null,
     });
+    const staffQuery = {
+      select: routeMocks.staffSelect,
+      order: routeMocks.staffOrder,
+      limit: routeMocks.staffLimit,
+    };
+    routeMocks.staffFrom.mockReturnValue(staffQuery);
+    routeMocks.staffSelect.mockReturnValue(staffQuery);
+    routeMocks.staffOrder.mockReturnValue(staffQuery);
+    routeMocks.staffLimit.mockResolvedValue({ data: [], error: null });
+    routeMocks.requireStaff.mockResolvedValue({
+      context: {
+        client: { from: routeMocks.staffFrom },
+        role: 'Customer Care',
+        userId: 'synthetic-staff-id',
+      },
+      response: null,
+    });
+  });
+
+  it('loads contact enquiries through their linked customer record for authorized staff', async () => {
+    routeMocks.staffLimit.mockResolvedValue({
+      data: [{
+        id: 'synthetic-enquiry-id',
+        customer_id: 'synthetic-customer-id',
+        property_id: null,
+        message: 'Synthetic enquiry',
+        status: 'new',
+        created_at: '2026-10-20T00:00:00.000Z',
+        updated_at: '2026-10-20T00:00:00.000Z',
+        customer: {
+          display_name: 'Synthetic Contact',
+          full_name: 'Synthetic Contact',
+          email: 'contact@example.test',
+          phone: '+15555550123',
+        },
+      }],
+      error: null,
+    });
+
+    const response = await loadContactEnquiries();
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).data[0]).toMatchObject({
+      id: 'synthetic-enquiry-id',
+      name: 'Synthetic Contact',
+      email: 'contact@example.test',
+      phone: '+15555550123',
+      message: 'Synthetic enquiry',
+    });
+    expect(routeMocks.staffFrom).toHaveBeenCalledWith('contact_enquiries');
+    expect(routeMocks.staffSelect).toHaveBeenCalledWith(expect.stringContaining('customer:customers!contact_enquiries_customer_id_fkey'));
+    expect(routeMocks.requireStaff).toHaveBeenCalledWith(['Platform Admin', 'Operations Lead', 'Customer Care']);
+  });
+
+  it('loads landlord submissions through their linked customer record for authorized staff', async () => {
+    routeMocks.staffLimit.mockResolvedValue({
+      data: [{
+        id: 'synthetic-submission-id',
+        customer_id: 'synthetic-customer-id',
+        property_type: 'Apartment',
+        state: 'Edo',
+        city: 'Benin City',
+        neighborhood: 'Synthetic District',
+        address: 'SYNTHETIC ONLY',
+        bedrooms: 2,
+        expected_annual_rent: 2_500_000.5,
+        description: 'Synthetic details',
+        status: 'new',
+        created_at: '2026-10-20T00:00:00.000Z',
+        updated_at: '2026-10-20T00:00:00.000Z',
+        customer: {
+          display_name: 'Synthetic Owner',
+          full_name: 'Synthetic Owner',
+          email: 'owner@example.test',
+          phone: '+15555550124',
+        },
+      }],
+      error: null,
+    });
+
+    const response = await loadLandlordSubmissions();
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).data[0]).toMatchObject({
+      id: 'synthetic-submission-id',
+      name: 'Synthetic Owner',
+      email: 'owner@example.test',
+      phone: '+15555550124',
+      expected_annual_rent: 2_500_000.5,
+    });
+    expect(routeMocks.staffFrom).toHaveBeenCalledWith('landlord_submissions');
+    expect(routeMocks.staffSelect).toHaveBeenCalledWith(expect.stringContaining('customer:customers!landlord_submissions_customer_id_fkey'));
+    expect(routeMocks.requireStaff).toHaveBeenCalledWith(['Platform Admin', 'Operations Lead', 'Field Vetting Agent', 'Legal & Compliance']);
   });
 
   it('submits contact enquiries through the database receipt function and reuses the same key on retry', async () => {

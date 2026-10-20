@@ -27,11 +27,27 @@ export async function GET() {
   const { context, response } = await requireStaff(CONTACT_STAFF_ROLES);
   if (response) return response;
   const { data, error } = await context.client.from('contact_enquiries')
-    .select('id, customer_id, property_id, name, email, phone, message, status, created_at, updated_at')
+    .select('id, customer_id, property_id, message, status, created_at, updated_at, customer:customers!contact_enquiries_customer_id_fkey(full_name, display_name, email, phone)')
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) return NextResponse.json({ error: 'Unable to load contact enquiries' }, { status: 503 });
-  return NextResponse.json({ data });
+  return NextResponse.json({
+    data: (data || []).map((enquiry) => {
+      const customer = Array.isArray(enquiry.customer) ? enquiry.customer[0] : enquiry.customer;
+      return {
+        id: enquiry.id,
+        customer_id: enquiry.customer_id,
+        property_id: enquiry.property_id,
+        name: customer?.display_name || customer?.full_name || null,
+        email: customer?.email || null,
+        phone: customer?.phone || null,
+        message: enquiry.message,
+        status: enquiry.status,
+        created_at: enquiry.created_at,
+        updated_at: enquiry.updated_at,
+      };
+    }),
+  });
 }
 
 export async function POST(request: Request) {

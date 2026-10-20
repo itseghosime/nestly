@@ -66,6 +66,12 @@ describe('public receipt tokens', () => {
     expect(offerToken).toMatch(/^[a-f0-9]{64}$/);
     expect(deriveReceiptToken('offer', key)).toBe(offerToken);
     expect(deriveReceiptToken('inspection', key)).not.toBe(offerToken);
+    const contactToken = deriveReceiptToken('contact-enquiry', key);
+    const landlordToken = deriveReceiptToken('landlord-submission', key);
+    expect(contactToken).toMatch(/^[a-f0-9]{64}$/);
+    expect(landlordToken).toMatch(/^[a-f0-9]{64}$/);
+    expect(contactToken).not.toBe(landlordToken);
+    expect(contactToken).not.toBe(offerToken);
     expect(hashReceiptToken(offerToken!)).not.toBe(offerToken);
   });
 
