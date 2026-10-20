@@ -249,3 +249,12 @@ See BUILD_LOG.md, “PR #3 release continuation — 2026-10-20,” for exact loc
 - [ ] Telegram end-to-end remains blocked until the existing approved synthetic test chat is safely identified. No new or replayed Telegram message was sent. No invitation or recovery email was sent.
 
 See BUILD_LOG.md, “Post-merge production revision check — 2026-10-20,” for exact browser and HTTP evidence.
+
+## 2026-10-20 — Follow-up Production alias check
+
+- [x] PR #11 documentation update merged as `921f7efacbe0ec7e9d64aba165ee3fdff803bd47`; Vercel status reported success for that revision.
+- [x] Read-only Production pages returned HTTP 200: sign-in, contact, and landlord submission. Contact showed two Telegram links and no WhatsApp links; landlord showed no file input and disclosed photo upload unavailability.
+- [ ] The sign-in page still showed the obsolete “14 properties scheduled”, “14/14”, and physical-vetting claims after the Vercel success status. The Production alias/revision mismatch remains unresolved; do not treat the successful status as proof the merged UI is live.
+- [ ] No Production forms, staff actions, or database mutations were exercised. Staff access and the existing approved Telegram test chat remain unavailable for safe end-to-end verification.
+
+See BUILD_LOG.md, “Follow-up Production alias check — 2026-10-20,” for the exact observations.
