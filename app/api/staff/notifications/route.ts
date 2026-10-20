@@ -98,7 +98,9 @@ export async function GET(request: Request) {
       type: notificationKind(notification.template_key),
       title: notificationTitle(notification.template_key),
       badge: notification.template_key,
-      description: `Delivery status: ${notification.status}. Attempts: ${notification.attempts}.`,
+      description: notification.channel === 'dashboard'
+        ? 'Saved workspace alert. Read status is personal to your staff account.'
+        : `Provider delivery status: ${notification.status}. Attempts: ${notification.attempts}.`,
       createdAt: notification.created_at,
       channel: notification.channel,
       statusText: notification.status,
@@ -113,7 +115,7 @@ export async function GET(request: Request) {
     page: parsed.data.page,
     pageSize: 50,
     total: count || 0,
-  });
+  }, { headers: { 'Cache-Control': 'private, no-store' } });
 }
 
 export async function PATCH(request: Request) {

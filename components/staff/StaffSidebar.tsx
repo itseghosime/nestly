@@ -2,9 +2,10 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
+import { useStaffActivity } from '@/lib/staff-activity';
 import { MOTION, prefersReducedMotion } from '@/lib/motion';
 import { getStaffIdentityLabels, type StaffProfileIdentity } from '@/lib/staff-identity';
 import {
@@ -33,6 +34,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function StaffSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState('');
+  const activity = useStaffActivity();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [drawerMounted, setDrawerMounted] = useState(false);
   const [staffProfile, setStaffProfile] = useState<StaffProfileIdentity | null>(null);
@@ -98,11 +103,20 @@ export function StaffSidebar() {
 
   useEffect(() => {
     if (!drawerMounted) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    drawerPanelRef.current?.querySelector<HTMLElement>('button')?.focus();
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeMobileDrawer();
+      if (e.key === 'Tab' && drawerPanelRef.current) {
+        const targets = Array.from(drawerPanelRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), a[href]'));
+        const first = targets[0]; const last = targets[targets.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
     };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => { window.removeEventListener('keydown', onKeyDown); document.body.style.overflow = previousOverflow; };
   }, [drawerMounted, closeMobileDrawer]);
 
   useEffect(() => {
@@ -141,7 +155,8 @@ export function StaffSidebar() {
       label: 'Conversations',
       href: '/staff/inbox',
       icon: MessageSquare,
-      badge: '2',
+      badge: activity?.attentionCount || undefined,
+      badgeLabel: 'Human handoffs unassigned or assigned to you',
     },
     { label: 'Customer Directory', href: '/staff/customers', icon: Users },
     { label: 'Property Management', href: '/staff/properties', icon: Building },
@@ -164,7 +179,8 @@ export function StaffSidebar() {
       label: 'Notifications',
       href: '/staff/notifications',
       icon: Bell,
-      badge: '3',
+      badge: activity?.unreadNotifications || undefined,
+      badgeLabel: 'Unread notifications for you',
     },
     { label: 'Team & Roles', href: '/staff/team', icon: Shield },
     { label: 'Profile & Security', href: '/staff/profile', icon: Shield },
@@ -232,7 +248,7 @@ export function StaffSidebar() {
                   <span>{item.label}</span>
                 </div>
                 {item.badge && (
-                  <span className="px-2 py-0.5 rounded-full bg-persimmon text-white text-[10px] font-bold">
+                  <span title={item.badgeLabel} aria-label={`${item.badge} ${item.badgeLabel}`} className="shrink-0 px-2 py-0.5 rounded-full bg-persimmon text-white text-[10px] font-bold">
                     {item.badge}
                   </span>
                 )}
@@ -258,6 +274,7 @@ export function StaffSidebar() {
 
       {/* Footer Profile & Sign Out */}
       <div className="pt-4 border-t border-hairline">
+        {signOutError && <p role="alert" className="mb-2 text-xs text-rose-700">{signOutError}</p>}
         <div className="flex items-center justify-between p-2 rounded-2xl bg-white border border-hairline shadow-2xs">
           <Link
             href="/staff/profile"
@@ -282,7 +299,17 @@ export function StaffSidebar() {
           <button
             type="button"
             title="Sign out"
-            onClick={async () => { await fetch('/api/auth/signout', { method: 'POST' }); window.location.href = '/staff/signin'; }}
+            disabled={signingOut}
+            onClick={async () => {
+              if (signingOut) return;
+              setSigningOut(true); setSignOutError('');
+              try {
+                const response = await fetch('/api/auth/signout', { method: 'POST' });
+                if (!response.ok) throw new Error('Unable to sign out. Please try again.');
+                router.replace('/staff/signin'); router.refresh();
+              } catch (error) { setSignOutError(error instanceof Error ? error.message : 'Unable to sign out'); }
+              finally { setSigningOut(false); }
+            }}
             className="w-8 h-8 rounded-full hover:bg-soft-stone text-muted-ink hover:text-persimmon flex items-center justify-center transition-colors ml-1"
           >
             <LogOut className="w-3.5 h-3.5" />

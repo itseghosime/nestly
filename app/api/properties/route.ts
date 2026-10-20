@@ -15,6 +15,10 @@ function safeFilterValue(value: string): string {
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
+  const staffStatus = url.searchParams.get('staff_status') || 'all';
+  if (!['all', 'available', 'in-review', 'draft', 'rented'].includes(staffStatus)) {
+    return NextResponse.json({ error: 'Invalid property status filter' }, { status: 400 });
+  }
   const location = url.searchParams.get('location') || 'all';
   const beds = url.searchParams.get('beds') || 'all';
   const rawMaxPrice = url.searchParams.get('maxPrice') || url.searchParams.get('max_price');
@@ -51,9 +55,16 @@ export async function GET(request: Request) {
   }
 
   const isStaff = STAFF_ROLES.includes(staffRole as (typeof STAFF_ROLES)[number]);
+  if (staffStatus !== 'all' && !isStaff) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
   const maxPrice = getEffectiveMaxAnnualRent(requestedMaxPrice, isStaff);
   const table = isStaff ? 'properties' : 'public_properties';
   let query = supabase.from(table).select('*', { count: 'exact' });
+
+  if (staffStatus === 'draft') query = query.eq('publication_state', 'draft');
+  if (staffStatus === 'in-review') query = query.eq('publication_state', 'review');
+  if (staffStatus === 'available' || staffStatus === 'rented') {
+    query = query.eq('publication_state', 'published').eq('rental_availability', staffStatus === 'available' ? 'available' : 'rented');
+  }
 
   if (location !== 'all') {
     const loc = safeFilterValue(location.toLowerCase());
@@ -67,7 +78,7 @@ export async function GET(request: Request) {
   }
   if (type !== 'all') query = query.eq('property_type', type);
   if (maxPrice !== null) query = query.lte('rent_annual', maxPrice);
-  if (keyword) query = query.or(`title.ilike.%${keyword}%,tagline.ilike.%${keyword}%,neighborhood.ilike.%${keyword}%`);
+  if (keyword) query = query.or(`title.ilike.%${keyword}%,reference.ilike.%${keyword}%,tagline.ilike.%${keyword}%,neighborhood.ilike.%${keyword}%,city.ilike.%${keyword}%,state.ilike.%${keyword}%`);
 
   if (sort === 'price-asc') query = query.order('rent_annual', { ascending: true });
   else if (sort === 'price-desc') query = query.order('rent_annual', { ascending: false });

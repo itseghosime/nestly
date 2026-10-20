@@ -330,3 +330,13 @@ This dated status supersedes the stale “unverified” items above only where e
 - [ ] **Telegram lifecycle:** Blocked pending a fresh actual inbound message in the previously approved test chat. Do not replay old updates, fabricate webhook events, or change n8n workflows.
 - [ ] **Production access lifecycle:** Sign-out/re-authentication and non-admin role restrictions remain unverified without an existing safe second account/session. Invitation and recovery emails remain paused and unsent.
 - [ ] **Release:** PR #20 merged as `e4c19dd69c82551a4ee98e221441e86980308158` and the notification/availability UI is being served in Production; its Vercel merge-commit check was pending at last read. The additive migration is applied and recorded. The cancellation UI fix and final lifecycle readback remain pending.
+
+
+### Staff dashboard audit — 20 October 2026
+
+- [x] Source and pre-deployment signed-in browser audit: sidebar literal badges, customer disconnected state, integration directory/overview drift confirmed.
+- [x] Implemented actual activity counts using the shared PR #20 notification read-state source; customer list/profile APIs/UI, integration read checks, full-site select-arrow inset, server property filtering and slot-capacity correction.
+- [x] Local: 309 tests passed, 16 skipped; app/test typechecks, focused lint and production build passed. Linked DB isolation/idempotency/anonymous denial checked with read changes rolled back.
+- [x] Removed anonymous/ordinary authenticated table access to private n8n chat memory; retained native PostgreSQL owner/service access and all data. No n8n execution or graph update.
+- [ ] Post-deployment staff/mobile/select browser verification — record actual results after deployment.
+- [ ] Finish unavailable settings controls, backup-code/device/access-request features; verify non-admin browser roles and large-data calendar/inbox boundaries. See STAFF_DASHBOARD_AUDIT.md; these are not silently marked complete.
