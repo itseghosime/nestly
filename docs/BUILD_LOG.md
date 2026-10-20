@@ -1273,3 +1273,9 @@ Remaining scope limits: AI geography is not an exhaustive Nigerian gazetteer; am
 - **Photo behavior (Production):** The landlord page had zero file inputs and explicitly stated that photo upload is unavailable, no photos will be attached, and title documents are not verified. No photo or real-property change was submitted.
 - **Local retry regression:** The focused public-lead idempotency and receipt tests passed **19/19**. The earlier isolated local browser tests also exercised mocked 503 → reload → 202 retries with the same idempotency key; they did not contact Supabase and are not Production retry evidence.
 - **Limits and side effects:** The two synthetic form receipts are Production records intentionally left in place; no cleanup was performed. No staff session was available, so staff visibility, persisted rent readback, notification persistence/read state, and permission-scoped staff actions remain unverified. No inspection request was made because no safe synthetic property/slot was identified. No invitation/recovery email, customer message, Telegram reply, replay, migration, or workflow change occurred.
+
+## Production evidence documentation deployment — 2026-10-20
+
+- PR #16 merged normally as `dcb49ac620da8cbbfea37b0c2a35d92550673230`; it records the Production public-form observations above and changes documentation only.
+- GitHub reports Vercel `success` (“Deployment has completed”) for the merge commit at `2026-10-20T08:19:07Z`, deployment identifier `8SVAB5a62YCbp1o3pTF5WqzyQvVj`.
+- This successful status verifies deployment completion only; it does not establish the Vercel environment or assigned-domain mapping. The live form observations above were made before this docs-only merge.
