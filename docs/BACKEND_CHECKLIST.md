@@ -274,3 +274,16 @@ See BUILD_LOG.md, “Follow-up Production alias check — 2026-10-20,” for the
 - [x] User identified the approved private test conversation by the marker `NESTLY-TEST-OSI-20261020`; a read-only lookup matched one inbound row in a Telegram conversation with a linked identity.
 - [x] Read-only Telegram webhook metadata confirms the configured production URL is the Nestly webhook and there are zero pending updates. No updates were consumed or replayed.
 - [ ] Full synthetic conversation remains blocked: the local environment lacks the webhook ingress and n8n relay secrets, and no authenticated Vercel environment access is available. No message was sent.
+
+## 2026-10-20 — Production public-form verification
+
+- [x] Contact form blank-submit validation returned visible errors without a network POST. One marked synthetic Production enquiry received a single HTTP 202 receipt; the UI correctly said receipt does not confirm assignment or response time.
+- [x] Landlord form blank-submit validation returned a visible error without a network POST. One marked synthetic Production submission received a single HTTP 202 receipt; the UI correctly said it was not acceptance, vetting, or publication.
+- [x] Landlord submission accepted an annual rent input of `1000000.50`. The exact stored database value and staff-facing visibility were not independently read back.
+- [x] Production landlord form has no file input and explicitly says photo upload is unavailable; no photos were attached.
+- [x] Focused local public-lead idempotency/receipt tests passed 19/19. The mocked local retry test is not evidence of Production retry behavior.
+- [ ] Staff visibility, persisted decimal rent readback, inspection lifecycle/capacity, staff sign-in/out and roles, invitations/recovery, audit records, and permission-scoped actions remain unverified without an authorized staff session. No safe synthetic inspection slot was available, so no Production inspection was created.
+- [ ] Telegram end-to-end remains blocked pending authenticated Production configuration access. No webhook secret or relay secret was revealed or requested; no message was sent or replayed.
+- Production records use the marker `NESTLY-RELEASE-20261020` and are intentionally left in place; no destructive cleanup was performed. No invitation/recovery email or real-property edit occurred.
+
+See BUILD_LOG.md, “Production public-form verification — 2026-10-20,” for exact Production and local evidence.
