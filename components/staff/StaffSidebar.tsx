@@ -158,6 +158,7 @@ export function StaffSidebar() {
       badge: activity?.attentionCount || undefined,
       badgeLabel: 'Human handoffs unassigned or assigned to you',
     },
+    { label: 'Lead Submissions', href: '/staff/leads', icon: Users },
     { label: 'Customer Directory', href: '/staff/customers', icon: Users },
     { label: 'Property Management', href: '/staff/properties', icon: Building },
     {

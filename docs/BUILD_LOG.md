@@ -1338,6 +1338,22 @@ The creation transaction used the synthetic reference and timestamp for idempote
 - **Database preflight (Production):** The exact linked dry run identified only `20261020193000_nestly_notification_read_state.sql`. Linked `supabase db lint --linked --schema public --fail-on error` reported no errors and one pre-existing warning in `public.acknowledge_telegram_unknown_send` (`message_row` is never read). The additive migration was then applied with vault updates skipped; linked migration history confirms it is recorded as `20261020193000`.
 - **Release boundary:** PR #20 merged as `e4c19dd69c82551a4ee98e221441e86980308158`; the Production notifications and availability pages served the new UI, and the notification read-state flow was functionally verified. The Vercel merge-commit check was still pending at the last check. The cancellation UI fix and final reschedule/cancel readback remain pending. Sign-out/re-authentication and non-admin Production restrictions remain unverified without another existing safe account/session. Invitation and recovery emails remain paused; no email was sent.
 
+## 2026-10-20 — Inspection cancellation and staff lead visibility
+
+- **Production cancellation fix:** PR #21 merged normally as `3eca78cc98a7721ea377837a2633fb8dcfb92782`; Vercel reported deployment success. On the same synthetic booking, the deployed staff page exposed cancellation while the booking was pending. The cancel action returned HTTP 200 with status `CANCELLED` and cleared gate details. No physical inspection was marked complete.
+- **Production capacity and audit readback:** After cancellation, the original and replacement QA slots both showed `Available`, each with zero reservations; the staff capacity summary was `0/2 reserved`. The redacted audit log showed three `inspection.status_changed` rows for booking `3c2e7c64-6438-448d-b22f-878f3fc0b05e` (original approval, reschedule, cancellation). This confirms persistence of the lifecycle transitions without exposing gate details.
+- **Production landlord form behavior:** The public `/submit-property` page explicitly stated, “Photo upload is unavailable in this form. No photos will be attached, and this form does not verify title documents.” No file-upload control was present in the form check and no landlord submission was made.
+- **Staff lead visibility gap:** Production staff APIs returned the existing synthetic contact and landlord submissions and the stored decimal rent `1000000.5`, but there was no staff page linked to those APIs. A read-only `/staff/leads` page and sidebar link are now implemented locally. It uses the existing role-guarded endpoints, shows permission denial per queue, reports load errors, and has no fixture fallback or status mutation.
+- **Local verification for lead UI:** Full suite passed **295 tests**, with **16 skipped**; application and test typechecks passed; targeted ESLint had no errors (one existing `window.location.href` warning in `StaffSidebar.tsx`); Next.js production build completed with **81/81** static routes. The page is not yet merged or deployed.
+- **Remaining blocked checks:** Telegram still needs a fresh inbound search request from the already approved test chat; no credentials, messages, or workflow changes were made. Sign-out/re-authentication and non-admin Production restrictions need an existing safe non-admin session. Invitation and recovery emails remain paused and unsent.
+
+## 2026-10-20 — Production staff lead queue verification
+
+- **Merge and deployment:** PR #23 merged normally as `54724d3b70b913bfe53f1cda69d07df2b45466ec`. Vercel reported deployment success for the merged revision; deployment identifier `6myDjznSL7pTQ4Tmtt4juNt4gYuE`.
+- **Production staff UI:** The authenticated Platform Admin opened `/staff/leads`. The page rendered one contact enquiry and one landlord submission matching `NESTLY-RELEASE-20261020`; the marker was present in both records. The landlord rent displayed exactly `₦1,000,000.50`. Both queues loaded without permission or network errors. No records were edited or resubmitted.
+- **Production form behavior:** `/submit-property` showed the explicit no-photo disclosure and had zero `input[type=file]` controls. No file was selected and no form submitted.
+- **Final release blockers:** The approved Telegram flow still requires a fresh search message from the user in the existing approved test chat; no Telegram credentials, outbound message, replay, or n8n change occurred. Sign-out/re-authentication and non-admin restrictions remain unverified because no safe existing non-admin session is available. Invitation and recovery emails remain paused.
+
 
 ## 2026-10-20 — Staff board data audit and shared select spacing
 
@@ -1355,3 +1371,8 @@ The creation transaction used the synthetic reference and timestamp for idempote
 - Staff Preview correctly redirects unauthenticated /staff/dashboard to /staff/signin. The Production staff session does not authorize this separate Preview origin. New customer/integration/badge staff UI has therefore NOT been verified interactively in Preview or Production; no account/sign-in/permission bypass was attempted.
 - Automatic approval review rejected the protected-main merge: the current audit request was not accepted as explicit approval for a merge triggering Production deployment. PR #22 remains open; no workaround, direct-main push or alternate Production deploy was used. Explicit user approval is required before merging and completing authenticated Production readback.
 - Database fixes already applied are independent of the blocked website-code release: shared activity function and private-memory web-role access restrictions. Existing website code remains on merged PR #21. All build logs and source changes preserve PR #20/#21 work.
+
+
+### 20 October 2026 — Explicit approval and branch reconciliation
+
+The user explicitly approved merging PR #22 and deploying the staff/sidebar/select fixes. Reconciled the newer Lead Submissions navigation and PR #23/#24 log entries before release, preserving both histories. Updated branch build and Production readback pending; no extra migration, provider message or n8n edit.
