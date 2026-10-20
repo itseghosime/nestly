@@ -13,7 +13,6 @@ import {
   EyeOff,
   ArrowRight,
   AlertCircle,
-  Building,
   ShieldCheck,
   Info,
 } from 'lucide-react';
@@ -220,18 +219,17 @@ export default function StaffSignInPage() {
 
           </div>
 
-          {/* Quick Operational Metrics Card */}
+          {/* Staff access context */}
           <div data-auth-reveal className="bg-soft-stone p-4 rounded-2xl border border-hairline flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-primary shadow-2xs border border-hairline">
-                <Building className="w-4 h-4" />
+                <Lock className="w-4 h-4" />
               </div>
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-charcoal">Active Inspections Today</span>
-                <span className="text-[11px] text-muted-ink">14 properties scheduled across Benin City &amp; Sapele</span>
+                <span className="text-xs font-bold text-charcoal">Staff-only workspace</span>
+                <span className="text-[11px] text-muted-ink">Sign in with an authorized account to access role-scoped tools.</span>
               </div>
             </div>
-            <span className="font-headline text-base font-bold text-charcoal">14/14</span>
           </div>
         </div>
 
@@ -250,7 +248,7 @@ export default function StaffSignInPage() {
             <div className="relative z-10 flex items-center justify-between">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-charcoal/60 backdrop-blur-md text-white text-xs font-medium border border-white/10">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                Physical Vetting Desk
+                Staff workspace
               </span>
             </div>
 
@@ -258,7 +256,7 @@ export default function StaffSignInPage() {
             <div className="relative z-10 mt-auto">
               <div className="p-4 rounded-2xl bg-charcoal/70 backdrop-blur-md text-white border border-white/10">
                 <p className="text-xs font-medium text-white/90 leading-relaxed">
-                  Curated residential architecture across Benin City &amp; Sapele. Every listing is physically vetted for power feeder health, water borehole status, and statutory ownership.
+                  Role-scoped tools for authorized staff. Access depends on your assigned permissions.
                 </p>
               </div>
             </div>
