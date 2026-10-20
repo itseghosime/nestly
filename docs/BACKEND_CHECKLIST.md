@@ -265,5 +265,6 @@ See BUILD_LOG.md, “Follow-up Production alias check — 2026-10-20,” for the
 ## 2026-10-20 — Staff sign-in truthfulness correction
 
 - [x] Replaced unsupported inspection metrics and physical-vetting claims with neutral staff-access copy; preserved the sign-in layout, image, and motion.
-- [ ] Verify the corrected sign-in copy on the public Production alias after the new commit deploys. No Vercel domain reassignment is claimed.
+- [x] PR #14 merged as `63df9193562dacf9c84e549a89cbbbb816e8a4c0`; Vercel reported deployment success and the public sign-in page showed the corrected copy without the unsupported claims.
+- [ ] Vercel's authenticated deployment environment/domain assignment remains unavailable for independent inspection; no internal alias reassignment was made.
 - [x] Compared the pre-fix Production page to both the PR #3 merge source and main commit `9a4897a`; the matching unsupported copy was in source, so no deployment mismatch was established.
