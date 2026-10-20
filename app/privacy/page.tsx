@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Header } from '@/components/public/Header';
 import { Footer } from '@/components/public/Footer';
 import { NiaWidget } from '@/components/public/NiaWidget';
@@ -31,7 +32,7 @@ export default function PrivacyPolicyPage() {
               <span>Last Revised: October 2026</span>
             </span>
             <span>•</span>
-            <span>Privacy Desk: privacy@nestly.ng</span>
+            <span>Privacy questions: <Link href="/contact" className="underline">contact form</Link></span>
           </div>
         </div>
 
@@ -42,11 +43,11 @@ export default function PrivacyPolicyPage() {
               1. Information We Collect
             </h2>
             <p>
-              Nestly prioritizes minimal data exposure. You can browse all verified listings, inspect fee schedules, and save properties without providing an email, phone number, or name. We only collect personal identification data in two specific events:
+              Depending on the feature you use, information you submit may include your name, phone number, email address, message, and listing or property details. Each form identifies its required fields. Do not submit identity documents or other sensitive information through a general inquiry form.
             </p>
             <ul className="list-disc pl-5 space-y-1">
-              <li><strong>Inspection Booking:</strong> Name and WhatsApp/phone number to coordinate gate security passes and field agent accompaniment.</li>
-              <li><strong>Formal Tenancy Agreement:</strong> Government-issued National Identification Number (NIN) or international passport strictly for landlord lease execution.</li>
+              <li><strong>Contact and landlord inquiries:</strong> Contact details and the inquiry or property information you provide.</li>
+              <li><strong>Inspection requests:</strong> Contact details and the property, date, or time preferences entered in the request.</li>
             </ul>
           </section>
 
@@ -55,16 +56,16 @@ export default function PrivacyPolicyPage() {
               2. Local Browser Storage (Saved Homes)
             </h2>
             <p>
-              Your saved homes shortlist is stored directly inside your browser’s local storage (under the key <code>nestly_saved_homes_v2</code>). We do not transmit or sync your anonymous browsing behavior to external advertising networks or tracking trackers.
+              Saved Homes are stored in your browser’s local storage (under the key <code>nestly_saved_homes_v2</code>). This feature does not create a server-side shortlist; clearing browser storage removes the saved list.
             </p>
           </section>
 
           <section className="space-y-3">
             <h2 className="font-headline text-xl sm:text-2xl font-bold text-charcoal">
-              3. WhatsApp &amp; Concierge Messaging
+              3. Telegram, Website Chat &amp; Historical WhatsApp Records
             </h2>
             <p>
-              When chatting with Nia on WhatsApp or through our embedded web widget, conversational records are processed to recommend matching properties and coordinate physical showings. Website chat messages, up to ten recent turns, search preferences, and relevant public listing details may be processed by Nestly’s n8n-hosted AI workflow and its connected AI provider to prepare replies. Website session tokens and contact fields are not sent as separate data. Please do not include sensitive personal or financial information in chat. We do not sell your conversational data or share your phone number with unregulated real estate marketers.
+              Customers can contact Nia through Telegram or website chat. Existing WhatsApp conversations and related contact details are retained as historical records for continuity and audit; WhatsApp is not presented as a current customer-contact option. Website chat messages, up to ten recent turns, search preferences, and relevant public listing details may be processed by Nestly&apos;s n8n-hosted AI workflow and its connected AI provider to prepare replies. Website session tokens and contact fields are not sent as separate data; please do not include sensitive personal or financial information in chat. The app-side Twilio staff-reply path is controlled by the server-only outbound flag, but that does not disconnect external Twilio or n8n workflows. A message or request does not confirm a viewing or provider delivery.
             </p>
           </section>
 
@@ -73,15 +74,14 @@ export default function PrivacyPolicyPage() {
               4. Technical Infrastructure &amp; Security Providers
             </h2>
             <p>
-              In production, Nestly integrates with certified Nigerian and international infrastructure partners:
+              The application uses hosting, database, and messaging services for the features that are enabled. The forms described on this page do not perform National Identification Number checks, land-title registry checks, GPS geofencing, or gate-pass SMS dispatch.
             </p>
             <ul className="list-disc pl-5 space-y-1">
-              <li><strong>Prembly / IdentityPass:</strong> Automated NIN and title verification under NDPA guidelines.</li>
-              <li><strong>Termii:</strong> High-reliability SMS gateway for gate pass tokens in Nigeria.</li>
-              <li><strong>Mapbox:</strong> Regional cadastral mapping and GPS geofencing for field agent check-ins.</li>
+              <li>Conversation providers may process messages sent through their channel.</li>
+              <li>Hosting and database providers may process information needed to run the website and its APIs.</li>
             </ul>
-            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/70 text-xs text-amber-900 leading-relaxed font-medium">
-              <strong>Demonstration Notice:</strong> In current development and prototype demonstration environments, third-party identity verification (NIN via Prembly) and SMS gate pass dispatches are simulated for architectural review and do not connect to live government cadastre or production telecommunication gateways.
+            <div className="p-3.5 rounded-2xl bg-soft-stone border border-hairline text-xs text-charcoal/80 leading-relaxed font-medium">
+              <strong>Verification notice:</strong> The presence of a listing or a submitted request is not evidence that an identity, title, location, or property condition was independently verified.
             </div>
           </section>
 
@@ -90,7 +90,7 @@ export default function PrivacyPolicyPage() {
               5. Data Subject Rights &amp; Deletion
             </h2>
             <p>
-              Under the Nigeria Data Protection Act 2023, you retain the full right to inspect, correct, or request total deletion of your tenancy inquiry records. To purge your contact information, email <span className="font-bold text-charcoal">privacy@nestly.ng</span>.
+              You may request access to, correction of, or deletion of personal information, subject to applicable law and records that must be retained. Submit a request through the <Link href="/contact" className="font-bold text-charcoal underline">contact form</Link>.
             </p>
           </section>
         </article>

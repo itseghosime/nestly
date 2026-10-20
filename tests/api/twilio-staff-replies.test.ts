@@ -468,7 +468,7 @@ describe('staff conversation replies', () => {
     const result = await response.json();
 
     expect(response.status).toBe(503);
-    expect(result.error).toContain('not configured');
+    expect(result.error).toContain('disabled by the deployment flag');
     expect(staffRpc).not.toHaveBeenCalled();
     expect(adminRpc).not.toHaveBeenCalled();
     expect(mocks.messagesCreate).not.toHaveBeenCalled();
@@ -476,6 +476,7 @@ describe('staff conversation replies', () => {
     delete process.env.TWILIO_OUTBOUND_ENABLED;
     const missingFlagResponse = await postStaffReply(staffRequest(), staffRouteParams());
     expect(missingFlagResponse.status).toBe(503);
+    expect((await missingFlagResponse.json()).error).toContain('disabled by the deployment flag');
     expect(staffRpc).not.toHaveBeenCalled();
     expect(adminRpc).not.toHaveBeenCalled();
     expect(mocks.messagesCreate).not.toHaveBeenCalled();

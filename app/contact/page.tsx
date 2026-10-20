@@ -7,14 +7,19 @@ import { Header } from '@/components/public/Header';
 import { Footer } from '@/components/public/Footer';
 import { NiaWidget } from '@/components/public/NiaWidget';
 import { prefersReducedMotion } from '@/lib/motion';
+import { NIA_TELEGRAM_URL } from '@/lib/contact-channels';
+import { clearBrowserPendingFormSubmission, getPendingFormSubmission, isLeadSubmissionReceipt } from '@/lib/public-form-submission';
 import {
   MessageSquare,
   CheckCircle2,
   AlertCircle,
   Send,
   Building,
-  RotateCcw
+  RotateCcw,
+  Loader2,
 } from 'lucide-react';
+
+const PENDING_SUBMISSION_STORAGE_KEY = 'nestly:contact-submission:v1';
 
 export default function ContactPage() {
   const [category, setCategory] = useState<'General Inquiry' | 'Property Inspection' | 'Landlord Listing' | 'Partnership'>('General Inquiry');
@@ -23,6 +28,8 @@ export default function ContactPage() {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [isNiaOpen, setIsNiaOpen] = useState(false);
 
@@ -52,12 +59,13 @@ export default function ContactPage() {
     }
   }, [submitted]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     const newErrors: Record<string, string> = {};
 
     if (!fullName.trim()) newErrors.fullName = 'Please enter your full name';
-    if (!phone.trim()) newErrors.phone = 'Please provide a valid phone or WhatsApp number';
+    if (!phone.trim()) newErrors.phone = 'Please provide a valid phone number';
     if (!message.trim()) newErrors.message = 'Please provide your message';
 
     if (Object.keys(newErrors).length > 0) {
@@ -75,16 +83,59 @@ export default function ContactPage() {
       return;
     }
 
-    setSubmitted(true);
+    setIsSubmitting(true);
+    setSubmitError('');
+    try {
+      const payload = {
+        name: fullName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        message: `[${category}] ${message.trim()}`,
+      };
+      const pendingSubmission = await getPendingFormSubmission(
+        window.sessionStorage,
+        PENDING_SUBMISSION_STORAGE_KEY,
+        payload,
+      );
+      const response = await fetch('/api/leads/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': pendingSubmission.key,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result: unknown = await response.json().catch(() => null);
+      if (!response.ok || !isLeadSubmissionReceipt(response.status, result)) {
+        const errorMessage = result && typeof result === 'object'
+          && 'error' in result && typeof result.error === 'string'
+          ? result.error
+          : 'The server did not confirm receipt. Please retry your inquiry.';
+        throw new Error(errorMessage);
+      }
+
+      const retryStateCleared = clearBrowserPendingFormSubmission(PENDING_SUBMISSION_STORAGE_KEY);
+      if (!retryStateCleared) {
+        setSubmitError('Receipt was confirmed, but this browser could not clear its retry key. Avoid resetting this inquiry until session storage is available.');
+      }
+      setSubmitted(true);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Unable to submit inquiry at this time.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleReset = () => {
+    const retryStateCleared = clearBrowserPendingFormSubmission(PENDING_SUBMISSION_STORAGE_KEY);
     setSubmitted(false);
     setFullName('');
     setPhone('');
     setEmail('');
     setMessage('');
     setErrors({});
+    setSubmitError(retryStateCleared ? '' : 'The previous receipt was confirmed, but this browser could not clear its retry key. A matching inquiry will reuse that key.');
   };
 
   return (
@@ -104,7 +155,7 @@ export default function ContactPage() {
           </h1>
 
           <p className="text-sm sm:text-base text-muted-ink leading-relaxed max-w-2xl font-normal">
-            Have questions about an existing listing, neighborhood access in Benin City, or submitting a compound for review? Send our local team a message.
+            Have questions about an existing listing, neighborhood access in Benin City, or submitting a compound for review? Use the inquiry form below; it confirms receipt only.
           </p>
         </div>
 
@@ -134,23 +185,20 @@ export default function ContactPage() {
               })}
             </div>
 
-            {/* WhatsApp Concierge Card */}
+            {/* Nia Assistant Card */}
             <div className="bg-soft-stone rounded-3xl p-6 sm:p-7 border border-hairline space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-white border border-hairline text-emerald-600 flex items-center justify-center font-bold">
                     <MessageSquare className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-sm text-charcoal">Nia WhatsApp Concierge</h3>
-                    <p className="text-[11px] text-muted-ink">Autonomous screening &amp; scheduling</p>
+                    <h3 className="font-bold text-sm text-charcoal">Nia Assistant</h3>
+                    <p className="text-[11px] text-muted-ink">Questions about public listings</p>
                   </div>
-                </div>
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
               </div>
 
               <p className="text-xs text-muted-ink leading-relaxed">
-                Need immediate answers on property availability or power reliability? Nia is active 24/7 on WhatsApp and Web.
+                Ask Nia using the site chat. Answers are limited to information available from published listings.
               </p>
 
               <button
@@ -159,30 +207,27 @@ export default function ContactPage() {
                 className="w-full py-3 px-4 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm nestly-press cursor-pointer"
               >
                 <MessageSquare className="w-4 h-4" />
-                <span>Start Conversation with Nia</span>
+                <span>Open website chat</span>
               </button>
+              <a
+                href={NIA_TELEGRAM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full py-3 px-4 rounded-full bg-white hover:bg-warm text-charcoal text-xs font-bold text-center border border-hairline transition-colors"
+              >
+                Message Nia on Telegram ↗
+              </a>
             </div>
 
-            {/* Regional Hubs Card */}
+            {/* Contact Information Availability */}
             <div className="bg-white rounded-3xl p-6 border border-hairline shadow-2xs space-y-4 text-xs">
               <h3 className="font-headline text-base font-bold text-charcoal flex items-center gap-2">
                 <Building className="w-4 h-4 text-primary" />
-                <span>Physical Operations Desks</span>
+                <span>Office Contact Information</span>
               </h3>
-
-              <div className="space-y-3">
-                <div className="p-3.5 rounded-2xl bg-soft-stone border border-hairline">
-                  <p className="font-bold text-charcoal">Edo State Operations</p>
-                  <p className="text-muted-ink mt-0.5">Off Boundary Road, GRA, Benin City</p>
-                  <p className="text-[11px] text-primary font-semibold mt-1">Monday – Saturday: 8:00 AM – 6:00 PM WAT</p>
-                </div>
-
-                <div className="p-3.5 rounded-2xl bg-soft-stone border border-hairline">
-                  <p className="font-bold text-charcoal">Delta State Field Desk</p>
-                  <p className="text-muted-ink mt-0.5">Clinic Road, Sapele (covering Sapele &amp; Warri)</p>
-                  <p className="text-[11px] text-primary font-semibold mt-1">Monday – Friday: 9:00 AM – 5:00 PM WAT</p>
-                </div>
-              </div>
+              <p className="p-3.5 rounded-2xl bg-soft-stone border border-hairline text-muted-ink">
+                A verified office address and support schedule are not available on this page.
+              </p>
             </div>
           </div>
 
@@ -195,11 +240,12 @@ export default function ContactPage() {
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
                 <h3 className="font-headline text-2xl font-bold text-charcoal">
-                  Message Dispatched Locally
+                  Inquiry Received
                 </h3>
                 <p className="text-xs sm:text-sm text-muted-ink max-w-md mx-auto leading-relaxed">
-                  Thank you, <span className="font-bold text-charcoal">{fullName}</span>. Your inquiry regarding <span className="font-bold text-charcoal">{category}</span> has been simulated successfully. An operations officer will review your notes.
+                  Your inquiry about <span className="font-bold text-charcoal">{category}</span> has been recorded. This confirms receipt only; it does not confirm an assigned officer or response time.
                 </p>
+                {submitError && <p role="status" className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-2xl p-3 max-w-md mx-auto">{submitError}</p>}
                 <div className="pt-4 flex justify-center">
                   <button
                     type="button"
@@ -254,7 +300,7 @@ export default function ContactPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div data-invalid-field={Boolean(errors.phone)}>
                     <label htmlFor="contact-phone" className="block text-xs font-bold text-charcoal mb-1">
-                      Phone / WhatsApp Number *
+                      Phone Number *
                     </label>
                     <input
                       id="contact-phone"
@@ -317,16 +363,33 @@ export default function ContactPage() {
                   )}
                 </div>
 
+                {submitError && (
+                  <div role="alert" className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                    <span>{submitError}</span>
+                  </div>
+                )}
+
                 <div>
                   <button
                     type="submit"
-                    className="w-full py-4 px-6 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md nestly-press cursor-pointer"
+                    disabled={isSubmitting}
+                    className="w-full py-4 px-6 rounded-full bg-persimmon hover:bg-persimmon-hover disabled:opacity-60 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md nestly-press cursor-pointer transition-all"
                   >
-                    <Send className="w-4 h-4" />
-                    <span>Submit Inquiry</span>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                        <span>Submitting Inquiry...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 shrink-0" />
+                        <span>Submit Inquiry</span>
+                      </>
+                    )}
                   </button>
                   <p className="text-[11px] text-center text-muted-ink mt-3">
-                    Frontend simulation mode. No external network request will be fired.
+                    Submission confirms database receipt only; staff assignment and response timing are not confirmed.
                   </p>
                 </div>
               </form>

@@ -38,7 +38,7 @@ export function getAiOwnershipNotice(channel: StaffConversationStatus['channel']
   if (channel === 'telegram') {
     return 'Nia ownership is active for Telegram. The app handles grounded replies; Telegram API acceptance does not confirm delivery or reading.';
   }
-  return 'Nia ownership is active for WhatsApp. WF01 handles inbound AI replies; staff REST sends and delivery callbacks are separate.';
+  return 'Stored WhatsApp ownership is shown for historical context. WF01 is separate from this inbox and its inbound/TwiML behavior is not controlled here.';
 }
 
 export function getConversationChannelNotice(status: StaffConversationStatus): string {
@@ -51,6 +51,9 @@ export function getConversationChannelNotice(status: StaffConversationStatus): s
     const webhookSecret = status.telegramWebhookSecretConfigured ? 'webhook secret configured' : 'webhook secret missing';
     const sendGate = status.telegramOutboundEnabled ? 'staff sending enabled' : 'staff sending disabled by default flag';
     return `Telegram ${sendConfiguration}; ${webhookSecret}; ${sendGate}. Bot API acceptance is not delivery/read confirmation.`;
+  }
+  if (!status.whatsappOutboundEnabled) {
+    return 'WhatsApp is deferred in this deployment. Historical messages remain readable; staff replies are disabled by the server-side flag. External inbound/TwiML behavior is not controlled here.';
   }
   if (!status.whatsappDispatchAvailable) {
     return 'Twilio dispatch tracking is unavailable; provider delivery cannot be confirmed.';

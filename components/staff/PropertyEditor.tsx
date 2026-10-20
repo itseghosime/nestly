@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   Zap,
   Droplets,
-  ShieldCheck,
   AlertTriangle,
   Upload,
   Save,
@@ -28,37 +27,48 @@ interface PropertyEditorProps {
 type EditorMedia = { id: string; url: string; sort_order: number };
 type EditorFee = FeeRow & { id: string };
 
+const propertyTypeAliases: Record<string, string> = {
+  'self-contained': 'studio',
+  'self-contained studio': 'studio',
+  'terrace duplex': 'duplex',
+  'serviced terrace': 'duplex',
+  'detached house': 'house',
+  'detached villa': 'house',
+  townhouse: 'house',
+  'executive flat': 'apartment',
+};
+
+const supportedPropertyTypes = ['apartment', 'house', 'duplex', 'studio', 'land', 'commercial'];
+
 export function PropertyEditor({ initialProperty, isNew = false }: PropertyEditorProps) {
   const router = useRouter();
 
-  const [title, setTitle] = useState(
-    initialProperty?.title || 'The Ivory Gate 3-Bedroom Serviced Terrace'
-  );
-  const [code, setCode] = useState(initialProperty?.code || initialProperty?.id || 'NST-EDO-006');
-  const [propertyType, setPropertyType] = useState<string>(
-    initialProperty?.propertyType || 'Apartment'
-  );
+  const [title, setTitle] = useState(initialProperty?.title || '');
+  const [code, setCode] = useState(initialProperty?.code || initialProperty?.id || '');
+  const [propertyType, setPropertyType] = useState(() => {
+    const value = initialProperty?.propertyType?.trim().toLowerCase() || '';
+    const normalized = propertyTypeAliases[value] || value;
+    return supportedPropertyTypes.includes(normalized) ? normalized : '';
+  });
   const [status, setStatus] = useState(initialProperty?.status || 'Draft');
-  const [address, setAddress] = useState(
-    initialProperty?.addressShort || initialProperty?.address || 'Boundary Road, Off Ihama'
-  );
-  const [neighborhood, setNeighborhood] = useState(
-    initialProperty?.neighborhood || 'GRA Benin City'
-  );
-  const [state, setState] = useState<'Edo' | 'Delta'>(initialProperty?.state || 'Edo');
-  const [bedrooms, setBedrooms] = useState(initialProperty?.bedrooms || 3);
-  const [bathrooms, setBathrooms] = useState(initialProperty?.bathrooms || 3);
+  const [address, setAddress] = useState(initialProperty?.addressShort || initialProperty?.address || '');
+  const [city, setCity] = useState(initialProperty?.city || '');
+  const [neighborhood, setNeighborhood] = useState(initialProperty?.neighborhood || '');
+  const [state, setState] = useState<'Edo' | 'Delta' | ''>(initialProperty?.state || '');
+  const [bedrooms, setBedrooms] = useState<number | null>(initialProperty?.bedrooms ?? null);
+  const [bathrooms, setBathrooms] = useState<number | null>(initialProperty?.bathrooms ?? null);
+  const [toilets, setToilets] = useState<number | null>(initialProperty?.toilets ?? null);
   const [pricePerYear, setPricePerYear] = useState(
-    initialProperty?.priceAnnual || initialProperty?.pricePerYear || 3500000
+    initialProperty?.priceAnnual ?? initialProperty?.pricePerYear ?? null
   );
   const [powerFeeder, setPowerFeeder] = useState(
-    initialProperty?.powerRating || initialProperty?.powerProfile || '20-22 hrs/day (Priority 33kVA Feeder)'
+    initialProperty?.powerRating || initialProperty?.powerProfile || ''
   );
   const [waterSource, setWaterSource] = useState(
-    initialProperty?.waterSupply || initialProperty?.waterProfile || 'Dedicated Industrial Borehole + Reverse Osmosis'
+    initialProperty?.waterSupply || initialProperty?.waterProfile || ''
   );
   const [landmarks, setLandmarks] = useState(
-    initialProperty?.nearbyLandmarks?.join(', ') || initialProperty?.landmarks?.join(', ') || 'Adjacent to Bishop Kelly College, 3 mins from Benin Club'
+    initialProperty?.nearbyLandmarks?.join(', ') || initialProperty?.landmarks?.join(', ') || ''
   );
 
   const [isSavedToast, setIsSavedToast] = useState(false);
@@ -74,6 +84,15 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
     if (!isSavedToast || !toastRef.current || prefersReducedMotion()) return;
     gsap.fromTo(toastRef.current, { y: -8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.22, ease: MOTION.ease.crispOut, clearProps: 'transform,opacity' });
   }, { dependencies: [isSavedToast] });
+
+  useEffect(() => {
+    if (!showDiscardDialog) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowDiscardDialog(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showDiscardDialog]);
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -171,19 +190,48 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
   };
   const handleSave = async (event?: React.FormEvent) => {
     event?.preventDefault();
+    if (
+      !title.trim()
+      || (isNew && !code.trim())
+      || !propertyType
+      || !address.trim()
+      || !city.trim()
+      || !neighborhood.trim()
+      || !state
+      || pricePerYear === null
+      || !Number.isFinite(pricePerYear)
+      || pricePerYear <= 0
+      || bedrooms === null
+      || !Number.isInteger(bedrooms)
+      || bedrooms < 0
+      || bedrooms > 10
+      || bathrooms === null
+      || !Number.isInteger(bathrooms)
+      || bathrooms < (propertyType === 'land' ? 0 : 1)
+      || bathrooms > 10
+      || toilets === null
+      || !Number.isInteger(toilets)
+      || toilets < 0
+      || toilets > 10
+    ) {
+      setSaveError('Complete the property details, positive annual rent, and valid bedroom, bathroom, and toilet counts.');
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     const payload: Record<string, unknown> = {
       title,
       reference: code,
       slug: code.toLowerCase().replace(/\s+/g, '-'),
+      property_type: propertyType,
       rent_annual: pricePerYear,
       state,
-      city: neighborhood.includes('Benin') ? 'Benin City' : neighborhood,
+      city,
       neighborhood,
       address_short: address,
       bedrooms,
       bathrooms,
+      toilets,
       power_rating: powerFeeder,
       water_supply: waterSource,
       ...(isNew || status === 'Draft' ? { publication_state: 'draft' } : {}),
@@ -222,7 +270,7 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
               onClick={() => setShowDiscardDialog(true)}
               className="px-3.5 py-1.5 rounded-full bg-soft-stone hover:bg-hairline text-charcoal text-xs font-semibold transition-colors border border-hairline shadow-2xs"
             >
-              Simulate Unsaved Alert
+              Discard Changes
             </button>
             {saveError && <span className="text-xs font-bold text-red-600 max-w-[28ch] truncate" title={saveError}>{saveError}</span>}
             <button
@@ -260,7 +308,7 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
           </div>
 
           <div className="flex items-center gap-2 text-xs text-muted-ink">
-            <span>Auto-saved locally</span>
+            <span>Changes are saved when you select Save.</span>
           </div>
         </div>
 
@@ -285,7 +333,7 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="sm:col-span-2 space-y-1.5">
                   <label className="text-xs font-bold text-charcoal flex justify-between">
                     <span>Property Title</span>
@@ -313,15 +361,18 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-charcoal">Typology</label>
                   <select
+                    required
                     value={propertyType}
                     onChange={(e) => setPropertyType(e.target.value)}
                     className="w-full bg-warm rounded-full px-5 py-3 text-xs text-charcoal border border-hairline focus:bg-white"
                   >
-                    <option>Serviced Terrace</option>
-                    <option>Executive Flat</option>
-                    <option>Townhouse</option>
-                    <option>Detached Villa</option>
-                    <option>Self-Contained Studio</option>
+                    <option value="">Select property type</option>
+                    <option value="apartment">Apartment</option>
+                    <option value="house">House</option>
+                    <option value="duplex">Duplex</option>
+                    <option value="studio">Studio</option>
+                    <option value="land">Land</option>
+                    <option value="commercial">Commercial</option>
                   </select>
                 </div>
 
@@ -360,7 +411,7 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
                   </div>
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-ink bg-soft-stone px-2.5 py-1 rounded-full border border-hairline">
-                  Geocoded
+                  Manual entry
                 </span>
               </div>
 
@@ -372,6 +423,17 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
                     required
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
+                    className="w-full bg-warm rounded-full px-5 py-3 text-xs text-charcoal border border-hairline focus:bg-white"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-charcoal">City</label>
+                  <input
+                    type="text"
+                    required
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
                     className="w-full bg-warm rounded-full px-5 py-3 text-xs text-charcoal border border-hairline focus:bg-white"
                   />
                 </div>
@@ -391,9 +453,11 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
                   <label className="text-xs font-bold text-charcoal">State / Region</label>
                   <select
                     value={state}
-                    onChange={(e) => setState(e.target.value as 'Edo' | 'Delta')}
+                    required
+                    onChange={(e) => setState(e.target.value as 'Edo' | 'Delta' | '')}
                     className="w-full bg-warm rounded-full px-5 py-3 text-xs text-charcoal border border-hairline focus:bg-white"
                   >
+                    <option value="">Select state</option>
                     <option value="Edo">Edo State</option>
                     <option value="Delta">Delta State</option>
                   </select>
@@ -420,7 +484,7 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
                   </span>
                   <div>
                     <h2 className="font-headline text-base font-bold text-charcoal">Specifications & Utilities</h2>
-                    <p className="text-xs text-charcoal/70">Bedroom counts, power schedule, and water verification</p>
+                    <p className="text-xs text-charcoal/70">Enter reported property details; this editor does not independently verify them.</p>
                   </div>
                 </div>
               </div>
@@ -430,10 +494,10 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
                   <label className="text-xs font-bold text-charcoal">Bedrooms</label>
                   <input
                     type="number"
-                    min={1}
+                    min={0}
                     max={10}
-                    value={bedrooms}
-                    onChange={(e) => setBedrooms(Number(e.target.value))}
+                    value={bedrooms ?? ''}
+                    onChange={(e) => setBedrooms(e.target.value === '' ? null : Number(e.target.value))}
                     className="w-full bg-warm rounded-full px-5 py-3 text-xs text-charcoal border border-hairline focus:bg-white"
                   />
                 </div>
@@ -442,10 +506,22 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
                   <label className="text-xs font-bold text-charcoal">Bathrooms</label>
                   <input
                     type="number"
-                    min={1}
+                    min={propertyType === 'land' ? 0 : 1}
                     max={10}
-                    value={bathrooms}
-                    onChange={(e) => setBathrooms(Number(e.target.value))}
+                    value={bathrooms ?? ''}
+                    onChange={(e) => setBathrooms(e.target.value === '' ? null : Number(e.target.value))}
+                    className="w-full bg-warm rounded-full px-5 py-3 text-xs text-charcoal border border-hairline focus:bg-white"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-charcoal">Toilets</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={10}
+                    value={toilets ?? ''}
+                    onChange={(e) => setToilets(e.target.value === '' ? null : Number(e.target.value))}
                     className="w-full bg-warm rounded-full px-5 py-3 text-xs text-charcoal border border-hairline focus:bg-white"
                   />
                 </div>
@@ -453,7 +529,7 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
                 <div className="sm:col-span-2 space-y-1.5">
                   <label className="text-xs font-bold text-charcoal flex items-center gap-1.5">
                     <Zap className="w-3.5 h-3.5 text-primary" />
-                    <span>Power Feeder Verification Schedule</span>
+                    <span>Reported Power Supply</span>
                   </label>
                   <input
                     type="text"
@@ -466,7 +542,7 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
                 <div className="sm:col-span-2 space-y-1.5">
                   <label className="text-xs font-bold text-charcoal flex items-center gap-1.5">
                     <Droplets className="w-3.5 h-3.5 text-primary" />
-                    <span>Borehole & Water Treatment Source</span>
+                    <span>Reported Water Source</span>
                   </label>
                   <input
                     type="text"
@@ -487,7 +563,7 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
                   </span>
                   <div>
                     <h2 className="font-headline text-base font-bold text-charcoal">Transparent Pricing Ledger</h2>
-                    <p className="text-xs text-charcoal/70">100% itemized fees without hidden agent exploitation</p>
+                    <p className="text-xs text-charcoal/70">Record required and optional charges with their calculation basis.</p>
                   </div>
                 </div>
               </div>
@@ -498,8 +574,8 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
                   <input
                     type="number"
                     step={50000}
-                    value={pricePerYear}
-                    onChange={(e) => setPricePerYear(Number(e.target.value))}
+                    value={pricePerYear ?? ''}
+                    onChange={(e) => setPricePerYear(e.target.value === '' ? null : Number(e.target.value))}
                     className="w-full bg-warm rounded-full px-5 py-3 text-xs font-bold text-persimmon border border-hairline focus:bg-white"
                   />
                 </div>
@@ -509,7 +585,7 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
                   <input
                     type="text"
                     readOnly
-                    value={`₦${(pricePerYear * 0.05).toLocaleString()}`}
+                    value={`₦${((pricePerYear ?? 0) * 0.05).toLocaleString()}`}
                     className="w-full bg-soft-stone rounded-full px-5 py-3 text-xs font-mono text-muted-ink border border-hairline"
                   />
                 </div>
@@ -517,44 +593,48 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
             </div>
           </form>
 
-          {/* Right Sidebar: Photo Upload & Vetting Dossier (4 cols) */}
+          {/* Right Sidebar: Listing media and review information */}
           <div className="lg:col-span-4 space-y-6 sticky top-24">
-            {/* Photography Panel */}
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-hairline space-y-4">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-ink">
-                Verified Photographic Assets
+                Property image preview
               </span>
               <div className="rounded-2xl overflow-hidden aspect-[16/10] bg-soft-stone relative border border-hairline">
-                <img
-                  src={initialProperty?.featuredImage || initialProperty?.images?.[0] || '/images/hero-home.png'}
-                  alt="Property preview"
-                  className="w-full h-full object-cover"
-                />
+                {initialProperty?.featuredImage || initialProperty?.images?.[0] ? (
+                  <img
+                    src={initialProperty.featuredImage || initialProperty.images?.[0] || ''}
+                    alt="Listing image preview"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs text-muted-ink">
+                    No listing image is saved.
+                  </div>
+                )}
               </div>
 
               <div className="p-4 rounded-2xl bg-soft-stone border border-hairline text-center space-y-2">
                 <Upload className="w-5 h-5 text-muted-ink mx-auto" />
                 <p className="text-xs text-charcoal/80 font-semibold">
-                  Field Agent GPS Camera Upload
+                  Listing media upload
                 </p>
                 <p className="text-[11px] text-muted-ink leading-relaxed">
-                  Only geotagged photos taken during daylight inspection hours (10:00 - 17:00 WAT) are approved for public listing.
+                  Use the media control below to upload images. This editor does not verify GPS metadata or inspection time.
                 </p>
               </div>
             </div>
 
-            {/* Statutory Title Verification */}
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-hairline space-y-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-ink">
-                Statutory Title Cadastre
+                Title review
               </span>
-              <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 space-y-1">
-                <div className="flex items-center gap-1.5 font-bold text-emerald-900">
-                  <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                  <span>EDOGIS Cadastre Check (Simulated Demo)</span>
+              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-950 space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                  <AlertTriangle className="w-4 h-4 text-amber-700" />
+                  <span>External verification unavailable</span>
                 </div>
-                <p className="text-[11px] text-emerald-800 leading-relaxed">
-                  Sample Certificate of Occupancy (C-of-O) review for demonstration purposes. In production, this verifies registry encumbrances via government API.
+                <p className="text-[11px] text-amber-900 leading-relaxed">
+                  This editor does not query EDOGIS or verify title documents.
                 </p>
               </div>
             </div>
@@ -666,7 +746,9 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
                 <p className="text-[11px] text-muted-ink">
                   {isNew
                     ? 'Save the property draft before adding fees.'
-                    : `Move-in total: ${computeTotal(pricePerYear, fees) == null ? `${fees.length ? fees.filter((fee) => fee.required && !fee.confirmed_at).length : 1} fee detail(s) pending verification` : computeTotal(pricePerYear, fees)?.toLocaleString('en-NG')}`}
+                    : pricePerYear === null || pricePerYear <= 0
+                      ? 'Enter a positive annual rent to calculate the move-in total.'
+                      : `Move-in total: ${computeTotal(pricePerYear, fees) == null ? `${fees.length ? fees.filter((fee) => fee.required && !fee.confirmed_at).length : 1} fee detail(s) pending verification` : computeTotal(pricePerYear, fees)?.toLocaleString('en-NG')}`}
                 </p>
               </div>
             </div>
@@ -686,10 +768,19 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
         </div>
       </div>
 
-      {/* Discard simulation modal */}
+      {/* Discard confirmation modal */}
       {showDiscardDialog && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div ref={dialogRef} className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-xl border border-hairline space-y-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Unsaved Changes Alert"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+          <div
+            onClick={() => setShowDiscardDialog(false)}
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs"
+          />
+          <div ref={dialogRef} className="relative z-10 bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-xl border border-hairline space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5" />
@@ -703,14 +794,14 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
               <button
                 type="button"
                 onClick={() => setShowDiscardDialog(false)}
-                className="px-4 py-2 rounded-full bg-soft-stone text-charcoal text-xs font-bold"
+                className="min-h-[36px] px-4 py-2 rounded-full bg-soft-stone hover:bg-hairline text-charcoal text-xs font-bold shrink-0 transition-colors"
               >
                 Keep Editing
               </button>
               <button
                 type="button"
                 onClick={() => router.push('/staff/properties')}
-                className="px-4 py-2 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold"
+                className="min-h-[36px] px-4 py-2 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold shrink-0 transition-colors"
               >
                 Discard Changes
               </button>

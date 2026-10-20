@@ -1,6 +1,6 @@
 'use client';
 
-import React, { use, useState, useRef } from 'react';
+import React, { use, useRef } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { MOTION, prefersReducedMotion } from '@/lib/motion';
@@ -9,17 +9,21 @@ import { StaffHeader } from '@/components/staff/StaffHeader';
 import { CUSTOMERS } from '@/lib/fixtures/customers';
 import { INSPECTION_BOOKINGS } from '@/lib/fixtures/inspections';
 import { PROPERTIES } from '@/lib/fixtures/properties';
+import { getDemoFixtures } from '@/lib/demo-mode';
 import {
   ArrowLeft,
-  UserCheck,
   Calendar,
   MessageSquare,
   MapPin,
   Phone,
   Mail,
-  CheckCircle2,
   ChevronRight,
 } from 'lucide-react';
+
+const IS_DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+const DEMO_CUSTOMERS = getDemoFixtures(IS_DEMO_MODE, CUSTOMERS);
+const DEMO_INSPECTIONS = getDemoFixtures(IS_DEMO_MODE, INSPECTION_BOOKINGS);
+const DEMO_PROPERTIES = getDemoFixtures(IS_DEMO_MODE, PROPERTIES);
 
 export default function CustomerDetailPage({
   params,
@@ -27,18 +31,13 @@ export default function CustomerDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const resolvedParams = use(params);
-  const customer =
-    CUSTOMERS.find((c) => c.id === resolvedParams.id) || CUSTOMERS[0];
+  const customer = DEMO_CUSTOMERS.find((c) => c.id === resolvedParams.id);
 
-  const customerInspections = INSPECTION_BOOKINGS.filter(
-    (b) => b.customerEmail === customer.email || b.customerName === customer.name
+  const customerInspections = DEMO_INSPECTIONS.filter(
+    (b) => customer && (b.customerEmail === customer.email || b.customerName === customer.name)
   );
 
-  const [notes, setNotes] = useState<string[]>([
-    customer.notes,
-    'Identity verified via Prembly NIN integration on 16 Oct 2026. Feeder priority requirements flagged for GRA Boundary Rd.',
-  ]);
-  const [newNote, setNewNote] = useState('');
+  const notes = customer ? [customer.notes] : [];
   const notesRef = useRef<HTMLDivElement>(null);
 
   useGSAP(() => {
@@ -48,12 +47,32 @@ export default function CustomerDetailPage({
     if (last) gsap.fromTo(last, { y: 6, opacity: 0 }, { y: 0, opacity: 1, duration: 0.18, ease: MOTION.ease.crispOut, clearProps: 'transform,opacity' });
   }, { dependencies: [notes.length] });
 
-  const handleAddNote = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newNote.trim()) return;
-    setNotes([...notes, newNote]);
-    setNewNote('');
-  };
+  if (!IS_DEMO_MODE || !customer) {
+    return (
+      <div className="flex-1 flex flex-col min-h-screen bg-warm">
+        <StaffHeader breadcrumbs={[{ label: 'Customer Directory', href: '/staff/customers' }, { label: 'Customer profile' }]} />
+        <main className="p-4 sm:p-8 max-w-4xl mx-auto w-full">
+          <section role="status" className="rounded-3xl border border-hairline bg-white p-6 sm:p-8 space-y-3">
+            <h1 className="font-headline text-2xl font-bold text-charcoal">
+              {IS_DEMO_MODE ? 'Demo customer record not found' : 'Live customer profile is unavailable'}
+            </h1>
+            <p className="text-sm text-muted-ink leading-relaxed">
+              {IS_DEMO_MODE
+                ? 'The requested ID does not match a demo fixture.'
+                : 'No live customer profile source is connected to this page. No fixture profile, verification result, note, or conversation is presented as a real record.'}
+            </p>
+            <p className="text-sm text-muted-ink leading-relaxed">
+              Historical WhatsApp conversations remain readable in the staff inbox; replies on that channel are unavailable.
+            </p>
+            <Link href="/staff/inbox" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-soft-stone text-charcoal text-xs font-bold border border-hairline">
+              <MessageSquare className="w-3.5 h-3.5" />
+              Open staff inbox
+            </Link>
+          </section>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col min-h-screen bg-warm">
@@ -65,6 +84,10 @@ export default function CustomerDetailPage({
       />
 
       <div className="p-4 sm:p-8 max-w-7xl mx-auto w-full space-y-6">
+        <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-950">
+          Demo mode is enabled. This customer, inspection, listing, verification field, and note are fictional sample data, not persisted records.
+        </div>
+
         {/* Back Link & Quick Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <Link
@@ -77,11 +100,11 @@ export default function CustomerDetailPage({
 
           <div className="flex items-center gap-2">
             <Link
-              href="/staff/inbox/conv-01"
+              href="/staff/inbox"
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold transition-all shadow-2xs"
             >
               <MessageSquare className="w-3.5 h-3.5" />
-              <span>Open WhatsApp Thread</span>
+              <span>Open staff inbox</span>
             </Link>
           </div>
         </div>
@@ -101,9 +124,8 @@ export default function CustomerDetailPage({
                 <h1 className="font-headline text-2xl font-bold text-charcoal tracking-tight">
                   {customer.name}
                 </h1>
-                <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>{customer.kycStatus}</span>
+                <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-soft-stone text-muted-ink text-xs font-bold">
+                  <span>Demo: {customer.kycStatus}</span>
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full bg-soft-stone text-muted-ink text-xs font-semibold border border-hairline">
                   {customer.id}
@@ -128,11 +150,11 @@ export default function CustomerDetailPage({
 
           <div className="flex flex-col sm:flex-row lg:flex-col gap-2 p-4 rounded-2xl bg-soft-stone border border-hairline text-xs min-w-[220px]">
             <div className="flex justify-between items-center text-charcoal/70">
-              <span>Budget Envelope:</span>
+              <span>Fixture budget field:</span>
               <span className="font-bold text-charcoal">{customer.budgetRange}</span>
             </div>
             <div className="flex justify-between items-center text-charcoal/70">
-              <span>Target Neighborhoods:</span>
+              <span>Fixture neighborhood field:</span>
               <span className="font-semibold text-charcoal">{customer.preferredNeighborhoods.join(', ')}</span>
             </div>
           </div>
@@ -148,17 +170,17 @@ export default function CustomerDetailPage({
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-primary" />
                   <h2 className="font-headline text-base font-bold text-charcoal">
-                    Inspection Schedule & History
+                    Demo Inspection Schedule & History
                   </h2>
                 </div>
                 <span className="text-xs font-bold text-muted-ink">
-                  {customerInspections.length} Total Inspections
+                  {customerInspections.length} Demo fixture records
                 </span>
               </div>
 
               {customerInspections.length === 0 ? (
                 <div className="p-6 text-center text-xs text-muted-ink">
-                  No direct inspections scheduled under this customer yet.
+                  No matching demo inspection fixture is included for this sample record.
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -199,10 +221,10 @@ export default function CustomerDetailPage({
             {/* Inquired Properties Rail */}
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-hairline space-y-4">
               <h2 className="font-headline text-base font-bold text-charcoal">
-                Active Listings Inquired via Nia
+                Fictional listing examples (not linked to this customer)
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {PROPERTIES.slice(0, 2).map((prop) => (
+                {DEMO_PROPERTIES.slice(0, 2).map((prop) => (
                   <div
                     key={prop.id}
                     className="p-3.5 rounded-2xl bg-soft-stone border border-hairline space-y-2 flex flex-col justify-between"
@@ -234,33 +256,18 @@ export default function CustomerDetailPage({
             {/* Identity & Vetting Verification Card */}
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-hairline space-y-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-ink">
-                Identity & Compliance Verification
+                Demo verification field
               </span>
-              <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 space-y-1">
-                <div className="flex items-center gap-1.5 font-bold text-emerald-900">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                  <span>Verified National ID (NIN)</span>
-                </div>
-                <p className="text-[11px] text-emerald-800 leading-relaxed">
-                  Name matches Nigerian statutory database records verified via Prembly.
-                </p>
-              </div>
-              <div className="text-xs text-charcoal/70 space-y-1 pt-1">
-                <div className="flex justify-between">
-                  <span>Match Confidence:</span>
-                  <span className="font-bold text-charcoal">100%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Verification Date:</span>
-                  <span className="font-semibold text-charcoal">16 Oct 2026, 09:12 WAT</span>
-                </div>
+              <div className="p-3 rounded-2xl bg-soft-stone border border-hairline text-xs text-charcoal/80 space-y-1">
+                <p>Demo fixture value: <strong>{customer.kycStatus}</strong></p>
+                <p className="text-[11px] text-muted-ink">No identity verification was performed by this demo.</p>
               </div>
             </div>
 
             {/* Coordinator Notes */}
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-hairline space-y-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-ink">
-                Coordinator Internal Notes
+                Demo fixture note (not saved)
               </span>
               <div ref={notesRef} className="space-y-2">
                 {notes.map((note, idx) => (
@@ -274,22 +281,6 @@ export default function CustomerDetailPage({
                 ))}
               </div>
 
-              <form onSubmit={handleAddNote} className="space-y-2 pt-1">
-                <input
-                  type="text"
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  placeholder="Add private staff note..."
-                  className="w-full bg-warm rounded-full px-4 py-2.5 text-xs text-charcoal placeholder:text-muted-ink/60 border border-hairline focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-                <button
-                  type="submit"
-                  disabled={!newNote.trim()}
-                  className="w-full py-2.5 rounded-full bg-charcoal text-white text-xs font-bold disabled:opacity-50 hover:bg-black transition-colors"
-                >
-                  Save Note
-                </button>
-              </form>
             </div>
           </div>
         </div>

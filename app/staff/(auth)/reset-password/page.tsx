@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { MOTION, prefersReducedMotion } from '@/lib/motion';
@@ -23,7 +24,6 @@ export default function ResetPasswordPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [tokenRequested, setTokenRequested] = useState(false);
 
   const pageRef = useRef<HTMLDivElement>(null);
 
@@ -262,7 +262,7 @@ export default function ResetPasswordPage() {
             )}
           </div>
 
-          {/* Secondary Expired-Token State Preview Card */}
+          {/* Expired or Invalid Link Recovery Card */}
           <div className="bg-soft-stone rounded-3xl p-6 shadow-sm border border-hairline flex flex-col gap-3">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -271,34 +271,25 @@ export default function ResetPasswordPage() {
                 </span>
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-muted-ink">
-                    State Preview · Edge Case
+                    Need a New Link?
                   </span>
                   <h2 className="text-sm font-bold text-charcoal">
-                    Expired or Invalid Token Preview
+                    Expired or Used Reset Links
                   </h2>
                 </div>
               </div>
-              <span className="px-2.5 py-0.5 rounded-full bg-white text-muted-ink text-[11px] font-semibold border border-hairline">
-                Token TTL: 0m
-              </span>
             </div>
             <p className="text-xs text-charcoal/70 leading-relaxed">
-              Reset links expire according to the configured Supabase Auth policy and can be used only once. This state handles expired or reused links.
+              Reset links expire according to your organization&apos;s authentication policy and can only be used once. If your link has expired, request a fresh one below.
             </p>
             <div className="pt-1 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setTokenRequested(true)}
+              <Link
+                href="/staff/forgot-password"
                 className="nestly-press px-4 py-2 rounded-full bg-charcoal hover:bg-black text-white text-xs font-bold flex items-center gap-2 transition-all shadow-2xs"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Simulate Requesting New Link</span>
-              </button>
-              {tokenRequested && (
-                <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
-                  <Check className="w-3.5 h-3.5" /> Simulated token state refreshed
-                </span>
-              )}
+                <span>Request New Reset Link</span>
+              </Link>
             </div>
           </div>
         </div>

@@ -152,80 +152,27 @@ In earlier draft notes, `Session Expired` was described in both authentication a
 
 ---
 
-## 4. Strict Frontend Boundaries & Claim Disclaimers
+## 4. Current Operational Boundaries
 
-### Architectural Boundaries
-1. **Zero Backend Code**:
-   - Zero API routes (`app/api/` does not exist).
-   - Zero Server Actions (`'use server'` directive is not used anywhere).
-   - Zero database ORMs, migrations, or database connection strings.
-   - Zero external HTTP/network calls (`fetch`, `axios`, etc.) to third-party services.
-2. **Local State & Storage Persistence**:
-   - Saved Homes: stored in the browser's `localStorage` (`nestly_saved_homes`).
-   - Shortlist sharing: generates a formatted text payload copied to the clipboard for manual sharing.
-   - Forms (Contact, Submit Property, Inspection Booking, Team Invite): validate client-side and trigger simulated success/confirmation views without dispatching network requests.
-3. **Third-Party Service & Verification Disclaimers**:
-   - **NIN Verification**: Explicitly labeled in the UI as *"Simulated Identity Verification for Prototype Demonstration"*. No real National Identity Management Commission (NIMC) API is contacted.
-   - **EDOGIS Cadastral Check**: Explicitly labeled as *"Simulated Cadastre Query for Prototype Demonstration"*. Does not connect to Edo State Geographic Information Service database.
-   - **Hardware WebAuthn / MFA**: Presented as a frontend simulation demonstrating the UX flow; no cryptographic hardware tokens are enrolled.
-   - **Termii SMS Gate Pass & WhatsApp Nia Bot**: The UI displays simulated message templates and payloads; no telecom SMS or Meta WhatsApp messages are transmitted.
+- The application has API-backed authentication, property, lead, inspection, conversation, and staff workflows. The earlier statement that no backend/API existed is obsolete and is removed from this log.
+- Contact and landlord forms submit to their APIs. A `202` receipt means the request was received; it does not mean a booking, listing, or other downstream action was confirmed.
+- Saved Homes remain browser-local. This is an intentional anonymous-user behavior.
+- Property-media upload is available in the staff property editor through its API. The public landlord form does not upload photos. Neither image presence nor listing details prove GPS, title, utility, or physical-inspection verification.
+- Integration health, audit history, escalation dispatch, and other operations are reported only when supported by live evidence; otherwise the UI shows an unavailable state.
 
 ---
 
-## 5. Verification Results
+## 5. Verification Evidence Policy
 
-### Route Health & Response Codes
-- Tested all 43 routes on running Next.js server (`http://localhost:3000`).
-- **42 operational routes** return HTTP 200 OK.
-- **/404 route** returns HTTP 404 Not Found as expected.
-
-### ESLint & Linting
-```bash
-npx eslint . --quiet
-# Result: 0 errors, 0 warnings (Exit code 0)
-```
-- Resolved React 19 `react-hooks/set-state-in-effect` issues in `Header.tsx`, `saved-homes-context.tsx`, and `app/browse/page.tsx` using proper render-time state derivation.
-- Removed all `any` types in dashboard pages (`team/page.tsx`, `integrations/page.tsx`, `browse/page.tsx`, `audit-log/page.tsx`).
-- Escaped all HTML entities (`&apos;`, `&quot;`) in compliance with React JSX rules.
-
-### TypeScript Type-Checking
-```bash
-npx tsc --noEmit
-# Result: 0 errors (Exit code 0)
-```
-- Strict type definitions across all data fixtures (`lib/fixtures/properties.ts`, `customers.ts`, `conversations.ts`, `inspections.ts`, `staff.ts`).
-
-### Production Build
-```bash
-npm run build
-# Result:
-# ▲ Next.js 16.4.2 (Turbopack)
-# ✓ Compiled successfully in 700ms
-# ✓ Finished TypeScript in 2.2s
-# ✓ Generating static pages using 9 workers (39/39) in 283ms
-# Finalizing page optimization in 13ms
-# Exit code: 0
-```
+Route inventories and feature descriptions are not test results. A rendered route is not proof of its API, authorization, provider, or persistence behavior. Skipped live tests are not passing tests, and no whole-site route or viewport pass is asserted here. Current local checks, browser observations, and deployment status are recorded separately in the latest dated section below.
 
 ---
 
-## 6. Remaining Prototype Limitations & Backend Integration Roadmap
+## 6. Current Verification Boundaries
 
-When transitioning from this validated frontend prototype to a live production service, the following backend integrations are required:
-
-1. **Authentication & Session Management**:
-   - Replace simulated credentials in `/staff/signin` with NextAuth.js or Supabase Auth.
-   - Implement real HTTP-only cookies, session refresh, and CSRF protection.
-2. **Database & Persistent Storage**:
-   - Replace fixtures in `lib/fixtures/` with PostgreSQL tables (e.g., via Prisma or Supabase).
-   - Store property image assets in Cloud Storage (AWS S3 or Supabase Storage) rather than static files.
-3. **Messaging & Webhooks**:
-   - Connect Twilio WhatsApp or Meta Cloud API to `/staff/inbox` for bi-directional messaging with Nia AI.
-   - Implement real webhooks for incoming landlord messages and tenant inquiries.
-4. **Telecom & SMS Gateways**:
-   - Connect Termii Nigeria or Africa's Talking API to dispatch real gate passes and SMS OTPs.
-5. **Cadastre & Land Title Integration**:
-   - Integrate with EDOGIS (Edo State Geographic Information Service) for live deed verification.
+- This log does not certify the entire production system or every route, role, viewport, workflow, or third-party integration.
+- External property verification (including GPS metadata and land-title checks) is not performed by the editor or preview page.
+- Production state is changed only when a dated entry records a specific live operation and its evidence. The PR #3 review entry records local evidence only unless explicitly stated otherwise.
 
 ---
 
@@ -1105,7 +1052,22 @@ Phase A replaces the simulated `setTimeout`→`router.push` in `app/staff/(auth)
 - **Production verification:** Code commit `caa405569d1758ce73b4563eb49467af958ba42f` was pushed to `main`; its Vercel Production check completed successfully. This is deployment verification only: no live takeover interaction or messaging test was performed.
 - **Next deliberate user test:** In the authenticated staff inbox, open an existing unassigned human-handoff conversation and verify **“Assign to me”**; use it only if you intend to claim that conversation, then confirm the page shows **“Assigned to you.”** Separately, after deployment, send a new deliberate Telegram search to verify numbered listing details and website links. No test message should be sent automatically.
 
+## 65. Removing fictional landlord defaults and ungrounded listing statuses (2026-10-18)
 
+- **Landlord form correction:** Removed prefilled apartment/Edo/Benin City/GRA/room/utility/title values and the state-to-city inference. Property type, state, city, neighborhood, bedrooms, and bathrooms must be supplied; submit another resets all form values. Bathrooms are included in the persisted submission description because the current landlord API does not have a structured bathroom field. Utility and title-document selections are optional and explicitly owner-reported. The page states that submitted details are not independently verified, and the photo-upload-unavailable disclosure remains; no file input was added.
+- **Public listing claims:** Property API responses no longer default missing verification to “Direct Instruction” or inspection availability to “Slots Available”; missing values now render as “Verification status not provided” and “Availability not listed.” Property detail no longer derives ensuite status, daily power hours, or treated-borehole claims from unrelated fields; supplied power/water values are rendered as provided. The fee total disclaimer now describes an estimate and does not claim payment follows title verification. The mobile navigation accessible name changes while the menu is open.
+- **Local tests:** Focused public form tests passed **12/12**. A new property-status mapping regression passed. Full Vitest suite passed **198 tests** across 26 files; **16 tests in 2 files were skipped** and are not counted as passes. Application and test typechecks passed. Changed-path ESLint returned **0 errors / 26 warnings**. Next.js 16.4.2 production build generated **80/80 routes** with no parent-directory Turbopack root override.
+- **Local browser verification:** Fresh production server built in the isolated review worktree. Eight public routes at 320, 390, and 1280px (24 combinations) had headings, no horizontal overflow, and no application-error indicators. A dynamic demo property detail showed “Availability not listed” and withheld the move-in total for unconfirmed fees. The landlord form had blank required fields, an explicit empty city input, no file input, and the upload-unavailable notice. The mobile menu opened and exposed the correct “Close mobile navigation” accessible name. No form was submitted.
+- **Vercel Preview:** Deployment `49NjUxSuu3yR9RSxxJ3W9Jf6koTH` for reviewed head `8bed5e0c6695fdb6b33c9e4e86a89fc51defa4de` reached Ready. The same eight public routes and 320, 390, and 1280px viewports were checked read-only in Preview with no observed horizontal overflow or application-error indicators. This does not establish Production behavior.
+- **Verification limits:** An earlier local browser process served a stale build until restarted; only the fresh local and Preview results above count. No authenticated staff browser flow, Production behavior, or landlord/contact receipt was verified. No Production mutation, provider send, n8n change, or migration occurred. `npm ci` previously reported five high-severity dependency advisories; no dependency files were changed. PR #3 remains draft and unmerged.
+
+## 66. Deferring WhatsApp from the active website release (2026-10-18)
+
+- **Scope:** Public Nia actions now keep website chat and offer the fixed Telegram destination `https://t.me/nestly_nia_bot` separately. Contact instructions and phone fields no longer present WhatsApp as a current contact option. Saved Homes sharing remains copy-only. Staff pages preserve WhatsApp channel/history labels but describe those records as historical and make replies unavailable when the server-side flag is off. No phone number is converted to a Telegram identity.
+- **Outbound gate:** Vercel Production `TWILIO_OUTBOUND_ENABLED` was changed from enabled to `false`; no Twilio credentials were read or changed. Redeployment `7bw8aCzXEWtteZqcVsuMRhpd331N` reached **Ready** for current `main` revision `e2a7fcb90a00ee36112c998a1f01f910b5d1da4e`, with `https://nestly-sigma.vercel.app` assigned. This is a configuration-only redeploy of current `main`; it does not include the unmerged PR #3 website changes. Production contact links will change only after PR #3 is reviewed, merged, and deployed.
+- **Local verification:** Focused channel/dispatch/signature tests passed **57/57**. App and test typechecks passed. Changed-path ESLint reported **0 errors / 18 warnings** (existing image and unused-symbol warnings). The production build generated **80/80 routes**. Local browser checks confirmed the fixed Telegram URL and separate website chat on the home, contact, how-it-works, landlord, inspection, and Saved Homes surfaces; the Saved Homes modal opened without sending. Contact-page widths 320, 390, and 1280 had no horizontal overflow. No form was submitted. Local `GET /api/properties` returned HTTP 500; this local API response was not treated as a successful data check.
+- **Preview verification:** Pending push and browser verification of the PR #3 Vercel Preview. This will be recorded separately from the Production redeploy above.
+- **External integrations and safety:** The signed Next.js Twilio inbound/status handlers were not changed. The user previously reported WF01 active at version `41d0a037-4706-4899-b18c-5756be24fb7b`; this task did not independently recheck external Twilio webhook registration or modify WF01/WF03. The app flag cannot disable inbound callbacks or WF01 synchronous TwiML replies, so WhatsApp is not fully disconnected. No messages were sent/replayed; no customer data, migrations, provider credentials, or workflow definitions were changed. PR #3 remains draft and unmerged.
 ## Editorial image refresh — all public pages (2026-10-18)
 
 Prepared on a separate feature/editorial-image-refresh branch. Inspected all 19 public routes and shared header/footer. Added nine 1600 × 1000 optimized WebP editorial assets (eight sources, one terrace crop), refreshed existing image references on Home, About, How It Works, neighbourhood pages, and property-submission guidance. Added an exact-match legacy image adapter for database-backed neighbourhood paths. Property listing galleries/prices and all workflow/provider behavior are preserved. Image descriptions no longer claim these stock photographs show actual Benin/Sapele locations or completed inspections. Source/coverage/rollback details: docs/EDITORIAL_IMAGES.md; file dimensions/hash/size inventory: docs/editorial-image-manifest.json.
@@ -1140,6 +1102,17 @@ Live anonymous integration harness: directory contains all four guides; every gu
 
 Local: five mocked API branch regressions and five-file esbuild transpilation passed. Production: Vercel deployment and the above read-only HTTP/browser checks passed. Linked database: four content inserts verified. Mac localhost source files were not directly updated; Copilot must safely integrate current main (PR #4 and #5), preserving its local work and PR #3 fixes. Remaining PR #3 checks, auth/form-retry operations tests, mobile audit and dependency review remain separate. No provider messages, workflow changes, customer deletions, recordings, screenshots or PDF.
 
+## PR #3 reconciliation and release checks (2026-10-18)
+
+- **Main integration:** Fetched merged PR #4 (`b67bcb9b71230192feb8a4782d1f4b13de5e09ee`) and PR #5 (`faefc5a8828839608e941055558637a3e985b41e`); localhost `main` fast-forwarded to `8f44f13119e40df0dbeb7b3668a24a5829ac15d7`. Merged that main into PR #3 as `cb5ab2332745c65b4d8d77a93aa17101d9d0fc0b` (parents: PR head `081498843e7b16f392d876fe6ab006e0e8d30b59` and main `8f44f13119e40df0dbeb7b3668a24a5829ac15d7`). Resolved editorial-image, neighborhood-copy, and landlord-form conflicts; preserved the nine editorial images, four working guide routes, motion, Telegram changes, and the explicit photo-upload-unavailable state. PR #3 remains open and draft.
+- **Local tests and build:** Full Vitest suite: **200 passed, 16 skipped** across 28 passing and 2 skipped files. Focused auth/form/Nia/staff regressions: **105 passed, 7 skipped**. Application and test typechecks passed. Next.js 16.4.2 production build generated **80/80 routes**. ESLint: **0 errors, 36 warnings**; warnings include Next's image-element optimization and internal-navigation suggestions.
+- **Forms and retry behavior:** The public-form helper regression confirms the same payload reuses its idempotency key and changed payload gets a new key. Added a mocked landlord-route regression: a repeated key whose insert returns the unique-constraint code receives the same `202 { requestReceived: true, confirmed: false }` acknowledgement. Decimal rent parsing remains covered. Browser validation on contact and landlord forms produced inline errors and **zero POST requests**; no real form was submitted and no customer record was created.
+- **Staff and authentication:** Mocked staff-context, profile/password, authorization, inbox state, and staff-reply tests passed. The unauthenticated local staff route redirects to `/staff/signin` (HTTP 307). The two isolated Supabase Auth/integration suites remain **blocked**: all **16** live cases were skipped because no loopback `SUPABASE_TEST_URL`, anon key, and service-role key are configured. No production credentials were used for auth testing; an authenticated browser staff session was not verified.
+- **Nia and messaging:** Preference recall/context, grounded fee totals, search, handoff, assigned staff reply, Return to AI, Telegram staff replies, and dispatch safeguards passed mocked tests. No provider call or message was sent.
+- **Local browser:** A headless Playwright check of 14 public routes at widths 320, 390, and 1280 passed **42/42** route/viewport checks: HTTP 200, an H1, no horizontal overflow, and no page errors. Mobile navigation opened and closed correctly. Telegram contact URLs were present and no WhatsApp links were found on checked public pages. All nine editorial WebP assets returned HTTP 200. The isolated localhost Supabase stub returned no guide/property rows; local data-backed listing content was therefore not claimed as verified.
+- **Production read-only verification:** `scripts/check-neighborhood-guides.mjs` passed against `https://nestly-sigma.vercel.app`: all four guide details and hero images resolved, the unknown slug returned 404, and Delta filtering returned Delta guides. This verifies current production guide APIs only; it does not verify the unmerged PR #3 UI in production. No production write, form submission, or migration occurred.
+- **Dependency advisories:** `npm audit` reports **5 high** findings, all in the development-only ESLint chain (`eslint-config-next` → `@next/eslint-plugin-next` → `fast-glob` → `micromatch` → `braces`); `npm audit --omit=dev` reports **0**. The audit's suggested automatic remediation downgrades `eslint-config-next` from 16.4.2 to 14.2.35 (semver-major, incompatible with the installed Next 16 line). No dependency or lockfile change was made; resolving this supported-toolchain advisory remains a review blocker.
+- **Environment boundaries:** The localhost PR #3 browser run used a read-only local Supabase stub. Live neighborhood verification was GET/HEAD-only. No Telegram/WhatsApp messages, n8n changes, credentials, or workflow definitions were used or changed. Production remains on merged `main`; PR #3 must be reviewed, merged, and deployed before its contact UI changes reach Production.
 
 ## Property gallery continuity and thumbnail overflow repair (2026-10-18)
 
@@ -1164,6 +1137,23 @@ Live desktop: the screenshot's property page rendered Adesuwa Grove 4-Bedroom Du
 
 Mac localhost must safely integrate current main including PR #6; Copilot should preserve this repair while finishing PR #3 and the remaining release checks.
 
+## PR #3 Preview deployment and localhost restart (2026-10-19)
+
+- **PR #3 Preview:** Head `1e8b00527cbc16643f8ce5819ee6a97699d9e531` remains open and draft. Vercel reports deployment `49Q7cfUboMf42QYwukAfcTuamL7E` Ready at `https://nestly-git-feature-produc-4cf436-itseghosime-codebases-projects.vercel.app`; the Vercel Preview Comments check passed with zero unresolved comments. This confirms deployment completion, not app behavior.
+- **Preview access boundary:** Unauthenticated requests to the Preview API returned HTTP 401 `Protected deployment`. Page requests returned the deployment-protection HTML, not the Nestly app. Therefore no Preview route, interactive browser, or Preview mobile behavior is claimed as verified. No authenticated browser session was used, no form was submitted, and no client-side chat was opened.
+- **Local `main`:** Restarted the localhost server at `8f44f13119e40df0dbeb7b3668a24a5829ac15d7`. `http://localhost:3000/` returned HTTP 200; unauthenticated `/staff/inbox` redirected to `/staff/signin` (HTTP 307). The read-only neighbourhood guide harness against localhost passed the directory, four detail/image checks, unknown-slug 404, and Delta filtering using the existing remote Supabase configuration; it made no writes.
+- **Release status:** Local tests, build, and 42/42 local route/viewport checks remain as recorded above. The isolated authenticated Supabase tests and compatible fix for the five high development-toolchain advisories remain unresolved, and no completed GitHub review is recorded. Keep PR #3 draft. No provider messages, customer-data writes, migrations, n8n changes, screenshots, recordings, or PDFs were made for these checks.
+
+## PR #3 readiness reconciliation — latest main and PR #6 (2026-10-19)
+
+- **Integration:** Merged `origin/main` at `6e8be4b204a1b9806557afbdb133ef8dd3a28468` into the PR #3 branch in merge commit `b63f03a98c046b1313378aadb0f31ee950175764`. This includes PR #6's property-gallery repair (`18a2e84bc1236e0e0423d3d1f602eda7657e87ae`). Preserved the neighbourhood guides, editorial images, motion, Telegram behavior, existing prices, gallery ordering, and unrelated worktrees.
+- **Readiness corrections:** Live-mode customer pages no longer show fixture customers, fabricated Prembly/NIN verification, or locally appended notes as persisted data. Historical WhatsApp threads remain channel-labeled and readable in the inbox, with replies unavailable. Property fixtures render only under explicit demo mode; live staff property status uses publication and rental-availability fields independently, unknown states remain unknown, invented inventory/slot/value metrics were removed, and the staff list no longer inherits the public rent ceiling when no staff filter is supplied.
+- **Form retry identity:** Contact and landlord forms persist only an idempotency key and SHA-256 payload digest in tab-scoped `sessionStorage`. A same-payload retry after refresh reuses its key; changed fields receive a new key. Raw form values are not stored there. Storage read/write failures stop the request and surface an error; only the exact accepted receipt clears retry state. No form was submitted during verification.
+- **Local automated checks:** Vitest **212 passed, 16 skipped** (30 passing files, 2 skipped files). Skipped live tests are blocked, not passed. Application and test typechecks passed. Full ESLint completed with **0 errors and 36 warnings** (mainly existing Next.js image/navigation advisories). Next.js 16.4.2 production build generated **80/80 routes** from the project directory with no parent-directory Turbopack root override.
+- **Local browser checks:** Production build served eight public routes (`/`, `/browse`, `/contact`, `/submit-property`, `/faq`, `/terms`, `/privacy`, `/neighborhoods`) at 320, 390, and 1280 CSS-pixel widths: **24/24** combinations returned HTTP 200, had an H1, no detected horizontal overflow, and no application-error text. Contact rendered two Telegram links and no WhatsApp contact link. Landlord form had no file input, no prefilled controls, and retained the photo-upload-unavailable disclosure. Mobile navigation opened with its accessible “Close mobile navigation” name. No form was submitted. Unauthenticated local staff property/customer routes returned HTTP 500 because this isolated worktree lacks usable Supabase URL/key configuration; authenticated staff flows are therefore blocked locally, not passed.
+- **Dependency advisories:** `npm audit --omit=dev` found **0 vulnerabilities**. Full `npm audit` reports **5 high** findings through `eslint-config-next` → `@next/eslint-plugin-next` → `fast-glob` → `micromatch` → `braces` (GHSA-vfj7-8cjw-p6xm). The only automated fix offered downgrades `eslint-config-next` to 14.2.35, incompatible with this Next 16 project. No dependency manifest or lockfile was changed; no compatible patched route was available in the checked registry versions.
+- **Vercel Preview:** The Vercel deployment check for implementation head `4d784245965a6dd645b33c9ead5d76d2160e0c0d` completed successfully (deployment `FkYoxpqMvNPJUUr1thco8GUmee4C`); Vercel Preview Comments passed. Direct requests to the Preview alias redirected with HTTP 302 to deployment protection for `/`, `/browse`, `/contact`, `/submit-property`, and `/neighborhoods`. No Nestly app response was observed, so Preview route behavior, responsive layouts, gallery, and authenticated staff flows remain **blocked**, not verified.
+- **Environment boundary:** Production was not changed or used for tests. No staff mutation, public form submission, provider send, webhook replay, migration, customer-data write, n8n/WF01/WF03 change, recording, screenshot, or PDF was performed. PR #3 remains open and draft.
 
 ## Nia n8n conversational response integration — 2026-10-19
 
@@ -1185,6 +1175,14 @@ Preview verification: Vercel build succeeded for 83b538d. Chrome at requested 39
 
 Release held: Automatic approval review rejected squash-merging PR #8 because physical iPhone focus behavior remains unverified and explicit approval to merge this particular compact-input fix was absent. No workaround attempted. Production/main remain unchanged at the prior Nia release; PR #8 is ready for user review/approval. No larger visible fonts have been deployed.
 
+## PR #3 latest-main reconciliation and verification — 2026-10-19
+
+- **Integration:** Fetched `origin/main` at `f463e4a075eac5d2af4c1c7094d58b4667d9cd90` (including `94b8389`, `a26177d`, and the current Nia composer update) and merged it into PR #3 as `9bbe4793d341a6270373c7dd02d2cb24f81d47b9`. Resolved only the overlapping `BUILD_LOG.md` and `BACKEND_CHECKLIST.md` entries while retaining both PR #3 evidence and main's Nia integration history. WF01/WF03 were not changed; no external n8n workflow operation was performed.
+- **Nia context regression:** The merged response path's unsupported-message clarification now states that saved preferences are unchanged. Context remains intact and no property query is made. The targeted Nia suite passed **64/64** tests.
+- **Local automated checks:** Full Vitest **256 passed, 16 skipped** (32 passing files, 2 skipped files). Skipped live tests remain blocked, not passed. Application and test typechecks passed. Full ESLint completed with **0 errors and 36 warnings**. Next.js 16.4.2 production build generated **80/80 routes** from the project directory.
+- **Local browser checks:** Rechecked eight public routes at 320, 390, and 1280 CSS-pixel widths: **24/24** route/viewport combinations returned HTTP 200 with H1s, no detected horizontal overflow, no app-error text, and no WhatsApp links. Contact showed two Telegram links; the landlord form had no prefilled controls or file input and retained its photo-upload-unavailable notice. Mobile navigation opened with the correct accessible label. No form was submitted. Unauthenticated local staff property/customer routes returned HTTP 500 because usable Supabase URL/key configuration is absent from this isolated worktree; authenticated staff checks remain blocked.
+- **Latest Vercel Preview:** Application deployment `CDjFtLHVJwryDBM2xwvvnTjzDv3F` for `9bbe4793d341a6270373c7dd02d2cb24f81d47b9` reached Ready; the documentation-follow-up head `97079f357fa7dffb1acf5b4574b4a5a0cd69f431` also completed deployment (`9n9QBFf3E4UkhdVfS4uP86maVA9X`) with Vercel and Preview Comments successful. Rechecked `/`, `/browse`, `/contact`, `/submit-property`, and `/neighborhoods` against the Preview alias; each returned HTTP 302 to deployment protection. No Nestly app response was obtained; Preview route, responsive, gallery, and authenticated staff behavior remain blocked rather than verified.
+- **Release boundary:** PR #3 remains draft and unmerged; its current merge state is CLEAN. Production was not changed or used, and no form, provider message, webhook replay, migration, customer-data mutation, n8n workflow, recording, screenshot, or PDF was created or performed.
 
 ## 2026-10-19 — Nia geography, refusal handling and 14px chat text
 
@@ -1227,3 +1225,13 @@ n8n production webhook executions 101, 102, 103 were observed running during the
 Production browser: new short greeting visible, desktop composer font 14px and height 36px. Preview mobile 390x844: message font 14px, native input font 16px scaled 0.875 (visual 14px), rendered height 35.998px, no horizontal overflow, unrestricted viewport zoom. No physical iPhone/Safari focus-zoom test is claimed. No full-repository local build is claimed; Vercel builds verified the actual repository compilation.
 
 Remaining scope limits: AI geography is not an exhaustive Nigerian gazetteer; ambiguous locations require a state/city clarification. Availability still comes only from public inventory. Generic solar backup does not verify round-the-clock power. Broader draft PR #3 remains separate and unmerged. No recordings, screenshots, PDF, migrations, pricing or media changes.
+
+## PR #3 release continuation — 2026-10-20
+
+- **Local integration:** Continued the isolated PR #3 worktree after integrating current `origin/main`; preserved the existing Telegram/n8n, location planning, returning-user, refusal, 14px chat, gallery, image, pricing, role, and iPhone composer changes. The contact, privacy, Nia response, and inspection retry conflict resolutions remain in place. No unrelated worktree was changed.
+- **Public lead API correction:** Review of the linked migration history showed that the contact and landlord tables revoke direct inserts from anonymous/authenticated clients. Their routes had been attempting direct inserts with columns absent from the schema, bypassing the existing receipt-backed `SECURITY DEFINER` RPCs. Both POST routes now call their existing `submit_contact_enquiry` / `submit_landlord_submission` functions with scoped HMAC-derived receipt hashes and the browser idempotency key. The staff GET routes now select the linked customer relation rather than nonexistent lead-table name/email/phone columns. The RPCs link the customer, persist the lead, and enqueue an in-app dashboard notification transactionally. No migration or service-role table insert was added; these database notifications are not outbound email.
+- **Automated local checks:** Full Vitest **279 passed, 16 skipped** (34 passing files, 2 skipped). Application and test typechecks passed after the build. Full ESLint passed with **0 errors and 34 warnings**; changed public lead/API files had no lint warnings. Next.js 16.4.2 production build generated **80/80 routes**.
+- **Local browser/UI evidence:** Contact and landlord forms were exercised with intercepted synthetic requests only: each first attempt returned a mocked 503, then after page reload the matching retry reused the same idempotency key and received a mocked 202. Their success states accurately describe receipt only; neither request reached Supabase. The landlord form had **zero file inputs** and explicitly states photo upload is unavailable. The inspection request mock likewise reused its key after refresh and displayed a pending—not approved—receipt. The local public route/viewport matrix covered 18 combinations at 320, 390, and 1280px; all returned HTTP 200 with no detected horizontal overflow.
+- **Local integration limitation:** This isolated worktree had no `.env.local`; live Supabase-backed API calls were not made. Existing local route fetches that require Supabase returned HTTP 500. Mocked browser flows and unit tests are not evidence of production writes, staff visibility, or notification delivery.
+- **Production and external boundary:** No production form was submitted and no database record or migration was created. A read-only Production navigation to `/staff/dashboard` redirected to `/staff/signin`, so authenticated staff workflows could not be exercised. No staff invitation/recovery email, Telegram message, historical update replay, customer contact, or n8n workflow change occurred. PR #3 was still open/draft at this checkpoint; preview deployment completion, if reported by Vercel, is not application-behavior verification.
+- **Remaining verification:** The contact/landlord staff GET APIs are now schema-aligned, but no staff page currently consumes them, so staff UI visibility remains incomplete. The notifications feed exposes persisted delivery status but has no per-user read/unread state or mark-read action. Production form receipt/staff visibility, inspection lifecycle and capacity, staff authentication/roles/invitations/recovery, audit and permission-scoped actions remain unverified. Telegram end-to-end verification remains blocked until the existing approved synthetic test chat can be safely identified. No invitation or recovery email will be sent without explicit approval.

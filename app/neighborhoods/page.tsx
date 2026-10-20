@@ -106,11 +106,11 @@ export default function NeighborhoodsPage() {
           </h1>
 
           <p className="text-sm sm:text-lg text-muted-ink leading-relaxed font-normal">
-            Explore Benin City, Sapele and Effurun with practical guidance on access, compound living, utilities and the questions to ask before choosing a home.
+            Explore area guides across Benin City and Delta State, with practical prompts on access, utilities, and questions to ask before choosing a home.
           </p>
 
           <div className="mt-4 inline-block px-3.5 py-1.5 rounded-full bg-persimmon-soft text-persimmon text-xs font-semibold border border-persimmon/20">
-            Start with an area. Confirm the details at the property.
+            General area information only. Confirm property conditions, fees, utilities, access, and availability independently.
           </div>
         </div>
 

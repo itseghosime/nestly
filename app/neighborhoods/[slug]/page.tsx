@@ -339,7 +339,7 @@ export default function NeighborhoodGuideDetailPage({ params }: { params: Promis
           </div>
         </div>
 
-        {/* Local Verified Listings in this neighborhood */}
+        {/* Local Listings in this neighborhood */}
         <section data-nhdetail-enter className="pt-10 border-t border-hairline">
           <div className="flex items-center justify-between mb-8">
             <div>
@@ -347,7 +347,7 @@ export default function NeighborhoodGuideDetailPage({ params }: { params: Promis
                 Current listings around {neighborhood.city}
               </h2>
               <p className="text-xs sm:text-sm text-muted-ink mt-0.5">
-                Compare the published details, fees and inspection availability for each home.
+                Listing details can change. Confirm current rent, fees, and viewing arrangements before visiting.
               </p>
             </div>
             <Link
@@ -368,12 +368,12 @@ export default function NeighborhoodGuideDetailPage({ params }: { params: Promis
           ) : (
             <div className="bg-white rounded-3xl p-8 border border-hairline text-center max-w-md mx-auto">
               <p className="text-sm font-bold text-charcoal mb-1">No current listings in this area</p>
-              <p className="text-xs text-muted-ink mb-4">Explore other areas or ask Nia to help refine your search.</p>
+              <p className="text-xs text-muted-ink mb-4">No matching listings are shown for this neighborhood. Explore another area or browse all listings.</p>
               <Link
                 href="/browse"
                 className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold uppercase tracking-wider nestly-press"
               >
-                <span>Browse available homes</span>
+                <span>Browse all listings</span>
               </Link>
             </div>
           )}

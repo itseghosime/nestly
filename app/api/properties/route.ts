@@ -4,6 +4,7 @@ import { computeTotal, type FeeRow } from '@/lib/price';
 import { STAFF_ROLES } from '@/lib/backend/authorization';
 import { isUnauthenticatedAuthError } from '@/lib/backend/auth-errors';
 import { signPropertyMedia, type PropertyMediaStorageRow } from '@/lib/backend/media-url';
+import { getEffectiveMaxAnnualRent } from '@/lib/backend/property-list-query';
 import { assertSameOrigin } from '@/lib/backend/public-request';
 
 type PropertyMediaRecord = PropertyMediaStorageRow & { id: string };
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
   const location = url.searchParams.get('location') || 'all';
   const beds = url.searchParams.get('beds') || 'all';
   const rawMaxPrice = url.searchParams.get('maxPrice') || url.searchParams.get('max_price');
-  const maxPrice = rawMaxPrice == null ? 6000000 : Number(rawMaxPrice);
+  const requestedMaxPrice = rawMaxPrice == null ? null : Number(rawMaxPrice);
   const type = url.searchParams.get('type') || 'all';
   const keyword = safeFilterValue((url.searchParams.get('keyword') || '').toLowerCase());
   const sort = url.searchParams.get('sort') || 'featured';
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
   if (
     !Number.isSafeInteger(pageValue) || pageValue < 1
     || !Number.isSafeInteger(limitValue) || limitValue < 1
-    || !Number.isFinite(maxPrice) || maxPrice < 0
+    || (requestedMaxPrice !== null && (!Number.isFinite(requestedMaxPrice) || requestedMaxPrice < 0))
   ) {
     return NextResponse.json({ error: 'Invalid filter or pagination value' }, { status: 400 });
   }
@@ -50,6 +51,7 @@ export async function GET(request: Request) {
   }
 
   const isStaff = STAFF_ROLES.includes(staffRole as (typeof STAFF_ROLES)[number]);
+  const maxPrice = getEffectiveMaxAnnualRent(requestedMaxPrice, isStaff);
   const table = isStaff ? 'properties' : 'public_properties';
   let query = supabase.from(table).select('*', { count: 'exact' });
 
@@ -64,7 +66,7 @@ export async function GET(request: Request) {
     else if (beds === '4+') query = query.gte('bedrooms', 4);
   }
   if (type !== 'all') query = query.eq('property_type', type);
-  query = query.lte('rent_annual', maxPrice);
+  if (maxPrice !== null) query = query.lte('rent_annual', maxPrice);
   if (keyword) query = query.or(`title.ilike.%${keyword}%,tagline.ilike.%${keyword}%,neighborhood.ilike.%${keyword}%`);
 
   if (sort === 'price-asc') query = query.order('rent_annual', { ascending: true });
@@ -141,8 +143,8 @@ export async function GET(request: Request) {
       powerRating: row.power_rating,
       waterSupply: row.water_supply,
       securityRating: row.security_rating,
-      verificationBadge: row.verification_state === 'verified' ? 'Verified Physical Title' : row.verification_state === 'vetted' ? 'Vetted Landlord' : 'Direct Instruction',
-      inspectionStatus: 'Slots Available',
+      verificationBadge: row.verification_state === 'verified' ? 'Verified Physical Title' : row.verification_state === 'vetted' ? 'Vetted Landlord' : 'Verification status not provided',
+      inspectionStatus: 'Availability not listed',
       featuredImage,
       galleryImages,
       description: row.description,

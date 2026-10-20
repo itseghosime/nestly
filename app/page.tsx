@@ -10,12 +10,14 @@ import { Header } from "@/components/public/Header";
 import { Footer } from "@/components/public/Footer";
 import { NiaWidget } from "@/components/public/NiaWidget";
 import { PropertyCard } from "@/components/public/PropertyCard";
-import { fetchProperties } from "@/lib/properties";
+import { fetchProperties, IS_DEMO_MODE } from "@/lib/properties";
 import { PROPERTIES as FIXTURE_PROPERTIES } from "@/lib/fixtures/properties";
-import type { Property } from "@/lib/types";
+import { getDemoFixtures } from "@/lib/demo-mode";
 import { fetchNeighborhoods } from "@/lib/neighborhoods";
 import { NEIGHBORHOODS as FIXTURE_NEIGHBORHOODS } from "@/lib/fixtures/neighborhoods";
+import type { NeighborhoodGuide, Property } from "@/lib/types";
 import { prefersReducedMotion } from "@/lib/motion";
+import { NIA_TELEGRAM_URL } from "@/lib/contact-channels";
 import {
   ArrowUpRight,
   Search,
@@ -33,15 +35,15 @@ if (typeof window !== "undefined") {
 const HOME_FAQS = [
   {
     q: "Do I need an account to browse or contact Nia?",
-    a: "No account or registration is required. You can freely explore verified listings, save properties locally to your browser shortlist, and speak with Nia. You only provide contact details when scheduling an in-person physical viewing.",
+    a: "No account or registration is required to browse public listings or save them locally in your browser. Contact details are requested when you submit an inquiry or inspection request.",
   },
   {
     q: "Are properties on Nestly physically verified?",
-    a: "Yes. Our field operations team visits every home in person in Benin City, Sapele, and Warri. We inspect plumbing pressure, verify electrical wiring phase stability, cross-check landlord identity, and confirm the property is vacant and ready for immediate occupation.",
+    a: "Not every listing detail is independently verified. Review the information shown and confirm ownership, utilities, condition, availability, and terms before making arrangements.",
   },
   {
-    q: "Do I have to pay an upfront inspection fee?",
-    a: "Nestly eliminates arbitrary 'mobility' charges and unverified agency fees. Viewing appointments are coordinated with designated field staff who meet you directly at the property gate.",
+    q: "Does an inspection request confirm a visit or fee?",
+    a: "No. Submitting a request does not confirm an appointment or payment. Wait for an explicit response and clarify any charges before visiting.",
   },
   {
     q: "Which neighborhoods are currently supported?",
@@ -65,29 +67,70 @@ export default function HomePage() {
   const [searchPrice, setSearchPrice] = useState("Under ₦4,000,000");
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
-  const [properties, setProperties] = useState<Property[]>(FIXTURE_PROPERTIES);
+  const [properties, setProperties] = useState<Property[]>(() =>
+    getDemoFixtures(IS_DEMO_MODE, FIXTURE_PROPERTIES),
+  );
+  const [homePropertiesLoading, setHomePropertiesLoading] = useState(true);
   const [homePropertiesError, setHomePropertiesError] = useState<string | null>(
     null,
   );
+  const [homeReloadTrigger, setHomeReloadTrigger] = useState(0);
+  const [neighborhoods, setNeighborhoods] = useState<NeighborhoodGuide[]>(() =>
+    getDemoFixtures(IS_DEMO_MODE, FIXTURE_NEIGHBORHOODS),
+  );
+  const [neighborhoodsLoading, setNeighborhoodsLoading] = useState(true);
+  const [neighborhoodsError, setNeighborhoodsError] = useState<string | null>(
+    null,
+  );
+  const [neighborhoodReloadTrigger, setNeighborhoodReloadTrigger] = useState(0);
   React.useEffect(() => {
     let c = false;
     fetchProperties()
       .then((rows) => {
-        if (!c && rows.length) {
+        if (!c) {
           setProperties(rows);
           setHomePropertiesError(null);
         }
       })
       .catch((error: unknown) => {
-        if (!c)
+        if (!c) {
+          setProperties(getDemoFixtures(IS_DEMO_MODE, FIXTURE_PROPERTIES));
           setHomePropertiesError(
             error instanceof Error ? error.message : "Failed to load listings.",
           );
+        }
+      })
+      .finally(() => {
+        if (!c) setHomePropertiesLoading(false);
       });
     return () => {
       c = true;
     };
-  }, []);
+  }, [homeReloadTrigger]);
+  React.useEffect(() => {
+    let c = false;
+    fetchNeighborhoods()
+      .then((rows) => {
+        if (!c) {
+          setNeighborhoods(rows);
+          setNeighborhoodsError(null);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!c) {
+          setNeighborhoods(getDemoFixtures(IS_DEMO_MODE, FIXTURE_NEIGHBORHOODS));
+          setNeighborhoodsError(
+            error instanceof Error ? error.message : "Failed to load neighborhood guides.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!c) setNeighborhoodsLoading(false);
+      });
+    return () => {
+      c = true;
+    };
+  }, [neighborhoodReloadTrigger]);
   const filteredProperties =
     selectedCategory === "all"
       ? properties.slice(0, 3)
@@ -314,7 +357,7 @@ export default function HomePage() {
               <span>BENIN CITY · SAPELE · DELTA</span>
             </div>
             <p className="text-[13px] font-medium text-muted-ink hidden sm:block">
-              Verified residential property discovery · No sign-up required
+              Residential property discovery · No sign-up required
             </p>
           </div>
 
@@ -332,9 +375,9 @@ export default function HomePage() {
             </div>
             <div data-hero-text className="lg:col-span-4 lg:pb-3">
               <p className="text-base sm:text-lg lg:text-[20px] leading-relaxed text-muted-ink font-normal max-w-[360px]">
-                Find a home that fits your lifestyle. Browse verified daylight
-                details, ask Nia, and arrange an in-person viewing with a real
-                person.
+                Find a home that fits your life. Browse public listing details,
+                ask Nia about available information, and request an in-person
+                viewing.
               </p>
             </div>
           </div>
@@ -495,11 +538,11 @@ export default function HomePage() {
                 <div className="p-1.5 flex items-center justify-end">
                   <button
                     type="submit"
-                    aria-label="Search verified homes"
+                    aria-label="Search homes"
                     className="w-full lg:w-12 h-12 rounded-full bg-persimmon hover:bg-persimmon-hover text-white flex items-center justify-center shadow-sm font-bold text-sm gap-2 nestly-press cursor-pointer"
                   >
                     <Search className="w-5 h-5 stroke-[2.2]" />
-                    <span className="lg:hidden">Search verified homes</span>
+                    <span className="lg:hidden">Search homes</span>
                   </button>
                 </div>
               </form>
@@ -622,6 +665,31 @@ export default function HomePage() {
           </div>
 
           {/* Asymmetrical 3-Card Rail */}
+          {homePropertiesError && (
+            <div role="alert" className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-xs text-red-700">
+              <span>{homePropertiesError}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setHomePropertiesLoading(true);
+                  setHomeReloadTrigger((current) => current + 1);
+                }}
+                className="ml-3 font-bold underline"
+              >
+                Retry listings
+              </button>
+            </div>
+          )}
+          {homePropertiesLoading && properties.length === 0 && (
+            <p role="status" className="mb-6 text-sm text-muted-ink">
+              Loading public listings…
+            </p>
+          )}
+          {!homePropertiesLoading && !homePropertiesError && filteredProperties.length === 0 && (
+            <p role="status" className="mb-6 text-sm text-muted-ink">
+              No public listings are currently available.
+            </p>
+          )}
           <div
             ref={featuredGridRef}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
@@ -665,7 +733,7 @@ export default function HomePage() {
             <span className="text-xs font-bold text-muted-ink mr-2 uppercase tracking-wider">
               Pockets:
             </span>
-            {FIXTURE_NEIGHBORHOODS.map((n) => (
+            {neighborhoods.map((n) => (
               <Link
                 key={n.id}
                 href={`/neighborhoods/${n.slug}`}
@@ -674,6 +742,31 @@ export default function HomePage() {
                 {n.name.split(" (")[0]}
               </Link>
             ))}
+            {neighborhoodsError && (
+              <span role="alert" className="text-xs text-red-700">
+                {neighborhoodsError}{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNeighborhoodsLoading(true);
+                    setNeighborhoodReloadTrigger((current) => current + 1);
+                  }}
+                  className="font-bold underline"
+                >
+                  Retry guides
+                </button>
+              </span>
+            )}
+            {neighborhoodsLoading && neighborhoods.length === 0 && (
+              <span role="status" className="text-xs text-muted-ink">
+                Loading guides…
+              </span>
+            )}
+            {!neighborhoodsLoading && !neighborhoodsError && neighborhoods.length === 0 && (
+              <span role="status" className="text-xs text-muted-ink">
+                No neighborhood guides are currently available.
+              </span>
+            )}
           </div>
 
           {/* Large 60/40 photographic panels */}
@@ -786,7 +879,7 @@ export default function HomePage() {
                 </p>
               </div>
 
-              {/* Right: Custom WhatsApp Mockup */}
+              {/* Right: Nia conversation mockup */}
               <div className="lg:col-span-6 flex justify-center">
                 <div className="w-full max-w-[400px] bg-white rounded-3xl p-5 shadow-lg border border-hairline">
                   {/* Header */}
@@ -819,24 +912,33 @@ export default function HomePage() {
                     </div>
                     <div data-nia-bubble className="flex justify-start">
                       <div className="max-w-[85%] bg-soft-stone text-charcoal rounded-2xl rounded-tl-xs px-3.5 py-2.5 font-normal">
-                        I found 2 verified options off Boundary Road. Both
-                        feature dedicated transformers and inverter wiring.
-                        Would you like a field inspection slot for Monday?
+                        I can search published listings by location, bedrooms,
+                        and budget. What would you like me to look for?
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-hairline flex items-center justify-between">
+                  <div className="mt-4 pt-3 border-t border-hairline flex flex-wrap items-center justify-between gap-2">
                     <span className="text-xs text-muted-ink font-medium">
-                      Ready to discuss your checklist?
+                      Chat with Nia on the site or Telegram.
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => setIsNiaOpen(true)}
-                      className="text-xs font-bold text-persimmon hover:underline cursor-pointer"
-                    >
-                      Open Assistant →
-                    </button>
+                    <div className="flex items-center gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setIsNiaOpen(true)}
+                        className="text-xs font-bold text-persimmon hover:underline cursor-pointer"
+                      >
+                        Open website chat →
+                      </button>
+                      <a
+                        href={NIA_TELEGRAM_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-bold text-persimmon hover:underline"
+                      >
+                        Open Telegram ↗
+                      </a>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -891,7 +993,7 @@ export default function HomePage() {
                     Browse &amp; save freely
                   </h3>
                   <p className="text-xs sm:text-sm text-muted-ink mt-0.5">
-                    Compare verified daylight photos and itemized fee sheets
+                    Compare listing photos and disclosed fee details
                     without creating an account.
                   </p>
                 </div>
@@ -928,8 +1030,8 @@ export default function HomePage() {
                     Clarify the fine print with Nia
                   </h3>
                   <p className="text-xs sm:text-sm text-muted-ink mt-0.5">
-                    Get instant answers on water pressure, meter independence,
-                    caution deposits, and security staff.
+                    Review reported details on utilities, fees, and security,
+                    then confirm anything important before proceeding.
                   </p>
                 </div>
               </div>
@@ -1058,8 +1160,8 @@ export default function HomePage() {
                     Understanding tenancy agreements: Caution vs legal fees
                   </h4>
                   <p className="text-xs text-muted-ink leading-relaxed">
-                    A breakdown of standard statutory rates in Southern Nigeria
-                    and how refundable caution balances must be documented.
+                    Review rent and listed fees, including amounts that still
+                    need confirmation before you proceed.
                   </p>
                 </div>
                 <Link
@@ -1112,8 +1214,8 @@ export default function HomePage() {
                   Have a place someone could call home?
                 </h3>
                 <p className="text-xs sm:text-sm text-muted-ink mt-0.5">
-                  Share property details with our operations team for physical
-                  verification. Every home is checked before listing.
+                  Submit property details for review. A submission does not
+                  confirm publication or independent verification.
                 </p>
               </div>
             </div>
@@ -1225,7 +1327,7 @@ export default function HomePage() {
                   href="/browse"
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-base font-bold tracking-tight shadow-xl nestly-press"
                 >
-                  <span>Browse verified homes</span>
+                  <span>Browse homes</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
                 <button

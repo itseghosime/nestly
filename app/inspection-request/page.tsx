@@ -13,6 +13,7 @@ import {
   formatInspectionTimeRange,
   inspectionDateKey,
 } from '@/lib/backend/inspection-time';
+import { getPendingFormSubmission } from '@/lib/public-form-submission';
 import { prefersReducedMotion } from '@/lib/motion';
 import {
   Clock,
@@ -41,6 +42,8 @@ type InspectionSlot = {
   spaces_remaining: number;
 };
 
+const PENDING_SUBMISSION_STORAGE_KEY = 'nestly:inspection-submission:v1';
+
 function InspectionRequestContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -60,7 +63,6 @@ function InspectionRequestContent() {
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isNiaOpen, setIsNiaOpen] = useState(false);
-  const requestKeyRef = useRef<{ signature: string; key: string } | null>(null);
 
   const mainRef = useRef<HTMLElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -138,10 +140,11 @@ function InspectionRequestContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     const newErrors: Record<string, string> = {};
 
     if (!fullName.trim()) newErrors.fullName = 'Please enter your full name';
-    if (phone.trim().length < 5) newErrors.phone = 'Please provide a valid phone or WhatsApp number';
+    if (phone.trim().length < 5) newErrors.phone = 'Please provide a valid phone number';
     if (!selectedSlot) newErrors.slot = 'Select an available inspection time';
 
     if (Object.keys(newErrors).length > 0) {
@@ -162,11 +165,6 @@ function InspectionRequestContent() {
 
     setIsSubmitting(true);
     setSubmitError('');
-    try {
-      sessionStorage.removeItem('nestly_inspection_receipt_token');
-    } catch {
-      // The fragment fallback below still carries the receipt without a query parameter.
-    }
     const payload = {
       slotId: selectedSlot.id,
       name: fullName.trim(),
@@ -174,18 +172,18 @@ function InspectionRequestContent() {
       email: email.trim(),
       message: notes.trim(),
     };
-    const signature = JSON.stringify(payload);
-    if (requestKeyRef.current?.signature !== signature) {
-      requestKeyRef.current = { signature, key: crypto.randomUUID() };
-    }
-    const idempotencyKey = requestKeyRef.current.key;
 
     try {
+      const pendingSubmission = await getPendingFormSubmission(
+        window.sessionStorage,
+        PENDING_SUBMISSION_STORAGE_KEY,
+        payload,
+      );
       const response = await fetch('/api/inspections/bookings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Idempotency-Key': idempotencyKey,
+          'Idempotency-Key': pendingSubmission.key,
         },
         body: JSON.stringify(payload),
       });
@@ -451,7 +449,7 @@ function InspectionRequestContent() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div data-error-field={Boolean(errors.phone)}>
                     <label htmlFor="inspect-phone" className="block text-xs font-bold text-charcoal mb-1">
-                      Phone / WhatsApp Number *
+                      Phone Number *
                     </label>
                     <input
                       id="inspect-phone"

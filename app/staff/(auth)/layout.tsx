@@ -2,7 +2,6 @@ import React from 'react';
 import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
 
-const SIMULATION_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 export default function StaffAuthLayout({
   children,
@@ -25,7 +24,7 @@ export default function StaffAuthLayout({
         <div className="flex items-center gap-3">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-soft-stone text-muted-ink text-[11px] font-semibold border border-hairline">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            {SIMULATION_MODE ? 'Simulation Mode' : 'Staff Portal'}
+            Staff Portal
           </span>
           <Link
             href="/"

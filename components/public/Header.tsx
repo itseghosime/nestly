@@ -250,7 +250,7 @@ export function Header({ onOpenNia }: HeaderProps) {
             ref={menuTriggerRef}
             type="button"
             onClick={() => setMobileMenuOpen(true)}
-            aria-label="Open mobile navigation"
+            aria-label={mobileMenuOpen ? 'Close mobile navigation' : 'Open mobile navigation'}
             aria-expanded={mobileMenuOpen}
             className="lg:hidden flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white border border-hairline hover:bg-soft-stone text-charcoal nestly-press"
           >

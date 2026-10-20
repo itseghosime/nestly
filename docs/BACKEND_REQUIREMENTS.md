@@ -5,6 +5,8 @@
 **Generated:** 2026-10-17 (Africa/Lagos) — Appendix A/B corrected 2026-10-17 per §3/§4 authorization
 **Sources inspected:** `docs/BUILD_LOG.md` (v270), `docs/MOTION_CHECKLIST.md`, `docs/Nestly_Nia_Product_Requirements_and_System_Blueprint_v1.pdf` (13 pages, draft v1.0 2026-10-14, Group 04 / Team A — referred to as **Blueprint**), `docs/Nestly + Nia End-to-End Property Workflow.png` (**Workflow PNG** — 8-step customer journey), `docs/Nestly + Nia System Workflow Infographic.png` (**Infographic PNG** — system architecture + tool stack), complete frontend tree (`app/**/page.tsx` 43 leaves, `components/public/*`, `components/staff/*`, `lib/types.ts`, `lib/fixtures/*`, `lib/motion.ts`, `lib/property-transition-context.tsx`, `lib/saved-homes-context.tsx`, `public/images/*`).
 
+> **Current release scope (2026-10-18):** WhatsApp is deferred from the active website experience and is not a release gate. The historical R02 row below is retained as a future reactivation acceptance item, not a current must-pass test. Current customer contact paths are Telegram and website chat. Keep the app-side `TWILIO_OUTBOUND_ENABLED` flag false; this does not disconnect Twilio inbound handling or WF01-generated TwiML replies. Preserve historical WhatsApp records and channel identity.
+
 ---
 
 ## 0. How to read this document
@@ -157,7 +159,7 @@ No row in §1–§6 invents an answer to the above; each is recorded as **TBD** 
 | Blueprint ID | Must be demonstrably true | Frontend surface that exercises it | Backend proof (API or DB assertion) |
 |---|---|---|---|
 | **R01** | Customer can browse/filter stored properties on a responsive website | `/`, `/browse` filters + sort | `GET /api/properties?location=GRA&beds=3&maxPrice=3500000&type=Terrace%20Duplex` returns filtered rows; pagination navigates |
-| **R02** | Live WhatsApp message reaches system; grounded reply returns to test phone | WA entry via property link; n8n webhook | `POST /api/webhooks/whatsapp` with `wamid.*` creates one `messages` row; reply appears on phone within seconds (Meta test number) |
+| **R02** | **Deferred — not required for this release.** For a separately approved reactivation, a live WhatsApp message reaches the system and a grounded reply returns to the test phone. | Future WhatsApp entry point and provider workflow | Future isolated-provider acceptance only; no WhatsApp send/receipt test is a current release gate. |
 | **R03** | Nia clarifies, remembers active choices, handles changed preferences | Nia chat asking then refining budget/location/"second one" | Conversation `last_needs` and `recent_property_ids[]` mutate; second query returns re-queried shortlist |
 | **R04** | No-match and unavailable produce accurate alternatives or escalation | No-match browse empty state; Nia "no current match" | `GET /api/properties?location=NoWhere` returns `{matches:[], suggestion:"which constraint could change?"}` |
 | **R05** | Agent listing updates affect public site and Nia's next lookup | `/staff/properties/[id]/edit` → public detail & Nia | `PATCH /api/properties/prop-gra-01 {priceAnnual: 3600000}`; subsequent `GET /api/properties/prop-gra-01` and `search_properties` return new price |
@@ -237,10 +239,10 @@ This appendix records the 13 corrections mandated before implementation, each wi
 
 - **Correction:** `profiles.role` / `profiles.capabilities` are the source of authorization. Documented in `docs/roles-matrix.md` (least-privilege: `user:promote` required to change `role`, `team:invite` to invite, `properties:write:any` to edit any listing). Self-promotion is blocked by RLS `WITH CHECK`.
 
-### A.9 Current Twilio validation; direct Meta deferred
+### A.9 Deferred WhatsApp validation; direct Meta deferred
 
-- **Current provider decision:** Twilio remains the WhatsApp provider while Meta verification is pending; direct Meta verification and ingress are deferred, not a prerequisite.
-- **Required, not deployed:** Twilio POST signature validation must use `X-Twilio-Signature`, the exact public callback URL, all request parameters, and the Twilio Auth Token. Official n8n Cloud Code nodes cannot read credential values, so the documented compatible path is a validator proxy in the existing Next.js deployment, forwarding only valid requests to the existing WF01 Webhook protected by a separate Header Auth relay credential. This does not add another conversation or reply engine. It requires a separately stored app secret and a coordinated Twilio callback cutover; see `docs/n8n-contracts.md`.
+- **Deferred provider decision:** Twilio remains the preserved historical WhatsApp provider; direct Meta verification and ingress are also deferred. WhatsApp is not a current release gate.
+- **Existing code, external registration unverified:** The workspace contains Twilio signature-validated Next.js inbound and status routes. Whether external Twilio settings currently point to them was not verified for this release. WF01 remains an independent workflow and may still return TwiML replies; see `docs/n8n-contracts.md`.
 - **Meta-specific future work:** Meta GET subscription verification (`hub.mode=subscribe` and `hub.verify_token` → `hub.challenge`) and POST signature verification (`X-Hub-Signature-256 = HMAC-SHA256(WHATSAPP_APP_SECRET, rawBody)`) are separate operations with separate configuration. These are not applicable to current Twilio ingress. Do not implement until Meta is re-enabled as an explicit provider decision.
 
 ### A.10 Customer messages stay customer-authored during takeover

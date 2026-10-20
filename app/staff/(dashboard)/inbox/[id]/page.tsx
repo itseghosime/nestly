@@ -652,7 +652,7 @@ export default function ConversationDetailPage({
 
               {conversation?.mode === 'AI_ACTIVE' && (
                 <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-900 border border-emerald-200 text-[11px] leading-relaxed">
-                  <strong>AI ownership recorded.</strong> {getAiOwnershipNotice(conversation.channel)}
+                  <strong>AI ownership active.</strong> {getAiOwnershipNotice(conversation.channel)}
                 </div>
               )}
               {conversation?.mode === 'HUMAN_ACTIVE' && (
@@ -662,11 +662,11 @@ export default function ConversationDetailPage({
                     : 'bg-amber-50 text-amber-900 border-amber-200'
                 }`}>
                   {conversation.assignedStaffId === null ? (
-                    <><strong>Unassigned human handoff.</strong> Assign this conversation to yourself before replying.</>
+                    <><strong>Unassigned human handoff.</strong> Click &ldquo;Assign to me&rdquo; above to take ownership before replying.</>
                   ) : conversation.isAssignedToCurrentStaff ? (
                     <><strong>Assigned to you.</strong> Reply availability depends on your staff role and channel configuration.</>
                   ) : (
-                    <><strong>Assigned to {conversation.assignedStaff}.</strong> Reassignment and replies remain subject to the authorized staff workflow.</>
+                    <><strong>Assigned to {conversation.assignedStaff}.</strong> Replies require an authorized assignee; reassignment follows the staff authorization rules.</>
                   )}
                 </div>
               )}
@@ -904,27 +904,27 @@ export default function ConversationDetailPage({
                       : !conversation.telegramOutboundEnabled
                         ? 'Telegram staff sending is disabled by the deployment flag. No external message was sent.'
                         : !conversation.telegramSendConfigured
-                          ? 'Telegram bot token is missing or invalid. No external message was sent.'
-                          : !conversation.isAssignedToCurrentStaff
+                            ? 'Telegram bot token is missing or invalid. No external message was sent.'
+                            : !conversation.isAssignedToCurrentStaff
                               ? conversation.assignedStaffId === null
                                 ? 'This conversation is unassigned. Click "Assign to me" above to take ownership before replying.'
-                                : `This conversation is assigned to ${conversation.assignedStaff}. Only its assigned staff member can send a Telegram reply.`
+                                : `This conversation is assigned to ${conversation.assignedStaff}. Only its assigned staff member with an authorized role can send a Telegram reply.`
                               : 'Your staff role is not authorized to send Telegram replies.'
                     : triageMode === 'CLOSED'
                       ? 'This conversation is closed. Reopen or take over only through the authorized staff workflow before replying.'
                       : 'Take over this Telegram conversation before replying. Nia stays paused while staff owns it.'
                   : conversation.channel === 'whatsapp'
-                  ? triageMode === 'HUMAN'
-                    ? !conversation.whatsappDispatchAvailable
-                      ? 'Twilio staff replies are unavailable until the additive message-tracking migration is applied to this database. No external message was sent.'
-                      : !conversation.whatsappOutboundEnabled
-                        ? 'Twilio staff sending is disabled for this deployment. No external message was sent.'
+                      ? !conversation.whatsappOutboundEnabled
+                        ? 'WhatsApp staff replies are deferred in this deployment. This historical thread remains available for review; no Telegram identity is inferred from the phone number.'
+                        : triageMode === 'HUMAN'
+                        ? !conversation.whatsappDispatchAvailable
+                        ? 'Twilio staff replies are unavailable until the additive message-tracking migration is applied to this database. No external message was sent.'
                         : !conversation.whatsappSendConfigured
                           ? 'Twilio staff send configuration is incomplete. No external message was sent.'
                         : !conversation.isAssignedToCurrentStaff
                           ? conversation.assignedStaffId === null
                             ? 'This conversation is unassigned. Click "Assign to me" above to take ownership before replying.'
-                            : `This conversation is assigned to ${conversation.assignedStaff}. Only its assigned staff member can send a WhatsApp reply.`
+                            : `This conversation is assigned to ${conversation.assignedStaff}. Only its assigned staff member with an authorized role can send a WhatsApp reply.`
                         : 'Your staff role is not authorized to send WhatsApp replies.'
                     : triageMode === 'CLOSED'
                       ? 'This conversation is closed. Reopen or take over only through the authorized staff workflow before replying.'

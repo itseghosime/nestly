@@ -52,147 +52,13 @@ function formatAuditTimestamp(value: string) {
   }).format(date);
 }
 
-const EXTENDED_LOGS: ExtendedAuditItem[] = [
-  {
-    id: 'EV-2026-1027-00918',
-    timestamp: 'Today 14:15:22 WAT',
-    actor: 'Osamwonyi E. (Coordinator)',
-    action: 'Claimed Inquiry Triage',
-    target: 'Conv #8491 (Osasere I.)',
-    category: 'Concierge',
-    ipAddress: '197.210.65.12 (Desk-02)',
-    status: 'Success',
-    terminalRef: 'Desk-02',
-    authMethod: 'Hardware FIDO2 WebAuthn',
-    deltaBefore: 'assigned_agent: null',
-    deltaAfter: 'assigned_agent: "usr_osa_02"',
-    rawPayload: {
-      version: 'v2.1',
-      event: 'INQUIRY_TRIAGE_CLAIMED',
-      conversation_id: 'conv_8491',
-      actor_id: 'usr_osa_02',
-      session_channel: 'Internal Desk Console',
-      timestamp: '2026-10-27T14:15:22+01:00'
-    }
-  },
-  {
-    id: 'EV-2026-1027-00912',
-    timestamp: 'Today 13:50:08 WAT',
-    actor: 'Tunde Adebayo (Admin)',
-    action: 'Updated Property Draft',
-    target: 'NST-EDO-003 (The Oredo Haven)',
-    category: 'Property',
-    ipAddress: '102.89.44.19 (Desk-01)',
-    status: 'Success',
-    terminalRef: 'Desk-01',
-    authMethod: 'MFA Push App',
-    deltaBefore: 'annual_rent_ngn: 2400000',
-    deltaAfter: 'annual_rent_ngn: 2500000',
-    rawPayload: {
-      version: 'v2.1',
-      event: 'PROPERTY_PRICE_AMENDMENT',
-      property_id: 'prop-gra-01',
-      actor_id: 'usr_tun_01',
-      edogis_sync: true,
-      timestamp: '2026-10-27T13:50:08+01:00'
-    }
-  },
-  {
-    id: 'EV-2026-1027-00905',
-    timestamp: 'Today 11:30:00 WAT',
-    actor: 'System Coordinator (Daemon)',
-    action: 'Generated Viewing Slot',
-    target: 'SLT-88210 (Boundary Rd)',
-    category: 'Inspection',
-    ipAddress: 'Internal System Loopback',
-    status: 'Success',
-    terminalRef: 'Scheduler-Daemon-WAF1',
-    authMethod: 'System Service Token',
-    deltaBefore: 'slot_status: "unallocated"',
-    deltaAfter: 'slot_status: "open_daylight"',
-    rawPayload: {
-      version: 'v2.1',
-      event: 'SCHEDULE_SLOT_DISPATCH',
-      slot_id: 'SLT-88210',
-      daylight_verified: true,
-      timestamp: '2026-10-27T11:30:00+01:00'
-    }
-  },
-  {
-    id: 'EV-2026-1027-00898',
-    timestamp: 'Today 09:20:41 WAT',
-    actor: 'Osamwonyi E. (Coordinator)',
-    action: 'Rescheduled Inspection',
-    target: 'NST-DEMO-REQ-004',
-    category: 'Inspection',
-    ipAddress: '197.210.65.12 (Desk-02)',
-    status: 'Success',
-    terminalRef: 'Desk-02',
-    authMethod: 'Hardware FIDO2 WebAuthn',
-    deltaBefore: 'time_slot: "11:00 - 12:30 WAT"',
-    deltaAfter: 'time_slot: "15:00 - 16:30 WAT"',
-    rawPayload: {
-      version: 'v2.1',
-      event: 'INSPECTION_WINDOW_UPDATE',
-      request_id: 'req_004',
-      reason: 'Customer requested afternoon slot',
-      timestamp: '2026-10-27T09:20:41+01:00'
-    }
-  },
-  {
-    id: 'EV-2026-1027-00870',
-    timestamp: 'Yesterday 16:40:19 WAT',
-    actor: 'Tunde Adebayo (Admin)',
-    action: 'Issued Staff Invite',
-    target: 'staff@example.com',
-    category: 'Security',
-    ipAddress: '102.89.44.19 (Desk-01)',
-    status: 'Success',
-    terminalRef: 'Desk-01',
-    authMethod: 'MFA Push App',
-    deltaBefore: 'user_state: null',
-    deltaAfter: 'user_state: "invited_coordinator"',
-    rawPayload: {
-      version: 'v2.1',
-      event: 'STAFF_INVITATION_ISSUED',
-      target_email: 'staff@example.com',
-      assigned_role: 'Operations Coordinator',
-      expiry_hours: 48,
-      timestamp: '2026-10-26T16:40:19+01:00'
-    }
-  },
-  {
-    id: 'EV-2026-1027-00862',
-    timestamp: 'Yesterday 14:10:55 WAT',
-    actor: 'Sarah Momodu (Escort)',
-    action: 'Completed Walkthrough Note',
-    target: 'NST-EV-409 (Clinic Rd)',
-    category: 'Property',
-    ipAddress: '197.210.65.11 (Mobile iOS)',
-    status: 'Success',
-    terminalRef: 'Field-Mobile-App-v1.4',
-    authMethod: 'Biometric FaceID',
-    deltaBefore: 'inspection_status: "in_progress"',
-    deltaAfter: 'inspection_status: "completed_verified"',
-    rawPayload: {
-      version: 'v2.1',
-      event: 'WALKTHROUGH_SIGN_OFF',
-      inspection_id: 'NST-EV-409',
-      key_custody_returned: true,
-      timestamp: '2026-10-26T14:10:55+01:00'
-    }
-  }
-];
-
 export default function AuditLogPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [dateFilter, setDateFilter] = useState('24h');
   const [selectedEvent, setSelectedEvent] = useState<ExtendedAuditItem | null>(null);
   const [copied, setCopied] = useState(false);
-  const [logs, setLogs] = useState<ExtendedAuditItem[]>(
-    process.env.NEXT_PUBLIC_DEMO_MODE === 'true' ? EXTENDED_LOGS : [],
-  );
+  const [logs, setLogs] = useState<ExtendedAuditItem[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -257,6 +123,15 @@ export default function AuditLogPage() {
     if (!selectedEvent || !drawerRef.current || prefersReducedMotion()) return;
     gsap.fromTo(drawerRef.current, { x: 24, opacity: 0 }, { x: 0, opacity: 1, duration: 0.22, ease: MOTION.ease.crispOut, clearProps: 'transform,opacity' });
   }, { dependencies: [selectedEvent] });
+  useEffect(() => {
+    if (!selectedEvent) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedEvent(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedEvent]);
+
   useGSAP(() => {
     if (!csvToast || !toastRef.current || prefersReducedMotion()) return;
     gsap.fromTo(toastRef.current, { y: -8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.22, ease: MOTION.ease.crispOut, clearProps: 'transform,opacity' });
@@ -481,7 +356,9 @@ export default function AuditLogPage() {
               {loading ? (
                 <tr><td colSpan={6} className="py-8 text-center text-muted-ink">Loading audit history…</td></tr>
               ) : filteredLogs.length === 0 ? (
-                <tr><td colSpan={6} className="py-8 text-center text-muted-ink">No audit records match the current filters.</td></tr>
+                <tr><td colSpan={6} className="py-8 text-center text-muted-ink">
+                  {error ? 'Audit history is unavailable.' : 'No audit records match the current filters.'}
+                </td></tr>
               ) : filteredLogs.map((item) => (
                 <tr key={item.id} className="hover:bg-white/80 transition-colors">
                   <td className="py-4 px-6 font-mono text-xs whitespace-nowrap">
@@ -489,7 +366,7 @@ export default function AuditLogPage() {
                   </td>
                   <td className="py-4 px-6">
                     <div className="font-bold">{item.actor}</div>
-                    <div className="text-[11px] text-[#202320]/60 font-mono">{item.actorType || 'Demo record'}</div>
+                    <div className="text-[11px] text-[#202320]/60 font-mono">{item.actorType || 'Not recorded'}</div>
                   </td>
                   <td className="py-4 px-6">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#DDE7DB] text-[#173F35]">
@@ -502,7 +379,7 @@ export default function AuditLogPage() {
                   <td className="py-4 px-6 text-[#202320]/70">
                     <span className="inline-flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#ED572E]"></span>
-                      {item.actorType || 'Demo record'}
+                      {item.actorType || 'Not recorded'}
                     </span>
                   </td>
                   <td className="py-4 px-6 text-right">
@@ -559,9 +436,14 @@ export default function AuditLogPage() {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 overflow-hidden bg-black/40 backdrop-blur-xs flex justify-end"
+          aria-label="Event Telemetry Payload"
+          className="fixed inset-0 z-50 overflow-hidden flex justify-end"
         >
-          <div ref={drawerRef} className="w-full max-w-xl bg-[#FCFBF8] h-full shadow-2xl flex flex-col border-l border-[#202320]/10">
+          <div
+            onClick={() => setSelectedEvent(null)}
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs"
+          />
+          <div ref={drawerRef} className="relative z-10 w-full max-w-xl bg-[#FCFBF8] h-full shadow-2xl flex flex-col border-l border-[#202320]/10">
             {/* Drawer Header */}
             <div className="p-6 border-b border-[#202320]/10 flex items-center justify-between">
               <div>
@@ -575,6 +457,7 @@ export default function AuditLogPage() {
               </div>
               <button
                 onClick={() => setSelectedEvent(null)}
+                aria-label="Close payload drawer"
                 className="w-8 h-8 rounded-full bg-[#202320]/5 hover:bg-[#202320]/10 flex items-center justify-center text-[#202320] transition-colors"
               >
                 <X className="w-4 h-4" />
@@ -595,7 +478,7 @@ export default function AuditLogPage() {
                   </div>
                   <div>
                     <span className="text-[#202320]/50 block">Actor type:</span>
-                      <span className="font-mono text-[#202320]">{selectedEvent.actorType || 'Demo fixture'}</span>
+                      <span className="font-mono text-[#202320]">{selectedEvent.actorType || 'Not recorded'}</span>
                   </div>
                   <div>
                       <span className="text-[#202320]/50 block">Event ID:</span>

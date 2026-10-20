@@ -51,7 +51,7 @@ export default function NotFound() {
             </h1>
 
             <p className="text-sm sm:text-base text-muted-ink leading-relaxed font-normal mb-8 max-w-lg">
-              The property monograph or regional link you requested does not exist, has expired, or may have been archived following a successful verified lease.
+              The page or listing you requested could not be found. It may have moved or been removed.
             </p>
 
             <div className="flex flex-wrap items-center gap-3">

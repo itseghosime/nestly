@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import { NIA_TELEGRAM_URL } from '@/lib/contact-channels';
 
 interface FooterProps {
   onOpenNia?: () => void;
@@ -16,7 +17,7 @@ export function Footer({ onOpenNia }: FooterProps) {
               nestly<span className="text-persimmon">.</span>
             </span>
             <p className="text-sm font-medium text-muted-ink mt-3 max-w-md">
-              Curated, verified residential rental discovery for Benin City, Sapele, Warri, and Southern Nigeria.
+              Residential rental listings for Benin City, Sapele, Warri, and Southern Nigeria.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -25,8 +26,16 @@ export function Footer({ onOpenNia }: FooterProps) {
               onClick={onOpenNia}
               className="px-6 py-3 rounded-full bg-white hover:bg-soft-stone text-charcoal font-bold text-xs uppercase tracking-wider border border-hairline transition-colors shadow-2xs"
             >
-              Ask Nia on WhatsApp
+              Chat with Nia on this site
             </button>
+            <a
+              href={NIA_TELEGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-3 rounded-full bg-white hover:bg-soft-stone text-charcoal font-bold text-xs uppercase tracking-wider border border-hairline transition-colors shadow-2xs"
+            >
+              Message Nia on Telegram
+            </a>
             <Link
               href="/browse"
               className="px-6 py-3 rounded-full bg-persimmon text-white font-bold text-xs uppercase tracking-wider hover:bg-persimmon-hover transition-colors shadow-sm"
@@ -157,7 +166,7 @@ export function Footer({ onOpenNia }: FooterProps) {
 
         {/* Bottom Disclaimer & Staff Link */}
         <div className="pt-8 border-t border-hairline flex flex-col sm:flex-row items-center justify-between text-xs text-muted-ink gap-4">
-          <p>© 2026 Nestly Technologies Nigeria Ltd · Curated, verified residential rentals in Edo and Delta States.</p>
+          <p>© 2026 Nestly Technologies Nigeria Ltd · Residential rental listings in Edo and Delta States.</p>
           <Link
             href="/staff/signin"
             className="font-bold text-charcoal hover:text-persimmon transition-colors flex items-center gap-1 shrink-0"

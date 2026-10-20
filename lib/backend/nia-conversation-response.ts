@@ -263,7 +263,7 @@ export async function answerNiaConversationMessage(
     }
     return {
       message: context.preferences
-        ? "Your preferences are unchanged. I'm not quite sure what you mean yet. Would you like to keep looking for homes, change your search, or check a listing's fees?"
+      ? "I'm not quite sure what you mean yet. Your preferences are unchanged. Would you like to keep looking with them, change your search, or check a listing's fees?"
         : "I'd be happy to help you find a home. Which area are you interested in?",
       properties: [],
       context,
