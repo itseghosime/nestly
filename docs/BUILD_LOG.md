@@ -1400,3 +1400,6 @@ First branch implementation: status controls on the existing lead queue; landlor
 Read-only linked findings: workspace name/duration/dispatch columns are absent; lead status CHECK constraints and current row policies inspected; no mutation audit trigger on lead/workspace tables. Nia WF02 is active but configured not to save success/error executions, and the execution search returned zero; therefore the earlier delayed response source is not reconstructed. External WF01 remains active even though app WhatsApp sending is deferred.
 
 Verification limitation: local execution environment unavailable. The installed Next.js docs could not be read; official route-handler source documentation was consulted as fallback while preserving existing handler conventions. Tests/typechecks/builds for these new changes are not claimed passed. No Production merge or deployment of this workstream until review and checks; existing PR #22 evidence remains valid for its own revision.
+
+
+Preview build evidence for the first operations slice: Vercel deployment dpl_4Am74Rgbq1TxWgCBEUSCfkEBV5Kh reached READY for code commit 10692cd11bd0eb87f97084e2ec9a024971dca7f7 on feature/staff-operations-completion. This confirms the Preview build, not execution of the new tests or authenticated browser mutations. Draft PR #25 remains unmerged; Production is unchanged.
