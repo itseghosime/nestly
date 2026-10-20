@@ -254,7 +254,8 @@ See BUILD_LOG.md, “Post-merge production revision check — 2026-10-20,” for
 
 - [x] PR #11 documentation update merged as `921f7efacbe0ec7e9d64aba165ee3fdff803bd47`; Vercel status reported success for that revision.
 - [x] Read-only Production pages returned HTTP 200: sign-in, contact, and landlord submission. Contact showed two Telegram links and no WhatsApp links; landlord showed no file input and disclosed photo upload unavailability.
-- [ ] The sign-in page still showed the obsolete “14 properties scheduled”, “14/14”, and physical-vetting claims after the Vercel success status. The Production alias/revision mismatch remains unresolved; do not treat the successful status as proof the merged UI is live.
+- [x] PR #12 merged as `6321aa4d1b1aae4e3d5a22c44b2b3e6fcbe8428f`; its Vercel status also reported success.
+- [ ] The sign-in page still showed the obsolete “14 properties scheduled”, “14/14”, and physical-vetting claims after both successful statuses. The Production alias/revision mismatch remains unresolved; do not treat the successful status as proof the merged UI is live.
 - [ ] No Production forms, staff actions, or database mutations were exercised. Staff access and the existing approved Telegram test chat remain unavailable for safe end-to-end verification.
 
 See BUILD_LOG.md, “Follow-up Production alias check — 2026-10-20,” for the exact observations.
