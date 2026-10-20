@@ -56,7 +56,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
   const typedFees = fees as FeeRow[];
   const unconfirmed = typedFees.filter((fee) => fee.required && !fee.confirmed_at);
-  const computedTotal = computeTotal(Number(data.rent_annual), typedFees);
+  const rentAnnual = Number(data.rent_annual ?? 0);
+  const computedTotal = computeTotal(rentAnnual, typedFees);
   const signedMediaById = new Map(signedMedia.rows.map((item) => [item.id, item]));
   const galleryImages = signedMedia.rows.map((item) => item.delivery_url || item.url);
   const featuredMedia = media.find((item) => (
@@ -73,8 +74,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const mapped: Record<string, unknown> = {
     ...data,
     propertyType: data.property_type,
-    priceAnnual: Number(data.rent_annual),
-    priceFormatted: data.price_formatted || formatPrice(data.rent_annual, data.currency || 'NGN'),
+    priceAnnual: rentAnnual,
+    priceFormatted: data.price_formatted || formatPrice(rentAnnual, data.currency || 'NGN'),
     addressShort: data.address_short,
     powerRating: data.power_rating,
     waterSupply: data.water_supply,
