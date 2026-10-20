@@ -143,6 +143,7 @@ export function StaffSidebar() {
       icon: MessageSquare,
       badge: '2',
     },
+    { label: 'Lead Submissions', href: '/staff/leads', icon: Users },
     { label: 'Customer Directory', href: '/staff/customers', icon: Users },
     { label: 'Property Management', href: '/staff/properties', icon: Building },
     {
