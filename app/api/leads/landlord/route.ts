@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { assertSameOrigin, getIdempotencyKey, guardPublicRequest } from '@/lib/backend/public-request';
+import {
+  assertSameOrigin,
+  deriveReceiptToken,
+  getIdempotencyKey,
+  guardPublicRequest,
+  hashReceiptToken,
+} from '@/lib/backend/public-request';
 import { requireStaff } from '@/lib/backend/staff-context';
 import { createClient } from '@/lib/supabase/server';
 
@@ -36,28 +42,34 @@ export async function POST(request: Request) {
   if (rejected) return rejected;
   const idempotencyKey = getIdempotencyKey(request);
   if (!idempotencyKey) return NextResponse.json({ error: 'A valid Idempotency-Key is required' }, { status: 400 });
+  const receiptToken = deriveReceiptToken('landlord-submission', idempotencyKey);
+  if (!receiptToken) return NextResponse.json({ error: 'Property submission receipts are not configured' }, { status: 503 });
   const parsed = landlordSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'Invalid property submission details' }, { status: 400 });
 
   const client = await createClient();
-  const { error } = await client.from('landlord_submissions').insert({
-    name: parsed.data.name,
-    email: parsed.data.email.toLowerCase(),
-    phone: parsed.data.phone,
-    property_type: parsed.data.propertyType,
-    state: parsed.data.state,
-    city: parsed.data.city,
-    neighborhood: parsed.data.neighborhood,
-    address: parsed.data.address,
-    bedrooms: parsed.data.bedrooms,
-    expected_annual_rent: parsed.data.expectedAnnualRent,
-    description: parsed.data.description,
-    idempotency_key: idempotencyKey,
+  const { data, error } = await client.rpc('submit_landlord_submission', {
+    p_name: parsed.data.name,
+    p_email: parsed.data.email.toLowerCase(),
+    p_phone: parsed.data.phone,
+    p_property_type: parsed.data.propertyType,
+    p_state: parsed.data.state,
+    p_city: parsed.data.city,
+    p_neighborhood: parsed.data.neighborhood,
+    p_address: parsed.data.address,
+    p_bedrooms: parsed.data.bedrooms,
+    p_expected_annual_rent: parsed.data.expectedAnnualRent,
+    p_description: parsed.data.description,
+    p_receipt_hash: hashReceiptToken(receiptToken),
+    p_idempotency_key: idempotencyKey,
   });
-  if (error && error.code !== '23505') {
+  if (error) {
+    if (error.code === '23505') return NextResponse.json({ error: 'Idempotency key was reused' }, { status: 409 });
+    if (error.code === '22023') return NextResponse.json({ error: 'Property submission details are invalid' }, { status: 400 });
     console.error('Landlord submission failed', error.code);
     return NextResponse.json({ error: 'Unable to receive property submission' }, { status: 503 });
   }
+  if (!data?.[0]) return NextResponse.json({ error: 'Property submission receipt could not be created' }, { status: 503 });
   return NextResponse.json({ requestReceived: true, confirmed: false }, { status: 202 });
 }
 

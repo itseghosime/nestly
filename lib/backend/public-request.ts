@@ -12,7 +12,10 @@ export function getIdempotencyKey(request: Request): string | null {
   return key && /^[A-Za-z0-9._:-]{16,128}$/.test(key) ? key : null;
 }
 
-export function deriveReceiptToken(scope: 'offer' | 'inspection', idempotencyKey: string): string | null {
+export function deriveReceiptToken(
+  scope: 'offer' | 'inspection' | 'contact-enquiry' | 'landlord-submission',
+  idempotencyKey: string,
+): string | null {
   const secret = process.env.PUBLIC_RECEIPT_HMAC_SECRET;
   if (!secret || Buffer.byteLength(secret) < 32) return null;
   return createHmac('sha256', secret).update(`${scope}:${idempotencyKey}`).digest('hex');
