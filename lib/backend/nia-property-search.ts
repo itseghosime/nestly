@@ -5,6 +5,7 @@ export interface NiaPropertySearchCriteria {
   bedrooms?: number;
   maxAnnualRent?: number;
   propertyType?: NiaPropertyType;
+  powerRequirement?: '24h_solar';
   keywords: string[];
 }
 
@@ -32,6 +33,7 @@ const STOP_WORDS = new Set([
   'property', 'properties', 'rent', 'rental', 'rentals', 'search', 'show', 'some',
   'take', 'thank', 'thanks', 'the', 'to', 'try', 'trying', 'under', 'want', 'wanted', 'we', 'with',
   'tell', 'would', 'you',
+  'off', 'close', 'hours', 'hour', 'hrs', 'aruogba', 'aruobga', 'ugbor', 'gra',
   'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
 ]);
 
@@ -61,6 +63,15 @@ export function normalizeNiaSearchKeywords(keywords: readonly string[]): string[
 }
 
 const LOCATION_HINTS = [
+  ['aruogba', 'Aruogba'],
+  ['aruobga', 'Aruogba'],
+  ['irhirhi', 'Irhirhi'],
+  ['ekenhuan', 'Ekenhuan'],
+  ['ugbowo', 'Ugbowo'],
+  ['asaba', 'Asaba'],
+  ['warri', 'Warri'],
+  ['effurun', 'Effurun'],
+  ['osubi', 'Osubi'],
   ['benin city', 'Benin City'],
   ['clinic road', 'Clinic Road'],
   ['sapele', 'Sapele'],
@@ -85,12 +96,16 @@ export function parseNiaPropertySearch(query: string): NiaPropertySearchCriteria
 
   let location: string | undefined;
   for (const [hint, canonical] of LOCATION_HINTS) {
-    if (remaining.includes(hint)) {
-      location = canonical;
-      remaining = remaining.replace(hint, ' ');
-      break;
+    const pattern = new RegExp('\\b' + hint + '\\b', 'gi');
+    if (pattern.test(remaining)) {
+      location ??= canonical;
+      remaining = remaining.replace(pattern, ' ');
     }
   }
+
+  const powerRequirement = /\b24\s*(?:hours?|hrs?|h|\/7)[\s-]*solar\b|\bsolar[\s-]*(?:for\s+)?24\s*(?:hours?|hrs?|h|\/7)\b/i.test(normalized)
+    ? '24h_solar' as const : undefined;
+  remaining = remaining.replace(/\b24\s*(?:hours?|hrs?|h|\/7)\b/g, ' ');
 
   let propertyType: NiaPropertyType | undefined;
   for (const [pattern, type] of PROPERTY_TYPE_HINTS) {
@@ -137,6 +152,7 @@ export function parseNiaPropertySearch(query: string): NiaPropertySearchCriteria
     ...(bedrooms ? { bedrooms } : {}),
     ...(maxAnnualRent ? { maxAnnualRent } : {}),
     ...(propertyType ? { propertyType } : {}),
+    ...(powerRequirement ? { powerRequirement } : {}),
     keywords,
   };
 }

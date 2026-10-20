@@ -30,6 +30,7 @@ import {
 
 const BOT_TOKEN = `123456789:${'A'.repeat(35)}`;
 const WEBHOOK_SECRET = 'synthetic-telegram-webhook-secret-000000000000';
+const RELAY_SECRET = 'synthetic-n8n-relay-secret-000000000000';
 const SITE_URL = 'https://nestly.example.test';
 const MESSAGE_CONTENT = 'Synthetic Telegram query about a property fee';
 const BOT_ID = 123456789;
@@ -509,7 +510,8 @@ describe('n8n response orchestration', () => {
   it('generates a returning greeting through n8n and sends it only once through the existing claim', async () => {
     vi.stubEnv('NIA_N8N_ENABLED', 'true');
     vi.stubEnv('NIA_N8N_WEBHOOK_URL', 'https://agent.example.test/nia');
-    vi.stubEnv('NESTLY_WF01_RELAY_SECRET', 'synthetic-relay-secret');
+    vi.stubEnv('TELEGRAM_WEBHOOK_SECRET', WEBHOOK_SECRET);
+    vi.stubEnv('NESTLY_WF01_RELAY_SECRET', RELAY_SECRET);
     mocks.answerNiaConversationMessage.mockResolvedValue({
       message: 'Hello', properties: [],
       context: { preferences: null, recentPropertyIds: [], selectedPropertyId: null },
@@ -523,6 +525,8 @@ describe('n8n response orchestration', () => {
       if (String(url) === 'https://agent.example.test/nia') {
         const body = JSON.parse(String(request?.body));
         expect(body.visitor).toEqual({ returningUser: true });
+        expect(request?.headers).toMatchObject({ 'X-Nestly-Relay-Secret': RELAY_SECRET });
+        expect(JSON.stringify(request?.headers)).not.toContain(WEBHOOK_SECRET);
         return new Response(JSON.stringify({ version: 1, requestId: body.requestId, message: 'Welcome back! How can I help you today?' }));
       }
       return acceptedProviderResponse();

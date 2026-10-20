@@ -1,3 +1,4 @@
+import { planNiaSearch } from '@/lib/backend/nia-search-plan';
 import { getNiaSocialReply } from '@/lib/backend/nia-social-reply';
 import {
   formatNiaListingPrice,
@@ -132,6 +133,7 @@ function mergeContext(
   values: Partial<NiaConversationContext>,
 ): NiaConversationContext {
   return {
+    ...(values.pendingQuestion ? { pendingQuestion: values.pendingQuestion } : {}),
     preferences: values.preferences === undefined ? context.preferences : values.preferences,
     recentPropertyIds: values.recentPropertyIds ?? context.recentPropertyIds,
     selectedPropertyId: values.selectedPropertyId === undefined
@@ -146,6 +148,13 @@ export async function answerNiaConversationMessage(
   storedContext: unknown,
 ): Promise<NiaConversationAnswer> {
   const context = normalizeNiaContext(storedContext);
+  if (context.pendingQuestion === 'broaden_search' && /^(?:no|nope|nah|no thanks|not really)[.!?\s]*$/i.test(query.trim())) {
+    return {
+      message: "Understood. I'll keep your requirements as they are and won't broaden the search.",
+      properties: [],
+      context: mergeContext(context, {}),
+    };
+  }
   const socialReply = getNiaSocialReply(query, context.preferences !== null);
   if (socialReply) return { message: socialReply, properties: [], context };
   const referenceIndex = getNiaReferenceIndex(query);
@@ -202,7 +211,13 @@ export async function answerNiaConversationMessage(
     };
   }
 
-  const intent = classifyNiaMessageIntent(query);
+  const localIntent = classifyNiaMessageIntent(query);
+  const plan = localIntent === 'preference_recall' || localIntent === 'reset_preferences'
+    ? null : await planNiaSearch(query, context.preferences);
+  if (plan?.intent === 'clarification') {
+    return { message: plan.question, properties: [], context };
+  }
+  const intent = plan?.intent === 'search' ? 'search' : localIntent;
   if (intent === 'preference_recall') {
     const preferences = context.preferences;
     if (!preferences) {
@@ -248,14 +263,16 @@ export async function answerNiaConversationMessage(
     }
     return {
       message: context.preferences
-        ? "I'm not quite sure what you mean yet. Your preferences are unchanged. Would you like to keep looking with them, change your search, or check a listing's fees?"
+        ? "I'm not sure what you mean yet. Your preferences are unchanged. Would you like to keep looking with them, change your search, or check a listing's fees?"
         : "I'd be happy to help you find a home. Which area are you interested in?",
       properties: [],
       context,
     };
   }
 
-  const criteria = resolveNiaPreferences(query, context.preferences);
+  const criteria = plan?.intent === 'search'
+    ? plan.criteria
+    : resolveNiaPreferences(query, context.preferences);
   if (!hasNiaSearchCriteria(criteria)) {
     return {
       message: 'I can search current published listings by area, bedrooms, property type, listing details, or annual rent. What should I use?',
@@ -267,11 +284,14 @@ export async function answerNiaConversationMessage(
   const result = await searchNiaPublicProperties(supabase, criteria);
   if (!result.properties.length) {
     return {
-      message: "I couldn't find a home matching all those details right now. Would you like to try a nearby area or adjust your budget?",
+      message: criteria.powerRequirement === '24h_solar'
+        ? `I don't have a listing in ${criteria.location || 'your chosen area'} with confirmed round-the-clock solar recorded right now. Would you like to consider nearby areas while keeping that requirement?`
+        : `I couldn't find a current listing${criteria.location ? ' in ' + criteria.location : ''} matching those requirements. Would you like to consider nearby areas?`,
       properties: [],
       searchResultCount: 0,
       context: mergeContext(context, {
         preferences: criteria,
+        pendingQuestion: 'broaden_search',
         recentPropertyIds: [],
         selectedPropertyId: null,
       }),

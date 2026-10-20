@@ -10,11 +10,12 @@ import { Header } from "@/components/public/Header";
 import { Footer } from "@/components/public/Footer";
 import { NiaWidget } from "@/components/public/NiaWidget";
 import { PropertyCard } from "@/components/public/PropertyCard";
-import { fetchProperties } from "@/lib/properties";
+import { fetchProperties, IS_DEMO_MODE } from "@/lib/properties";
 import { PROPERTIES as FIXTURE_PROPERTIES } from "@/lib/fixtures/properties";
-import type { Property } from "@/lib/types";
+import { getDemoFixtures } from "@/lib/demo-mode";
 import { fetchNeighborhoods } from "@/lib/neighborhoods";
 import { NEIGHBORHOODS as FIXTURE_NEIGHBORHOODS } from "@/lib/fixtures/neighborhoods";
+import type { NeighborhoodGuide, Property } from "@/lib/types";
 import { prefersReducedMotion } from "@/lib/motion";
 import { NIA_TELEGRAM_URL } from "@/lib/contact-channels";
 import {
@@ -66,26 +67,76 @@ export default function HomePage() {
   const [searchPrice, setSearchPrice] = useState("Under ₦4,000,000");
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
-  const [properties, setProperties] = useState<Property[]>(FIXTURE_PROPERTIES);
-  const [homePropertiesError, setHomePropertiesError] = useState<string | null>(null);
+  const [properties, setProperties] = useState<Property[]>(() =>
+    getDemoFixtures(IS_DEMO_MODE, FIXTURE_PROPERTIES),
+  );
+  const [homePropertiesLoading, setHomePropertiesLoading] = useState(true);
+  const [homePropertiesError, setHomePropertiesError] = useState<string | null>(
+    null,
+  );
+  const [homeReloadTrigger, setHomeReloadTrigger] = useState(0);
+  const [neighborhoods, setNeighborhoods] = useState<NeighborhoodGuide[]>(() =>
+    getDemoFixtures(IS_DEMO_MODE, FIXTURE_NEIGHBORHOODS),
+  );
+  const [neighborhoodsLoading, setNeighborhoodsLoading] = useState(true);
+  const [neighborhoodsError, setNeighborhoodsError] = useState<string | null>(
+    null,
+  );
+  const [neighborhoodReloadTrigger, setNeighborhoodReloadTrigger] = useState(0);
   React.useEffect(() => {
     let c = false;
     fetchProperties()
       .then((rows) => {
-        if (!c && rows.length) {
+        if (!c) {
           setProperties(rows);
           setHomePropertiesError(null);
         }
       })
       .catch((error: unknown) => {
-        if (!c) setHomePropertiesError(error instanceof Error ? error.message : 'Failed to load listings.');
+        if (!c) {
+          setProperties(getDemoFixtures(IS_DEMO_MODE, FIXTURE_PROPERTIES));
+          setHomePropertiesError(
+            error instanceof Error ? error.message : "Failed to load listings.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!c) setHomePropertiesLoading(false);
       });
-    return () => { c = true; };
-  }, []);
+    return () => {
+      c = true;
+    };
+  }, [homeReloadTrigger]);
+  React.useEffect(() => {
+    let c = false;
+    fetchNeighborhoods()
+      .then((rows) => {
+        if (!c) {
+          setNeighborhoods(rows);
+          setNeighborhoodsError(null);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!c) {
+          setNeighborhoods(getDemoFixtures(IS_DEMO_MODE, FIXTURE_NEIGHBORHOODS));
+          setNeighborhoodsError(
+            error instanceof Error ? error.message : "Failed to load neighborhood guides.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!c) setNeighborhoodsLoading(false);
+      });
+    return () => {
+      c = true;
+    };
+  }, [neighborhoodReloadTrigger]);
   const filteredProperties =
     selectedCategory === "all"
       ? properties.slice(0, 3)
-      : properties.filter((property) => property.propertyType === selectedCategory).slice(0, 3);
+      : properties
+          .filter((property) => property.propertyType === selectedCategory)
+          .slice(0, 3);
 
   const handleCategoryChange = (
     cat: "all" | "Apartment" | "Self-Contained" | "Terrace Duplex",
@@ -324,8 +375,8 @@ export default function HomePage() {
             </div>
             <div data-hero-text className="lg:col-span-4 lg:pb-3">
               <p className="text-base sm:text-lg lg:text-[20px] leading-relaxed text-muted-ink font-normal max-w-[360px]">
-                Find a home that fits your life. Browse listing details, ask
-                Nia about available information, and request an in-person
+                Find a home that fits your life. Browse public listing details,
+                ask Nia about available information, and request an in-person
                 viewing.
               </p>
             </div>
@@ -339,7 +390,9 @@ export default function HomePage() {
               className="hero-notch-container w-full h-[400px] sm:h-[540px] lg:h-[680px] bg-soft-stone relative shadow-sm border border-hairline"
             >
               <img
-                src="/images/editorial/home-terrace.webp" fetchPriority="high" decoding="async"
+                src="/images/editorial/home-terrace.webp"
+                fetchPriority="high"
+                decoding="async"
                 alt="Modern home with a shaded terrace, palm trees, and a green lawn"
                 className="w-full h-full object-cover object-center"
               />
@@ -379,7 +432,9 @@ export default function HomePage() {
             >
               <div className="w-full h-[190px] rounded-3xl overflow-hidden relative">
                 <img
-                  src="/images/editorial/sunlit-living-room.webp" loading="lazy" decoding="async"
+                  src="/images/editorial/sunlit-living-room.webp"
+                  loading="lazy"
+                  decoding="async"
                   alt="Sunlit living room with natural wood and indoor plants"
                   className="w-full h-full object-cover"
                 />
@@ -532,7 +587,9 @@ export default function HomePage() {
           <div data-intro-strip className="w-full">
             <div className="w-full h-[260px] sm:h-[340px] rounded-3xl sm:rounded-4xl overflow-hidden relative shadow-sm border border-hairline">
               <img
-                src="/images/editorial/architectural-interior.webp" loading="lazy" decoding="async"
+                src="/images/editorial/architectural-interior.webp"
+                loading="lazy"
+                decoding="async"
                 alt="Open-plan interior with a sculptural staircase and natural light"
                 className="w-full h-full object-cover object-center"
               />
@@ -608,6 +665,31 @@ export default function HomePage() {
           </div>
 
           {/* Asymmetrical 3-Card Rail */}
+          {homePropertiesError && (
+            <div role="alert" className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-xs text-red-700">
+              <span>{homePropertiesError}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setHomePropertiesLoading(true);
+                  setHomeReloadTrigger((current) => current + 1);
+                }}
+                className="ml-3 font-bold underline"
+              >
+                Retry listings
+              </button>
+            </div>
+          )}
+          {homePropertiesLoading && properties.length === 0 && (
+            <p role="status" className="mb-6 text-sm text-muted-ink">
+              Loading public listings…
+            </p>
+          )}
+          {!homePropertiesLoading && !homePropertiesError && filteredProperties.length === 0 && (
+            <p role="status" className="mb-6 text-sm text-muted-ink">
+              No public listings are currently available.
+            </p>
+          )}
           <div
             ref={featuredGridRef}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
@@ -651,7 +733,7 @@ export default function HomePage() {
             <span className="text-xs font-bold text-muted-ink mr-2 uppercase tracking-wider">
               Pockets:
             </span>
-            {FIXTURE_NEIGHBORHOODS.map((n) => (
+            {neighborhoods.map((n) => (
               <Link
                 key={n.id}
                 href={`/neighborhoods/${n.slug}`}
@@ -660,6 +742,31 @@ export default function HomePage() {
                 {n.name.split(" (")[0]}
               </Link>
             ))}
+            {neighborhoodsError && (
+              <span role="alert" className="text-xs text-red-700">
+                {neighborhoodsError}{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNeighborhoodsLoading(true);
+                    setNeighborhoodReloadTrigger((current) => current + 1);
+                  }}
+                  className="font-bold underline"
+                >
+                  Retry guides
+                </button>
+              </span>
+            )}
+            {neighborhoodsLoading && neighborhoods.length === 0 && (
+              <span role="status" className="text-xs text-muted-ink">
+                Loading guides…
+              </span>
+            )}
+            {!neighborhoodsLoading && !neighborhoodsError && neighborhoods.length === 0 && (
+              <span role="status" className="text-xs text-muted-ink">
+                No neighborhood guides are currently available.
+              </span>
+            )}
           </div>
 
           {/* Large 60/40 photographic panels */}
@@ -670,7 +777,9 @@ export default function HomePage() {
               className="lg:col-span-7 relative rounded-3xl sm:rounded-4xl overflow-hidden h-[340px] sm:h-[420px] group shadow-sm border border-hairline"
             >
               <img
-                src="/images/editorial/tropical-residence.webp" loading="lazy" decoding="async"
+                src="/images/editorial/tropical-residence.webp"
+                loading="lazy"
+                decoding="async"
                 alt="Contemporary residence framed by tropical greenery"
                 className="property-card-img w-full h-full object-cover group-hover:scale-105"
               />
@@ -704,7 +813,9 @@ export default function HomePage() {
               className="lg:col-span-5 relative rounded-3xl sm:rounded-4xl overflow-hidden h-[340px] sm:h-[420px] group shadow-sm border border-hairline"
             >
               <img
-                src="/images/editorial/garden-entry.webp" loading="lazy" decoding="async"
+                src="/images/editorial/garden-entry.webp"
+                loading="lazy"
+                decoding="async"
                 alt="Garden pathway leading to a contemporary home"
                 className="property-card-img w-full h-full object-cover group-hover:scale-105"
               />
@@ -870,7 +981,9 @@ export default function HomePage() {
                 </span>
                 <div className="w-[64px] sm:w-[72px] h-[64px] sm:h-[72px] rounded-2xl overflow-hidden bg-soft-stone shrink-0 border border-hairline">
                   <img
-                    src="/images/editorial/neutral-detail.webp" loading="lazy" decoding="async"
+                    src="/images/editorial/neutral-detail.webp"
+                    loading="lazy"
+                    decoding="async"
                     alt="Soft neutral seating and natural textures"
                     className="w-full h-full object-cover"
                   />
@@ -905,7 +1018,9 @@ export default function HomePage() {
                 </span>
                 <div className="w-[64px] sm:w-[72px] h-[64px] sm:h-[72px] rounded-2xl overflow-hidden bg-soft-stone shrink-0 border border-hairline">
                   <img
-                    src="/images/editorial/modern-facade.webp" loading="lazy" decoding="async"
+                    src="/images/editorial/modern-facade.webp"
+                    loading="lazy"
+                    decoding="async"
                     alt="Modern white facade with balcony and trees"
                     className="w-full h-full object-cover"
                   />
@@ -941,7 +1056,9 @@ export default function HomePage() {
                 </span>
                 <div className="w-[64px] sm:w-[72px] h-[64px] sm:h-[72px] rounded-2xl overflow-hidden bg-soft-stone shrink-0 border border-hairline">
                   <img
-                    src="/images/editorial/warm-living-room.webp" loading="lazy" decoding="async"
+                    src="/images/editorial/warm-living-room.webp"
+                    loading="lazy"
+                    decoding="async"
                     alt="Warm living room with soft seating and wood finishes"
                     className="w-full h-full object-cover"
                   />
@@ -1001,7 +1118,9 @@ export default function HomePage() {
               <div>
                 <div className="w-full h-[220px] sm:h-[260px] rounded-2xl overflow-hidden mb-5">
                   <img
-                    src="/images/editorial/home-terrace.webp" loading="lazy" decoding="async"
+                    src="/images/editorial/home-terrace.webp"
+                    loading="lazy"
+                    decoding="async"
                     alt="Contemporary home with a shaded terrace"
                     className="w-full h-full object-cover"
                   />
@@ -1190,7 +1309,9 @@ export default function HomePage() {
         <section className="max-w-[1180px] mx-auto px-6 lg:px-8 py-12 sm:py-16">
           <div className="relative w-full rounded-3xl sm:rounded-5xl overflow-hidden h-[380px] sm:h-[440px] flex items-center justify-center text-center p-6 sm:p-8 bg-charcoal shadow-lg">
             <img
-              src="/images/editorial/terrace-detail.webp" loading="lazy" decoding="async"
+              src="/images/editorial/terrace-detail.webp"
+              loading="lazy"
+              decoding="async"
               alt="Shaded terrace overlooking a palm-lined garden"
               className="absolute inset-0 w-full h-full object-cover opacity-45 mix-blend-luminosity"
             />

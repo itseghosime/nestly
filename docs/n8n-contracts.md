@@ -4,6 +4,12 @@
 
 WhatsApp is deferred from the active customer-facing website experience; customers are directed to Telegram or website chat. Twilio, WF01, and WF03 are retained for historical continuity and possible future reactivation. The app-side Twilio staff REST sender is gated by `TWILIO_OUTBOUND_ENABLED`; keep it `false` in deployed environments. This flag does not stop WF01's synchronous TwiML replies or change external webhook registration. Direct Meta integration is also deferred. The user previously reported WF01 active at version `41d0a037-4706-4899-b18c-5756be24fb7b`; this task did not independently inspect or modify that external workflow.
 
+## Website Nia AI responses
+
+The website conversation API uses the existing authenticated Nia response workflow (`NIA_N8N_WEBHOOK_URL`, gated by `NIA_N8N_ENABLED`) after its own listing/fee lookup and persistence. Do not point it at WF01's WhatsApp inbound webhook or call WF03 directly. n8n generates conversational text; the Nestly backend retains authority over public listing and fee facts, conversation context, persistence, handoff, and property cards. For grounded replies the site appends its exact backend-generated facts after the AI introduction.
+
+Website chat content, up to ten prior turns, search preferences, and public listing facts are processed by this workflow and its connected AI provider. The website does not send its session token, name, email, or phone fields. Keep that data flow reflected in the privacy notice.
+
 ## User-reported live execution and delivery evidence (2026-10-18)
 
 - The user reports WF01 execution **81** and **86** produced normal AI replies, execution **84** performed handoff with notification/audit, and execution **85** suppressed AI while in human mode. These records were not independently fetched or inspected in this session.

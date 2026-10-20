@@ -5,7 +5,8 @@ import { formatTelegramPropertySearchReply } from '@/lib/backend/telegram';
 const env = {
   NIA_N8N_ENABLED: 'true',
   NIA_N8N_WEBHOOK_URL: 'https://synthetic.example.test/webhook/nia',
-  NESTLY_WF01_RELAY_SECRET: 'synthetic-server-only-secret',
+  NESTLY_WF01_RELAY_SECRET: 'synthetic-relay-secret',
+  TELEGRAM_WEBHOOK_SECRET: 'different-telegram-ingress-secret',
 };
 const input = {
   requestId: 'telegram:synthetic:1', query: 'Hey',
@@ -27,6 +28,7 @@ describe('n8n Nia response bridge', () => {
     const body = JSON.parse(String(request?.body));
     expect(body).toMatchObject({ version: 1, requestId: input.requestId, answerKind: 'conversation', query: 'Hey' });
     expect(String(request?.body)).not.toContain(env.NESTLY_WF01_RELAY_SECRET);
+    expect(JSON.stringify(request?.headers)).not.toContain(env.TELEGRAM_WEBHOOK_SECRET);
   });
   it('performs no external call when disabled', async () => {
     const fetcher = vi.fn<typeof fetch>();

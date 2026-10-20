@@ -65,7 +65,7 @@ export default function PrivacyPolicyPage() {
               3. Telegram, Website Chat &amp; Historical WhatsApp Records
             </h2>
             <p>
-              Customers can contact Nia through Telegram or website chat. Existing WhatsApp conversations and related contact details are retained as historical records for continuity and audit; WhatsApp is not presented as a current customer-contact option in this release. The app-side Twilio staff-reply path is controlled by the server-only outbound flag. This does not disconnect external Twilio or n8n workflows: inbound handling and workflow-generated replies must be reviewed separately. A message or request does not confirm a viewing or provider delivery.
+              Customers can contact Nia through Telegram or website chat. Existing WhatsApp conversations and related contact details are retained as historical records for continuity and audit; WhatsApp is not presented as a current customer-contact option. Website chat messages, up to ten recent turns, search preferences, and relevant public listing details may be processed by Nestly's n8n-hosted AI workflow and its connected AI provider to prepare replies. Website session tokens and contact fields are not sent as separate data; please do not include sensitive personal or financial information in chat. The app-side Twilio staff-reply path is controlled by the server-only outbound flag, but that does not disconnect external Twilio or n8n workflows. A message or request does not confirm a viewing or provider delivery.
             </p>
           </section>
 
