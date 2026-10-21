@@ -6,7 +6,7 @@
 
 The dated deltas below preserve historical evidence; this snapshot supersedes older PR #25 status statements.
 
-- **PR #25:** Existing `feature/staff-operations-completion`, still draft and not merged. Local `origin/main` was fetched at `bc940c7`; local merge commit `5779e90` includes merged PR #26 UI fixes. At the time this snapshot was written, the implementation had not yet been pushed; the exact pushed revision and Preview result are recorded in the follow-up status.
+- **PR #25:** Existing `feature/staff-operations-completion`, still draft and not merged. Local `origin/main` was fetched at `bc940c7`; local merge commit `5779e90` includes merged PR #26 UI fixes. Code commit `032c88867f2cf949d3ea83e967b52f54e66fe55e` was pushed normally; its exact Vercel Preview status passed and is recorded below.
 - **Local code checks:** Full suite 364 passed / 16 skipped; application and test typechecks passed; ESLint 0 errors / 33 warnings; production build passed with 86/86 static pages.
 - **Migration history:** Existing local project `Nestly` on port 54322 tracks 4 of the PR worktree's 26 migration files. It is not a confirmed Production database. `--linked` reports `ProjectRefNotLinkedError`, so Production history is unknown. A new seed-disabled isolated stack applied all 26 migrations successfully after guarding the optional `n8n_chat_histories` table in migration `20261020193200`; `db lint --fail-on error` passed with one non-failing existing Telegram-function warning. No Production migration was applied.
 - **Functional Local evidence:** A marked synthetic landlord submission and private photo upload/retry succeeded through the real local APIs and storage; rent read back as `1234567.89`, the private bucket remained `public=false`, and anonymous public-object access returned 400. A transaction-based synthetic inbox RPC test returned the latest of three messages and rolled back.
@@ -414,4 +414,4 @@ Merged f4871f0; exact Vercel Production revision READY. Authenticated sidebar co
 - [x] Real Local public landlord submission, private photo upload, idempotent retry, persisted decimal rent, private-bucket flag, and anonymous-read denial passed with synthetic data. Synthetic inbox messages verified latest-message selection in a rolled-back transaction.
 - [x] Full Local checks passed: 364 tests / 16 skipped, both typechecks, lint (0 errors / 33 warnings), and production build (86/86 pages).
 - [ ] Authenticated database/UI checks remain blocked without an existing approved staff session: settings update/audit readback, role/zone enforcement, lead mutation/conversion, calendar pagination, populated inbox UI, and sound activation.
-- [ ] PR push and exact-revision Preview build remain pending; Production has not been changed.
+- [x] Code implementation commit `032c88867f2cf949d3ea83e967b52f54e66fe55e` was pushed normally; the exact revision's Vercel Preview status passed. PR #25 remains draft; Production has not been changed.

@@ -4,7 +4,7 @@ Base: origin/main bc940c7b353ec58eb37ab478cbeb5577bc1b7b77. User requested two w
 
 ## Current status — 21 October 2026
 
-PR #25 remains the existing draft on `feature/staff-operations-completion`; the local worktree includes merged PR #26 UI changes. At the time this status was written, the implementation had not yet been pushed; the exact pushed revision and Preview result are recorded in the follow-up status.
+PR #25 remains the existing draft on `feature/staff-operations-completion`; the worktree includes merged PR #26 UI changes. Code commit `032c88867f2cf949d3ea83e967b52f54e66fe55e` was pushed normally, and Vercel's Preview status for that exact revision passed. No Production merge/deployment occurred.
 
 Local validation includes 364 passing tests / 16 skipped, app/test typechecks, ESLint (0 errors / 33 warnings), and a successful 86-page production build. A fresh seed-disabled Supabase stack applied all 26 migrations after `20261020193200_nestly_private_workflow_memory_web_access.sql` was made tolerant of the optional n8n history table. The existing local `Nestly` database on port 54322 has 4/26 PR-worktree migrations recorded; it is not confirmed Production. The linked Supabase target is unavailable (`ProjectRefNotLinkedError`), so Production migration history is unknown and no Production migration was run.
 
