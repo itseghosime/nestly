@@ -171,7 +171,7 @@ describe('public lead receipt-backed submissions', () => {
     });
     expect(routeMocks.staffFrom).toHaveBeenCalledWith('landlord_submissions');
     expect(routeMocks.staffSelect).toHaveBeenCalledWith(expect.stringContaining('customer:customers!landlord_submissions_customer_id_fkey'));
-    expect(routeMocks.requireStaff).toHaveBeenCalledWith(['Platform Admin', 'Operations Lead', 'Field Vetting Agent', 'Legal & Compliance']);
+    expect(routeMocks.requireStaff).toHaveBeenCalledWith(['Platform Admin', 'Operations Lead', 'Customer Care']);
   });
 
   it('submits contact enquiries through the database receipt function and reuses the same key on retry', async () => {

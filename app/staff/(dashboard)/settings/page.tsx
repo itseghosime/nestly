@@ -7,6 +7,11 @@ import { z } from "zod";
 import { MOTION, prefersReducedMotion } from "@/lib/motion";
 import { StaffHeader } from "@/components/staff/StaffHeader";
 import {
+  activateNotificationSound,
+  isNotificationSoundEnabled,
+  setNotificationSoundEnabled,
+} from "@/lib/notification-sound";
+import {
   Building2,
   Clock,
   Sun,
@@ -34,7 +39,10 @@ interface ZoneItem {
 }
 
 const workspaceSettingsResponseSchema = z.object({
+  canManage: z.boolean(),
   data: z.object({
+    workspace_name: z.string().min(1).max(120),
+    default_inspection_duration_mins: z.number().int().min(15).max(240),
     transit_buffer_mins: z.number().int().min(0).max(240),
     daylight_lock: z.boolean(),
     daylight_start: z.string(),
@@ -45,9 +53,30 @@ const workspaceSettingsResponseSchema = z.object({
   }),
 });
 
+const coverageResponseSchema = z.object({
+  data: z.array(z.object({
+    id: z.string().uuid(),
+    name: z.string(),
+    city: z.string().nullable(),
+    state: z.string().nullable(),
+    active: z.boolean(),
+  })),
+  canManage: z.boolean(),
+});
+
+const coverageUpdateResponseSchema = z.object({
+  data: z.object({
+    id: z.string().uuid(),
+    name: z.string(),
+    city: z.string().nullable(),
+    state: z.string().nullable(),
+    active: z.boolean(),
+  }),
+});
+
 type WorkspaceSettings = z.infer<typeof workspaceSettingsResponseSchema>["data"];
 
-async function fetchWorkspaceSettings(): Promise<WorkspaceSettings> {
+async function fetchWorkspaceSettings(): Promise<WorkspaceSettings & { canManage: boolean }> {
   const response = await fetch("/api/staff/workspace", { cache: "no-store" });
   const body: unknown = await response.json().catch(() => null);
   const parsed = workspaceSettingsResponseSchema.safeParse(body);
@@ -57,10 +86,25 @@ async function fetchWorkspaceSettings(): Promise<WorkspaceSettings> {
       : "Unable to load workspace settings";
     throw new Error(message);
   }
-  return parsed.data.data;
+  return { ...parsed.data.data, canManage: parsed.data.canManage };
+}
+
+async function fetchCoverage() {
+  const response = await fetch("/api/staff/workspace/coverage", { cache: "no-store" });
+  const body: unknown = await response.json().catch(() => null);
+  const parsed = coverageResponseSchema.safeParse(body);
+  if (!response.ok || !parsed.success) {
+    const message = body && typeof body === "object" && "error" in body && typeof body.error === "string"
+      ? body.error
+      : "Unable to load coverage areas";
+    throw new Error(message);
+  }
+  return parsed.data;
 }
 
 export default function WorkspaceSettingsPage() {
+  const [workspaceName, setWorkspaceName] = useState("Nestly");
+  const [duration, setDuration] = useState(90);
   const [buffer, setBuffer] = useState(30);
   const [daylightLock, setDaylightLock] = useState(true);
   const [daylightStart, setDaylightStart] = useState("09:00");
@@ -70,46 +114,41 @@ export default function WorkspaceSettingsPage() {
   const [settingsError, setSettingsError] = useState("");
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [workspaceCanManage, setWorkspaceCanManage] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [zones, setZones] = useState<ZoneItem[]>([]);
+  const [coverageCanManage, setCoverageCanManage] = useState(false);
+  const [coverageLoading, setCoverageLoading] = useState(true);
+  const [coverageSavingId, setCoverageSavingId] = useState<string | null>(null);
+  const [coverageError, setCoverageError] = useState("");
+  const [soundAlerts, setSoundAlerts] = useState(false);
+  const [soundPreferenceLoaded, setSoundPreferenceLoaded] = useState(false);
+  const [soundError, setSoundError] = useState("");
   const toastRef = useRef<HTMLDivElement>(null);
 
-  const zones: ZoneItem[] = [
-    {
-      id: "gra",
-      name: "GRA Benin City",
-      subtext: "High Density · Prime Residential",
-      active: true,
-    },
-    {
-      id: "ihama",
-      name: "Ihama Corridor",
-      subtext: "Commercial & Mixed Luxury",
-      active: true,
-    },
-    {
-      id: "airport",
-      name: "Airport Road Axis",
-      subtext: "Suburban & Gated Estates",
-      active: true,
-    },
-    {
-      id: "sapele",
-      name: "Sapele Urban",
-      subtext: "Delta Bordering Sector",
-      active: true,
-    },
-  ];
+  const coverageAreaCount = zones.length;
+  const activeCoverageCount = zones.filter((zone) => zone.active).length;
 
-  const activeZoneCount = zones.length;
-
-  const applySettings = useCallback((settings: WorkspaceSettings) => {
+  const applySettings = useCallback((settings: WorkspaceSettings & { canManage?: boolean }) => {
+    if (settings.canManage !== undefined) setWorkspaceCanManage(settings.canManage);
+    setWorkspaceName(settings.workspace_name);
+    setDuration(settings.default_inspection_duration_mins);
     setBuffer(settings.transit_buffer_mins);
     setDaylightLock(settings.daylight_lock);
     setDaylightStart(settings.daylight_start.slice(0, 5));
     setDaylightEnd(settings.daylight_end.slice(0, 5));
     setRetentionDays(settings.retention_days);
     setLastUpdated(settings.updated_at);
+  }, []);
+
+  const applyCoverage = useCallback((items: Awaited<ReturnType<typeof fetchCoverage>>["data"]) => {
+    setZones(items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      subtext: [item.city, item.state].filter(Boolean).join(" · ") || "Location not specified",
+      active: item.active,
+    })));
   }, []);
 
   useEffect(() => {
@@ -135,6 +174,39 @@ export default function WorkspaceSettingsPage() {
     };
   }, [applySettings]);
 
+  useEffect(() => {
+    let active = true;
+    fetchCoverage()
+      .then((result) => {
+        if (!active) return;
+        applyCoverage(result.data);
+        setCoverageCanManage(result.canManage);
+        setCoverageError("");
+      })
+      .catch((loadError: unknown) => {
+        if (active) setCoverageError(loadError instanceof Error ? loadError.message : "Unable to load coverage areas");
+      })
+      .finally(() => {
+        if (active) setCoverageLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [applyCoverage]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        setSoundAlerts(isNotificationSoundEnabled());
+      } catch {
+        setSoundError("This browser does not allow saving a local sound preference.");
+      } finally {
+        setSoundPreferenceLoaded(true);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   useGSAP(() => {
     if (!toastMessage || !toastRef.current || prefersReducedMotion()) return;
     gsap.fromTo(toastRef.current, { y: -8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.22, ease: MOTION.ease.crispOut, clearProps: 'transform,opacity' });
@@ -149,6 +221,7 @@ export default function WorkspaceSettingsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!workspaceCanManage || settingsSaving) return;
     setSettingsSaving(true);
     setSettingsError("");
     try {
@@ -156,6 +229,8 @@ export default function WorkspaceSettingsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          workspaceName,
+          defaultInspectionDurationMins: duration,
           transitBufferMins: buffer,
           daylightLock,
           daylightStart,
@@ -173,11 +248,67 @@ export default function WorkspaceSettingsPage() {
       }
       applySettings(parsed.data.data);
       setSettingsLoaded(true);
+      window.dispatchEvent(new Event("staff-workspace-updated"));
       showToast("Workspace settings saved to the connected database");
     } catch (saveError) {
       setSettingsError(saveError instanceof Error ? saveError.message : "Unable to save workspace settings");
     } finally {
       setSettingsSaving(false);
+    }
+  };
+
+  const handleCoverageChange = async (zone: ZoneItem, active: boolean) => {
+    setCoverageSavingId(zone.id);
+    setCoverageError("");
+    try {
+      const response = await fetch("/api/staff/workspace/coverage", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: zone.id, active }),
+      });
+      const body: unknown = await response.json().catch(() => null);
+      const parsed = coverageUpdateResponseSchema.safeParse(body);
+      if (!response.ok || !parsed.success) {
+        const message = body && typeof body === "object" && "error" in body && typeof body.error === "string"
+          ? body.error
+          : "Unable to update coverage area";
+        throw new Error(message);
+      }
+      const updated = parsed.data.data;
+      setZones((current) => current.map((item) => item.id === zone.id
+        ? {
+          id: updated.id,
+          name: updated.name,
+          subtext: [updated.city, updated.state].filter(Boolean).join(" · ") || "Location not specified",
+          active: updated.active,
+        }
+        : item));
+      showToast("Coverage area updated");
+    } catch (saveError) {
+      setCoverageError(saveError instanceof Error ? saveError.message : "Unable to update coverage area");
+    } finally {
+      setCoverageSavingId(null);
+    }
+  };
+
+  const handleSoundChange = async (enabled: boolean) => {
+    setSoundError("");
+    if (enabled) {
+      try {
+        if (!await activateNotificationSound()) {
+          setSoundError("This browser does not support notification sounds.");
+          return;
+        }
+      } catch {
+        setSoundError("Interact with the page again to allow browser audio.");
+        return;
+      }
+    }
+    try {
+      setNotificationSoundEnabled(enabled);
+      setSoundAlerts(enabled);
+    } catch {
+      setSoundError("Unable to save the sound preference in this browser.");
     }
   };
 
@@ -230,7 +361,7 @@ export default function WorkspaceSettingsPage() {
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#DDE7DB] text-[#173F35]">
               <span className="w-2 h-2 rounded-full bg-[#173F35] animate-pulse"></span>
-              Active Corridor: Edo & Delta
+              Workspace: {workspaceName || "Nestly"}
             </span>
           </div>
         </div>
@@ -263,12 +394,14 @@ export default function WorkspaceSettingsPage() {
                 <input
                   id="ws-name"
                   type="text"
-                  disabled
-                  value="Not configured"
-                  className="w-full px-4 py-3 rounded-2xl border border-[#202320]/10 bg-[#202320]/5 text-sm text-[#202320]/70 cursor-not-allowed"
+                  maxLength={120}
+                  disabled={!settingsLoaded || !workspaceCanManage || settingsSaving}
+                  value={workspaceName}
+                  onChange={(event) => setWorkspaceName(event.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border border-[#202320]/10 bg-white text-sm text-[#202320] disabled:opacity-50"
                 />
                 <p className="text-xs text-[#202320]/50 mt-1.5">
-                  Workspace naming is not supported by the current settings API.
+                  Saved as the operational workspace name.
                 </p>
               </div>
 
@@ -365,24 +498,28 @@ export default function WorkspaceSettingsPage() {
                   Standard Inspection Duration
                 </span>
                 <p className="text-xs text-[#202320]/50 mt-1">
-                  Duration is not configured by the current workspace settings API.
+                  Default duration used when creating a new inspection slot.
                 </p>
                 <div className="flex items-center justify-between mt-4">
-                  <span className="text-2xl font-bold font-mono text-[#202320]">Not configured</span>
+                  <span className="text-2xl font-bold font-mono text-[#202320]">
+                    {duration} <span className="text-sm font-normal text-[#202320]/60">mins</span>
+                  </span>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       aria-label="Decrease duration"
-                      disabled
-                      className="w-9 h-9 rounded-full bg-[#202320]/5 flex items-center justify-center text-[#202320]/40 cursor-not-allowed"
+                      disabled={!settingsLoaded || !workspaceCanManage || settingsSaving || duration <= 15}
+                      onClick={() => setDuration((current) => Math.max(15, current - 15))}
+                      className="w-9 h-9 rounded-full bg-[#202320]/5 hover:bg-[#202320]/10 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-[#202320] transition-colors"
                     >
                       <Minus className="w-4 h-4" />
                     </button>
                     <button
                       type="button"
                       aria-label="Increase duration"
-                      disabled
-                      className="w-9 h-9 rounded-full bg-[#202320]/5 flex items-center justify-center text-[#202320]/40 cursor-not-allowed"
+                      disabled={!settingsLoaded || !workspaceCanManage || settingsSaving || duration >= 240}
+                      onClick={() => setDuration((current) => Math.min(240, current + 15))}
+                      className="w-9 h-9 rounded-full bg-[#202320]/5 hover:bg-[#202320]/10 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-[#202320] transition-colors"
                     >
                       <Plus className="w-4 h-4" />
                     </button>
@@ -409,7 +546,7 @@ export default function WorkspaceSettingsPage() {
                     <button
                       type="button"
                       aria-label="Decrease buffer"
-                      disabled={!settingsLoaded || settingsSaving}
+                      disabled={!settingsLoaded || !workspaceCanManage || settingsSaving}
                       onClick={() =>
                         setBuffer((prev) => Math.max(0, prev - 15))
                       }
@@ -420,7 +557,7 @@ export default function WorkspaceSettingsPage() {
                     <button
                       type="button"
                       aria-label="Increase buffer"
-                      disabled={!settingsLoaded || settingsSaving}
+                      disabled={!settingsLoaded || !workspaceCanManage || settingsSaving}
                       onClick={() =>
                         setBuffer((prev) => Math.min(240, prev + 15))
                       }
@@ -458,7 +595,7 @@ export default function WorkspaceSettingsPage() {
                       <input
                         type="time"
                         value={daylightStart}
-                        disabled={!settingsLoaded || settingsSaving}
+                        disabled={!settingsLoaded || !workspaceCanManage || settingsSaving}
                         onChange={(event) => setDaylightStart(event.target.value)}
                         className="rounded-lg border border-[#173F35]/20 bg-white px-2 py-1 disabled:opacity-50"
                       />
@@ -468,7 +605,7 @@ export default function WorkspaceSettingsPage() {
                       <input
                         type="time"
                         value={daylightEnd}
-                        disabled={!settingsLoaded || settingsSaving}
+                        disabled={!settingsLoaded || !workspaceCanManage || settingsSaving}
                         onChange={(event) => setDaylightEnd(event.target.value)}
                         className="rounded-lg border border-[#173F35]/20 bg-white px-2 py-1 disabled:opacity-50"
                       />
@@ -480,7 +617,7 @@ export default function WorkspaceSettingsPage() {
                 <input
                   type="checkbox"
                   checked={daylightLock}
-                  disabled={!settingsLoaded || settingsSaving}
+                  disabled={!settingsLoaded || !workspaceCanManage || settingsSaving}
                   onChange={(e) => setDaylightLock(e.target.checked)}
                   className="sr-only peer"
                 />
@@ -506,7 +643,7 @@ export default function WorkspaceSettingsPage() {
             </div>
 
             <p className="mt-4 rounded-xl bg-[#202320]/5 px-4 py-3 text-xs text-[#202320]/60">
-              Notification preferences and escalation thresholds are unavailable here; changing them does not configure delivery.
+              Sound is stored in this browser. Escalation routing and digest delivery remain unavailable until a real scheduler and delivery path are configured.
             </p>
             <div className="divide-y divide-[#202320]/10 mt-2">
               <div className="py-4 flex items-center justify-between">
@@ -517,17 +654,20 @@ export default function WorkspaceSettingsPage() {
                       In-App Acoustic Sound Alert
                     </h4>
                     <p className="text-xs text-[#202320]/60">
-                      Not persisted or connected to notification delivery
+                      This-browser preference plays for newly received unread alerts after browser interaction.
                     </p>
                   </div>
                 </div>
                 <input
                   type="checkbox"
-                  checked={false}
-                  disabled
-                  className="w-4 h-4 accent-[#ED572E] rounded cursor-not-allowed"
+                  aria-label="Enable in-app notification sound"
+                  checked={soundAlerts}
+                  disabled={!soundPreferenceLoaded}
+                  onChange={(event) => void handleSoundChange(event.target.checked)}
+                  className="w-4 h-4 accent-[#ED572E] rounded disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </div>
+              {soundError && <p role="alert" className="pb-3 text-xs text-rose-700">{soundError}</p>}
 
               <div className="py-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -592,23 +732,22 @@ export default function WorkspaceSettingsPage() {
                   <h4 className="text-sm font-semibold text-[#202320]">Workspace retention days</h4>
                   <p className="text-xs text-[#202320]/60">Persisted workspace retention policy setting</p>
                 </div>
-                <select
+                <input
+                  type="number"
                   aria-label="Workspace retention days"
+                  min={30}
+                  max={3650}
+                  step={1}
                   value={retentionDays}
-                  disabled={!settingsLoaded || settingsSaving}
+                  disabled={!settingsLoaded || !workspaceCanManage || settingsSaving}
                   onChange={(event) => setRetentionDays(Number(event.target.value))}
                   className="px-4 py-2.5 rounded-xl border border-[#202320]/15 bg-white text-xs font-semibold text-[#202320] focus:outline-none focus:ring-2 focus:ring-[#ED572E] disabled:opacity-50"
-                >
-                  <option value={90}>90 days</option>
-                  <option value={365}>365 days</option>
-                  <option value={1095}>3 years</option>
-                  <option value={3650}>10 years</option>
-                </select>
+                />
               </div>
             </div>
           </div>
 
-          {/* Section 4: Regional Pocket Management */}
+          {/* Section 4: Regional Coverage Management */}
           <div className="bg-[#FCFBF8] border border-[#202320]/10 rounded-3xl p-6 md:p-8 shadow-sm">
             <div className="flex items-center justify-between pb-6 border-b border-[#202320]/10">
               <div className="flex items-center gap-3">
@@ -617,22 +756,25 @@ export default function WorkspaceSettingsPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-[#202320]">
-                    Regional Coverage Reference
+                    Regional Coverage Administration
                   </h2>
                   <p className="text-xs text-[#202320]/60">
-                    Example zones only; live zone administration is unavailable
+                    Live neighborhood coverage used by inspection eligibility
                   </p>
                 </div>
               </div>
               <span className="px-3 py-1 bg-[#DDE7DB] text-[#173F35] rounded-full text-xs font-bold">
-                {activeZoneCount} Examples
+                {coverageLoading ? "Loading" : `${activeCoverageCount} / ${coverageAreaCount} Active`}
               </span>
             </div>
 
             <p className="text-xs text-[#202320]/60 mt-4 mb-4">
-              Zone changes are not supported by the current workspace settings API.
+              {coverageCanManage
+                ? "Coverage changes are saved with an audit record and affect matching neighborhoods in new inspection scheduling and public availability."
+                : "You can view coverage areas. Only Platform Admins and Operations Leads can change them."}
             </p>
 
+            {coverageError && <p role="alert" className="mb-4 text-xs text-rose-700">{coverageError}</p>}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {zones.map((zone) => (
                 <div
@@ -660,12 +802,16 @@ export default function WorkspaceSettingsPage() {
                     type="checkbox"
                     aria-label={`Toggle ${zone.name}`}
                     checked={zone.active}
-                    disabled
-                    className="w-4 h-4 accent-[#ED572E] rounded cursor-not-allowed"
+                    disabled={!coverageCanManage || coverageLoading || coverageSavingId !== null}
+                    onChange={(event) => void handleCoverageChange(zone, event.target.checked)}
+                    className="w-4 h-4 accent-[#ED572E] rounded disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </div>
               ))}
             </div>
+            {!coverageLoading && zones.length === 0 && (
+              <p className="text-sm text-[#202320]/60">No coverage areas are configured.</p>
+            )}
           </div>
 
           {/* Footer controls & Compliance lock */}
@@ -685,7 +831,7 @@ export default function WorkspaceSettingsPage() {
               <button
                 type="button"
                 onClick={handleDiscard}
-                disabled={!settingsLoaded || settingsLoading || settingsSaving}
+                disabled={!settingsLoaded || !workspaceCanManage || settingsLoading || settingsSaving}
                 className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full border border-[#202320]/15 text-xs font-bold text-[#202320] hover:bg-[#202320]/5 transition-colors"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -693,7 +839,7 @@ export default function WorkspaceSettingsPage() {
               </button>
               <button
                 type="submit"
-                disabled={!settingsLoaded || settingsLoading || settingsSaving}
+                disabled={!settingsLoaded || !workspaceCanManage || settingsLoading || settingsSaving}
                 className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-[#ED572E] text-white text-xs font-bold shadow-md hover:bg-[#ED572E]/90 transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Save className="w-3.5 h-3.5" />
@@ -701,6 +847,9 @@ export default function WorkspaceSettingsPage() {
               </button>
             </div>
           </div>
+          {settingsLoaded && !workspaceCanManage && (
+            <p role="status" className="text-sm text-[#202320]/60">Workspace settings are read-only for your role.</p>
+          )}
           {settingsLoading && (
             <p role="status" className="text-sm text-[#202320]/60">Loading persisted workspace settings…</p>
           )}

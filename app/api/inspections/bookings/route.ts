@@ -16,6 +16,14 @@ import {
 
 const BOOKING_STAFF_ROLES = ['Platform Admin', 'Operations Lead', 'Field Vetting Agent'] as const;
 const bookingStatus = z.enum(['pending', 'approved', 'rejected', 'rescheduled', 'cancelled', 'completed', 'no_show', 'expired']);
+const calendarRangeSchema = z.object({
+  from: z.iso.date(),
+  to: z.iso.date(),
+}).refine(({ from, to }) => {
+  const start = Date.parse(`${from}T00:00:00Z`);
+  const end = Date.parse(`${to}T00:00:00Z`);
+  return end >= start && end - start <= 61 * 24 * 60 * 60 * 1000;
+});
 
 const bookingSchema = z.object({
   slotId: z.string().uuid(),
@@ -31,8 +39,15 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const pageValue = Number(params.get('page') || '1');
   const status = params.get('status');
+  const from = params.get('from');
+  const to = params.get('to');
+  const hasRange = from !== null || to !== null;
+  const range = hasRange ? calendarRangeSchema.safeParse({ from, to }) : null;
   if (!Number.isInteger(pageValue) || pageValue < 1 || pageValue > 1000) {
     return NextResponse.json({ error: 'Invalid page' }, { status: 400 });
+  }
+  if (range && !range.success) {
+    return NextResponse.json({ error: 'Inspection calendar date window must be valid and no longer than 62 days' }, { status: 400 });
   }
   if (status && !bookingStatus.safeParse(status).success) {
     return NextResponse.json({ error: 'Invalid booking status' }, { status: 400 });
@@ -47,9 +62,19 @@ export async function GET(request: Request) {
     console.error('Inspection hold expiry failed', expiryError.code);
     return NextResponse.json({ error: 'Unable to refresh pending inspection holds' }, { status: 503 });
   }
+  const slotRelation = range?.success
+    ? 'slot:inspection_slots!inspections_slot_id_fkey!inner(id, property_id, agent_id, starts_at, ends_at, capacity, agent:staff_profiles!inspection_slots_agent_id_fkey(full_name))'
+    : 'slot:inspection_slots!inspections_slot_id_fkey(id, property_id, agent_id, starts_at, ends_at, capacity, agent:staff_profiles!inspection_slots_agent_id_fkey(full_name))';
   let query = context.client.from('inspections')
-    .select('id, property_id, customer_id, slot_id, status, outcome, public_reference, reservation_expires_at, gate_details, confirmed_at, customer_message, created_at, updated_at, customer:customers!inspections_customer_id_fkey(display_name, email, phone), slot:inspection_slots!inspections_slot_id_fkey(id, property_id, agent_id, starts_at, ends_at, capacity, agent:staff_profiles!inspection_slots_agent_id_fkey(full_name)), property:properties!inspections_property_id_fkey(title, reference, location)')
+    .select(`id, property_id, customer_id, slot_id, status, outcome, public_reference, reservation_expires_at, gate_details, confirmed_at, customer_message, created_at, updated_at, customer:customers!inspections_customer_id_fkey(display_name, email, phone), ${slotRelation}, property:properties!inspections_property_id_fkey(title, reference, location)`, { count: 'exact' })
     .order('created_at', { ascending: false });
+  if (range?.success) {
+    const dayAfterTo = new Date(`${range.data.to}T00:00:00Z`);
+    dayAfterTo.setUTCDate(dayAfterTo.getUTCDate() + 1);
+    const startAt = `${range.data.from}T00:00:00+01:00`;
+    const endAt = `${dayAfterTo.toISOString().slice(0, 10)}T00:00:00+01:00`;
+    query = query.gte('slot.starts_at', startAt).lt('slot.starts_at', endAt);
+  }
   if (status === 'expired') {
     query = query.eq('status', 'CANCELLED').eq('outcome', 'reservation_expired');
   } else if (status) {
@@ -60,12 +85,13 @@ export async function GET(request: Request) {
         : status.toUpperCase();
     query = query.eq('status', databaseStatus);
   }
-  const { data, error } = await query.range((pageValue - 1) * 100, pageValue * 100 - 1);
+  const { data, error, count } = await query.range((pageValue - 1) * 100, pageValue * 100 - 1);
   if (error) return NextResponse.json({ error: 'Unable to load inspection queue' }, { status: 503 });
   return NextResponse.json({
     data: (data || []).map((row) => normalizeInspectionResponse(row as InspectionResponseRow)),
     page: pageValue,
     pageSize: 100,
+    total: count || 0,
   });
 }
 

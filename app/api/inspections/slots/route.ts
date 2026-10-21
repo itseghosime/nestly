@@ -10,11 +10,11 @@ const slotSchema = z.object({
   propertyId: z.string().uuid(),
   fieldAgentId: z.string().uuid().nullable().optional().default(null),
   startsAt: z.iso.datetime({ offset: true }),
-  endsAt: z.iso.datetime({ offset: true }),
+  endsAt: z.iso.datetime({ offset: true }).optional(),
   capacity: z.number().int().min(1).max(50).default(1),
   transitBufferMins: z.number().int().min(0).max(240).optional(),
 })
-  .refine((value) => Date.parse(value.endsAt) > Date.parse(value.startsAt), {
+  .refine((value) => !value.endsAt || Date.parse(value.endsAt) > Date.parse(value.startsAt), {
     message: 'The slot end time must be after its start time',
   })
   .refine((value) => Date.parse(value.startsAt) > Date.now(), {
@@ -78,11 +78,23 @@ export async function POST(request: Request) {
   if (response) return response;
   const parsed = slotSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'Invalid inspection slot' }, { status: 400 });
+  let endsAt = parsed.data.endsAt;
+  if (!endsAt) {
+    const { data: settings, error: settingsError } = await context.client.from('workspace_settings')
+      .select('default_inspection_duration_mins')
+      .eq('id', 1)
+      .single();
+    if (settingsError || !settings) {
+      console.error('Inspection slot default duration lookup failed', settingsError?.code);
+      return NextResponse.json({ error: 'Unable to load the default inspection duration' }, { status: 503 });
+    }
+    endsAt = new Date(Date.parse(parsed.data.startsAt) + settings.default_inspection_duration_mins * 60_000).toISOString();
+  }
   const { data, error } = await context.client.from('inspection_slots').insert({
     property_id: parsed.data.propertyId,
     agent_id: parsed.data.fieldAgentId,
     starts_at: parsed.data.startsAt,
-    ends_at: parsed.data.endsAt,
+    ends_at: endsAt,
     capacity: parsed.data.capacity,
     is_active: true,
     ...(parsed.data.transitBufferMins !== undefined
@@ -92,7 +104,7 @@ export async function POST(request: Request) {
   if (error) {
     if (error.code === '23P01') return NextResponse.json({ error: 'The property or agent already has an overlapping slot' }, { status: 409 });
     if (error.code === '42501') return NextResponse.json({ error: 'The selected agent is outside the property zone' }, { status: 403 });
-    if (error.code === '23514') return NextResponse.json({ error: 'The slot violates future-time or configured daylight policy' }, { status: 400 });
+    if (error.code === '23514') return NextResponse.json({ error: 'The slot violates configured inspection policy' }, { status: 400 });
     console.error('Inspection slot creation failed', error.code);
     return NextResponse.json({ error: 'Unable to create inspection slot' }, { status: 503 });
   }

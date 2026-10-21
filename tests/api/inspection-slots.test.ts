@@ -21,7 +21,7 @@ import { POST } from '@/app/api/inspections/slots/route';
 const PROPERTY_ID = '11111111-1111-4111-8111-111111111111';
 const SLOT_ID = '22222222-2222-4222-8222-222222222222';
 
-function slotRequest(fieldAgentId: string | null) {
+function slotRequest(fieldAgentId: string | null, includeEnd = true) {
   const startsAt = new Date(Date.now() + 86_400_000).toISOString();
   const endsAt = new Date(Date.parse(startsAt) + 90 * 60_000).toISOString();
   return new Request('https://nestly.example/api/inspections/slots', {
@@ -34,7 +34,7 @@ function slotRequest(fieldAgentId: string | null) {
       propertyId: PROPERTY_ID,
       fieldAgentId,
       startsAt,
-      endsAt,
+      ...(includeEnd ? { endsAt } : {}),
       capacity: 1,
       transitBufferMins: 30,
     }),
@@ -90,6 +90,30 @@ describe('staff inspection slot creation', () => {
     await POST(slotRequest(agentId));
 
     expect(routeMocks.insert.mock.calls[0][0]).toMatchObject({ agent_id: agentId });
+  });
+
+  it('uses the persisted workspace duration when the client omits the slot end', async () => {
+    const request = slotRequest(null, false);
+    const body = await request.clone().json();
+    const workspaceQuery = {
+      select: () => ({
+        eq: () => ({
+          single: vi.fn().mockResolvedValue({
+            data: { default_inspection_duration_mins: 75 },
+            error: null,
+          }),
+        }),
+      }),
+    };
+    routeMocks.from.mockImplementation((table: string) => (
+      table === 'workspace_settings' ? workspaceQuery : { insert: routeMocks.insert }
+    ));
+    const response = await POST(request);
+    const inserted = routeMocks.insert.mock.calls[0][0];
+
+    expect(response.status).toBe(201);
+    expect(Date.parse(inserted.ends_at) - Date.parse(body.startsAt)).toBe(75 * 60_000);
+    expect(routeMocks.from).toHaveBeenCalledWith('workspace_settings');
   });
 
   it('does not create a slot when staff authorization fails', async () => {

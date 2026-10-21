@@ -8,6 +8,7 @@ import {
   hashReceiptToken,
 } from '@/lib/backend/public-request';
 import { requireStaff } from '@/lib/backend/staff-context';
+import { updateStaffLead } from '@/lib/backend/staff-lead-update';
 import { createClient } from '@/lib/supabase/server';
 
 const contactSchema = z.object({
@@ -19,9 +20,6 @@ const contactSchema = z.object({
 }).refine((value) => value.email.length > 0 || value.phone.length >= 5);
 
 const CONTACT_STAFF_ROLES = ['Platform Admin', 'Operations Lead', 'Customer Care'] as const;
-const contactStatusSchema = z.object({
-  status: z.enum(['in_review', 'responded', 'closed']),
-});
 
 export async function GET() {
   const { context, response } = await requireStaff(CONTACT_STAFF_ROLES);
@@ -43,6 +41,7 @@ export async function GET() {
         phone: customer?.phone || null,
         message: enquiry.message,
         status: enquiry.status,
+        canUpdate: context.role !== 'Operations Lead' || enquiry.property_id !== null,
         created_at: enquiry.created_at,
         updated_at: enquiry.updated_at,
       };
@@ -100,15 +99,5 @@ export async function PATCH(request: Request) {
   if (originFailure) return originFailure;
   const { context, response } = await requireStaff(CONTACT_STAFF_ROLES);
   if (response) return response;
-  const body = await request.json().catch(() => null);
-  const parsed = z.object({ id: z.string().uuid(), ...contactStatusSchema.shape }).safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: 'Invalid enquiry update' }, { status: 400 });
-  const { data, error } = await context.client.from('contact_enquiries')
-    .update({ status: parsed.data.status, updated_at: new Date().toISOString() })
-    .eq('id', parsed.data.id)
-    .select('id, status, updated_at')
-    .maybeSingle();
-  if (error) return NextResponse.json({ error: 'Unable to update contact enquiry' }, { status: 503 });
-  if (!data) return NextResponse.json({ error: 'Enquiry not found or inaccessible' }, { status: 404 });
-  return NextResponse.json({ data });
+  return updateStaffLead(request, context, 'contact');
 }

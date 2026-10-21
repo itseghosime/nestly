@@ -257,3 +257,7 @@ If WhatsApp reactivation is separately approved, do the remaining steps in order
 
 ## WF02 Telegram response service — 2026-10-19
 WF02 now includes an authenticated JSON response endpoint consumed by the backend. It does not replace Telegram's ingress, send directly to Telegram, write conversation state, or alter WF01/WF03. The bounded request/response contract, prompt, fallback and environment-specific evidence are documented in [integrations/nia-n8n.md](integrations/nia-n8n.md).
+
+## 2026-10-21 — WF03 public projection published
+
+WF03 `rj6M7r9YLI0jZudK` now publishes saved version `bf64542e-b215-417e-9878-0f6150915bf4`, using the existing 30-field public_properties view and explicit public-field mapping. Active version read back after publishing. Prior active version `59e27f7e-dd11-48fc-b274-e60cbd2f096d` used raw properties. No workflow executions were initiated; node IDs, credentials, inputs and count/matches/message envelope preserved. Structural and synthetic Code checks only; live search acceptance pending. Do not roll back to raw properties after private schema additions. WF01/WF02 unchanged. See STAFF_OPERATIONS_ACCEPTANCE.md.

@@ -57,11 +57,7 @@ export async function GET(request: Request) {
   const assignedIds = [...new Set(rows.map((row) => row.assigned_staff_id).filter((id): id is string => Boolean(id)))];
   const [messageResult, profileResult] = await Promise.all([
     ids.length
-      ? context.client.from('messages')
-          .select('conversation_id, sender_type, content, created_at')
-          .in('conversation_id', ids)
-          .order('created_at', { ascending: false })
-          .limit(500)
+      ? context.client.rpc('get_staff_conversation_previews', { p_conversation_ids: ids })
       : Promise.resolve({ data: [], error: null }),
     assignedIds.length
       ? context.client.from('profiles').select('id, display_name').in('id', assignedIds)
