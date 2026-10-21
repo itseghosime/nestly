@@ -1514,3 +1514,11 @@ Security advisors still report two SECURITY DEFINER public views, role-executabl
 - **Production/public HTTP smoke:** homepage, properties GET and neighborhoods GET each returned 200; unauthenticated workspace GET returned 401. These are read/access checks, not creation/upload/handoff acceptance.
 - **Local after filename reconciliation:** all 26 migrations applied and 26/26 database acceptance checks passed again. Earlier application results remain 366 passed, 16 live skipped, typechecks/lint/build passed. No application changes since those checks.
 - **Remaining release limitations:** full hosted non-admin/Auth/Storage byte-upload/mutation acceptance and deliberate Telegram search → handoff → staff reply → Return to AI journey remain pending. No provider messages/replays or emails were sent; email tests remain paused. Escalation/digest services remain intentionally deferred. Existing security advisor findings remain documented. No screenshots, recordings or PDF were created.
+
+## 2026-10-21 — Admin fresh-view cleanup
+
+User requested a clean admin dashboard and removal of old notifications. In the existing Production admin session, marked all 17 displayed old alerts read through the supported per-account UI. Reload confirmed zero unread controls and no unread sidebar badge. Notification/audit records, listings, customers, conversations and bookings were not deleted; other staff read states were not reset. Future alerts remain enabled.
+
+Simplified the overview to a full-width warm workspace with a rounded green welcome header, concise business labels, preserved real counts and working shortcuts. Removed the redundant integration-status summary from the overview; the dedicated integrations page remains available. Notification view now defaults to unread with a clear caught-up state and All history retained; browser sound detection supports the unread view. Authorization, data queries and n8n routing unchanged.
+
+Local TypeScript, focused lint and production build passed (85/85 pages). Existing dashboard and notification API regressions passed (see command npm test -- tests/api/staff-dashboard-audit.test.ts tests/api/staff-notifications.test.ts). Production visual/read-state verification follows deployment; no destructive reset or provider send performed.

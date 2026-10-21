@@ -46,7 +46,7 @@ function formatTimestamp(value: string) {
 export default function NotificationsPage() {
   const [filter, setFilter] = useState<
     "all" | "failed" | "escalation" | "inspection" | "unread"
-  >("all");
+  >("unread");
   const [searchQuery, setSearchQuery] = useState("");
 
   const listRef = useRef<HTMLDivElement>(null);
@@ -69,7 +69,7 @@ export default function NotificationsPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Unable to load notifications");
       const nextNotifications = result.data as Notification[];
-      if (hasLoadedNotifications.current && filter === "all" && page === 1) {
+      if (hasLoadedNotifications.current && (filter === "all" || filter === "unread") && page === 1) {
         try {
           const hasNewUnread = nextNotifications.some((notification) => (
             !notification.isRead && !knownNotificationIds.current.has(notification.id)
@@ -218,15 +218,15 @@ export default function NotificationsPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-persimmon px-2.5 py-0.5 rounded-full bg-persimmon/10">
-                Persisted staff alerts
+                Your updates
               </span>
               <span className="text-xs text-muted-ink">Refreshes every 15 seconds</span>
             </div>
             <h1 className="font-headline text-2xl sm:text-3xl font-bold text-charcoal tracking-tight">
-              Operations Dispatch & Alerts
+              Notifications
             </h1>
             <p className="text-sm text-charcoal/70">
-              Delivery and handoff events from the configured database. Personal message content is not shown here.
+              New updates from your team, conversations and inspections.
             </p>
             {soundError && <p role="status" className="text-xs text-amber-800">{soundError}</p>}
           </div>
@@ -349,10 +349,10 @@ export default function NotificationsPage() {
               <div className="bg-white rounded-3xl p-12 text-center border border-hairline space-y-2">
                 <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
                 <h3 className="font-headline font-bold text-sm text-charcoal">
-                  {notifications.length === 0 ? "No notification records" : "No matching alerts"}
+                  {filter === "unread" && !searchQuery ? "You’re all caught up" : "No matching updates"}
                 </h3>
                 <p className="text-xs text-muted-ink">
-                  No persisted records match the current filters and staff permissions.
+                  {filter === "unread" && !searchQuery ? "No unread updates on this page. Choose All to view your history." : "Try another filter or search."}
                 </p>
               </div>
             ) : (
