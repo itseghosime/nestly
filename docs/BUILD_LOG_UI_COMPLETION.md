@@ -10,18 +10,20 @@
 
 ### 1. Created Reusable Dialog Accessibility Hook (`hooks/use-dialog-a11y.ts`)
 - Manages complete WAI-ARIA modal dialog and drawer lifecycle:
-  - Preserves prior body `overflow` and `paddingRight`.
-  - Sets body `overflow: hidden` and computes scrollbar compensation to prevent layout shift.
+  - Reference-counted scroll locking across overlapping dialogs (`acquireScrollLock()`, `releaseScrollLock()`).
+  - Preserves exact original inline body styles (`overflow`, `paddingRight`).
+  - Adds scrollbar shift compensation to existing computed body padding (e.g. 12px computed padding + 16px scrollbar width = 28px while locked).
+  - Dedicated effect handles `lockScroll` transitions (desktop $\leftrightarrow$ mobile) while `isOpen` remains true without restarting setup or resetting focus.
+  - Active dialog stack (`activeDialogStack`) ensures only the topmost open modal handles `Escape` keydown dismissals and `Tab` focus trapping.
   - Traps `Tab` and `Shift+Tab` within the dialog container.
-  - Listens for `Escape` key dismissals and stops event propagation.
   - Directs initial focus via `requestAnimationFrame` to `initialFocusRef` or first interactive element.
-  - Restores focus to the opener element (`previousFocus.focus({ preventScroll: true })`) upon close.
+  - Restores focus to the opener element (`returnFocusRef`) upon close via `requestAnimationFrame`.
 
 ### 2. Integrated `useDialogA11y` Across All 8 Dialogs & Drawers
 - `components/public/Header.tsx`: Mobile navigation slide-out drawer. Initial focus on close button, focus restored to hamburger trigger.
 - `app/browse/page.tsx`: Mobile filter bottom sheet drawer. Focus restored to mobile filter trigger.
 - `app/saved/page.tsx`: Share shortlist modal. Focus restored to share button.
-- `components/public/NiaWidget.tsx`: Mobile viewport dialog mode (< 640px) with `max-h-[100dvh]` to prevent virtual keyboard clipping.
+- `components/public/NiaWidget.tsx`: Mobile viewport dialog mode (< 640px) with `max-h-[100dvh]` to prevent virtual keyboard clipping. Single owner of Escape keydown handling (cancels pending AI searches first if active, otherwise dismisses chat).
 - `app/staff/(dashboard)/audit-log/page.tsx`: Event telemetry payload slide-over drawer.
 - `app/staff/(dashboard)/permission-denied/page.tsx`: Administrator contact guidance modal.
 - `app/staff/(dashboard)/properties/[id]/preview/page.tsx`: Approval and revision confirmation modals.
@@ -38,7 +40,15 @@
 - `app/how-it-works/page.tsx`: Aligned marketing claims with actual operational terms (`"Disclosed viewing terms"`, `"Reported utility specs"`, `"Disclosed title details"`, `"Browse daylight photography"`).
 - `app/service-unavailable/page.tsx`: Replaced simulated active maintenance feedback with truthful network/status notice.
 
-### 5. Preserved ChatGPT Ownership (PR #25)
+### 5. Automated Browser Verification Script (`scripts/test-ui-release-browser.mjs`)
+- Playwright headless Chromium automated test suite added to repository.
+- Uses synthetic/local data only (zero production credentials, zero external API or network calls, zero screenshots or recordings).
+- Verifies:
+  1. Mobile Nia dialog: body scroll lock, multi-character typing focus stability, Tab/Shift+Tab containment, Escape dismissal, opener focus restoration.
+  2. Mobile filter drawer: body scroll lock, filter chip interaction without focus jump, Escape dismissal, opener focus restoration.
+  3. Wide-screen viewports (1280px, 1440px, 1920px): verifies absence of horizontal page scroll on public routes.
+
+### 6. Preserved ChatGPT Ownership (PR #25)
 - Inspected `app/staff/(dashboard)/settings/page.tsx` and `app/staff/(dashboard)/leads/page.tsx` read-only.
 - Recorded presentation improvement recommendations in `docs/UI_RELEASE_COMPLETION.md` for ChatGPT.
 - Did not touch `app/api/**`, `lib/backend/**`, or `supabase/**`.
@@ -48,7 +58,15 @@
 ## Verification & Build Log
 
 - `npx tsc --noEmit`: 0 errors
-- `npm test`: 38 test suites passed, 309 tests passed, 16 skipped live tests
-- `npm run lint`: 0 errors, 39 existing Next.js `<img>` warnings
-- `npm run build`: All 84 static and dynamic routes compiled and generated successfully
-
+- `npx tsc --project tsconfig.tests.json --noEmit`: 0 errors
+- `npx vitest run tests/unit/use-dialog-a11y.test.ts`: 5/5 tests passed
+  - Computed body padding scrollbar compensation (12px + 16px = 28px) & exact original inline style restoration.
+  - Overlapping dialog scroll-lock persistence.
+  - Dynamic `lockScroll` responsiveness (desktop $\leftrightarrow$ mobile) without focus stealing or restarting.
+  - Topmost modal ownership of Escape dismissal and focus trapping across overlapping dialogs.
+  - Mounted React 19 component regression: stable callbacks prevent focus-stealing on parent rerenders with new inline callbacks.
+- `npm test`: 39 test suites passed, 314 tests passed, 16 skipped live tests
+- `npm run lint`: 0 errors, 33 existing Next.js `<img>` warnings
+- `node scripts/test-ui-release-browser.mjs`: 19/19 checks passed
+- `npx next build --webpack`: All 84 static and dynamic routes compiled and generated successfully in 1044ms.
+- **Turbopack in Git Worktree Note**: Running `npx next build` (Turbopack default) fails in isolated git worktrees with `Could not find Next.js package (next/package.json)` because Turbopack's workspace root sandbox refuses symlinks pointing outside the worktree root (`node_modules -> /Nestly/node_modules`). Compiling with `--webpack` succeeds locally. On Vercel, `npm run build` (`next build`) runs in a standalone repository root where `node_modules` is a physical local folder installed by `npm install`, and passes without issues.

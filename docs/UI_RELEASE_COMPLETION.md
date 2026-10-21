@@ -82,25 +82,24 @@ All edits strictly adhere to team ownership boundaries:
 
 ---
 
-## 3. Detailed Browser Interaction Testing (Playwright / Chromium)
+## 3. Interactive Browser Verification (Playwright Headless Chromium)
 
-Automated headless Chromium browser tests were run against local production build (`http://localhost:3005`):
+Browser interactions were verified using the dedicated automated script [`scripts/test-ui-release-browser.mjs`](file:///Users/mac/Documents/Tech4Youth/Nestly-release-ui-completion/scripts/test-ui-release-browser.mjs). This script runs against local Next.js builds using synthetic fixtures only (zero production credentials, zero external API or network calls, and zero screenshots/recordings):
 
-### Test 1: Mobile Nia Chat Interaction (390x844 Viewport)
-- **Environment**: Local Next.js production build (`http://localhost:3005`), Chromium Headless.
-- **Route & Viewport**: `/`, 390x844px.
+### Scenario 1: Mobile Nia Assistant (390x844 Viewport)
+- **Environment**: Next.js production build (`http://localhost:3012`), Chromium Mobile Headless (390x844px, touch enabled).
 - **Interactions & Observations**:
-  1. Clicked launcher button `button[aria-label="Open Nia Property Assistant"]`.
-  2. Dialog `div[role="dialog"][aria-label="Nia Property Assistant"]` became visible; `document.body.style.overflow` changed from `""` to `"hidden"`.
-  3. Focused input `input.nia-compact-input` and typed 26 characters: `"2 bedroom apartment in GRA"`.
-  4. Observed: Input retained active focus across every keystroke without resetting focus to first element or closing dialog.
-  5. Pressed `Tab`: focus moved to suggestions/buttons inside dialog; `dialog.contains(document.activeElement)` remained `true`.
-  6. Pressed `Shift+Tab`: focus moved backwards within dialog; remained strictly trapped.
-  7. Pressed `Escape`: Dialog closed; `document.body.style.overflow` restored to `""`; launcher button refocused via `requestAnimationFrame`.
+  1. Initial state: `document.body.style.overflow` verified as unlocked (`""`).
+  2. Clicked launcher button `Open Nia Property Assistant`: Dialog `div[role="dialog"][aria-label="Nia Property Assistant"]` mounted.
+  3. Body scroll lock acquired: `document.body.style.overflow` became `"hidden"`.
+  4. Typed 26 characters into chat input (`"Looking for 2 bed in Ikoyi"`): Active focus verified to remain solidly on `<input>`, with zero focus-stealing or re-centering across state updates.
+  5. Keyboard containment: Forward `Tab` and backward `Shift+Tab` keys contained focus within the dialog container.
+  6. Dismissal: Pressed `Escape` key. Dialog closed cleanly.
+  7. Scroll lock restoration: `document.body.style.overflow` restored to `""`.
+  8. Opener focus restoration: Opener launcher button received focus on next animation frame.
 
-### Test 2: Browse Mobile Filter Drawer & Modal Rerenders (390x844 Viewport)
-- **Environment**: Local Next.js production build (`http://localhost:3005`), Chromium Headless.
-- **Route & Viewport**: `/browse`, 390x844px.
+### Scenario 2: Mobile Search Filter Drawer (`/browse` at 390px Viewport)
+- **Environment**: Next.js production build (`http://localhost:3012`), Chromium Headless (390x844px).
 - **Interactions & Observations**:
   1. Clicked `Filters` button (`getByRole('button', { name: 'Filters', exact: true })`).
   2. Filter bottom sheet `div[role="dialog"][aria-label="Filter Homes"]` opened; `document.body.style.overflow` locked to `"hidden"`.
@@ -108,32 +107,40 @@ Automated headless Chromium browser tests were run against local production buil
   4. Observed: Drawer remained open, `document.body.style.overflow` stayed `"hidden"`, and active focus remained inside the drawer without resetting.
   5. Pressed `Escape`: Drawer closed; `document.body.style.overflow` restored to `""`; filter button refocused.
 
-### Test 3: Wide Screen Side-Gap & Overflow Prevention (1440px & 1920px Viewports)
-- **Environment**: Local Next.js production build (`http://localhost:3005`), Chromium Headless.
-- **Route & Viewport**: `/`, 1440x900px and 1920x1080px.
+### Scenario 3: Wide Screen Layout & Horizontal Scroll Audit (1280px, 1440px & 1920px Viewports)
+- **Environment**: Next.js production build (`http://localhost:3012`), Chromium Headless.
+- **Routes & Viewports Tested**: `/`, `/browse`, `/how-it-works` across 1280x900px, 1440x900px, and 1920x1080px.
 - **Interactions & Observations**:
-  1. At 1440px: `document.body.scrollWidth` (1440px) $\le$ `window.innerWidth` (1440px) $\rightarrow$ Zero horizontal scroll.
-  2. At 1920px: `document.body.scrollWidth` (1920px) $\le$ `window.innerWidth` (1920px) $\rightarrow$ Zero horizontal scroll.
-  3. Header width measured at 1920px (stretching 100% across the viewport with balanced padding).
+  1. At 1280px, 1440px, and 1920px: `document.documentElement.scrollWidth <= document.documentElement.clientWidth` across all tested routes $\rightarrow$ Zero horizontal scroll.
+  2. Full-width headers and footers expand to 100% viewport width with balanced padding.
+  3. Long-form copy and forms remain constrained to ergonomic reading containers.
 
 ---
 
 ## 4. Shared Components, Modals & Drawers Architecture
 
 ### Dialog & Drawer Lifecycle Management (`hooks/use-dialog-a11y.ts`)
-The hook was redesigned to eliminate ordinary re-render side-effects and support overlapping dialogs:
+The hook was redesigned to eliminate ordinary re-render side-effects, support overlapping dialogs, and respond dynamically to responsive viewport changes:
 1. **Reference-Counted Scroll Lock (`activeScrollLocks`)**:
    - Module-level counter tracks how many dialogs/drawers currently request body scroll lock.
-   - When count transitions from `0` to `1`: original body `overflow` and `paddingRight` are saved; `overflow` set to `'hidden'`; scrollbar shift compensation added.
-   - When count transitions from `1` to `0`: original body `overflow` and `paddingRight` are restored.
+   - When count transitions from `0` to `1`: original body `overflow` and exact inline `paddingRight` are saved; `overflow` set to `'hidden'`.
+   - Scrollbar shift compensation is computed as `computedBodyPadding + scrollbarWidth` (e.g. 12px existing padding + 16px scrollbar = 28px while locked).
+   - When count transitions from `1` to `0`: original body `overflow` and exact inline `paddingRight` are restored.
    - Closing an inner dialog while an outer drawer remains open does **NOT** prematurely unlock the body scroll.
-2. **Stable Latest-Value Strategy (`useRef`)**:
-   - `onCloseRef`, `containerRefRef`, `initialFocusRefRef`, and other options are stored in refs and updated after render.
-   - The effect hook depends strictly on `[isOpen]`.
+2. **Dynamic `lockScroll` Responsiveness**:
+   - Dedicated effect handles scroll locking decoupled from dialog open/close lifecycle.
+   - When `lockScroll` transitions (e.g. desktop $\rightarrow$ mobile $\rightarrow$ desktop while Nia remains open), scroll lock is acquired or released accordingly without re-running setup, restarting initial focus, or restoring opener focus.
+3. **Topmost Modal Ownership of Escape & Focus Trapping (`activeDialogStack`)**:
+   - Module-level stack tracks open dialog instances via unique `useId()` identifiers.
+   - Only the topmost active modal (`activeDialogStack[last]`) responds to `Escape` keydown events or traps `Tab`/`Shift+Tab` focus.
+   - When the top modal closes, the underlying modal re-acquires Escape and Tab focus ownership.
+4. **Stable Latest-Value Strategy (`useRef`)**:
+   - `onCloseRef`, `containerRefRef`, `initialFocusRefRef`, and other options are stored in refs and updated in a render-synchronizing `useEffect`.
+   - The open lifecycle hook depends strictly on `[isOpen, instanceId]`.
    - Ordinary parent re-renders (such as typing characters in mobile Nia, clicking filter pills, or updating table queries) do **not** restart the effect, do **not** refocus the initial element, and do **not** restore opener focus prematurely.
-3. **Focus Restoration via `requestAnimationFrame`**:
+5. **Focus Restoration via `requestAnimationFrame`**:
    - Opener element focus restoration is scheduled on next animation frame so that newly mounted or re-rendered opener elements are ready in the DOM.
-4. **Single-Owner Escape Handling in `NiaWidget.tsx`**:
+6. **Single-Owner Escape Handling in `NiaWidget.tsx`**:
    - Removed the competing manual `useEffect` keydown listener in `NiaWidget.tsx`.
    - `useDialogA11y` now acts as the single unified owner of Escape key handling:
      - If an AI search request is pending, pressing Escape cancels the pending search and stays in the chat window.
@@ -156,13 +163,13 @@ Added `shrink-0` across:
 
 ## 5. Wide-Screen Side-Gap & Content-Width Architecture
 
-Across 1280px, 1440px, and 1920px viewports, page layout boundaries follow intentional design constraints:
-1. **Full-Width Structural Elements**:
-   - Headers, footers, operational staff navigation bars, and top bars span `w-full` (100% of the screen width) with responsive horizontal padding (`px-4 sm:px-8 lg:px-16`) to prevent blank side gaps.
-   - Operational data grids and tables (`/staff/audit-log`, `/staff/customers`, `/staff/team`, `/staff/inbox`, `/staff/properties`) use `w-full` within their workspace containers so data density utilizes available width.
-2. **Intentional Line-Length Constraints**:
-   - Long-form prose and editorial pages (`/about`, `/terms`, `/privacy`, `/accessibility`, `/faq`) maintain a centered maximum column width (`max-w-[720px]` or `max-w-3xl mx-auto`) to comply with typographic readability standards (65–80 characters per line).
-   - Form intake cards (`/staff/signin`, `/staff/forgot-password`, `/staff/permission-denied`, `/submit-property`, `/staff/settings`) are centered (`max-w-xl`, `max-w-3xl`, or `max-w-5xl mx-auto`) to avoid stretched, illegible input fields on 1920px ultra-wide monitors.
+### Public vs. Staff Distinction
+Public routes and staff dashboard routes serve distinct functional purposes and are validated independently:
+- **Public Routes (Browser-Tested)**: Public pages (`/`, `/browse`, `/how-it-works`) were verified in headless Chromium at 1280px, 1440px, and 1920px. They maintain centered content containers with responsive gutters (`px-4 sm:px-8 lg:px-16`) and full-width top headers, ensuring zero unintended blank margins and zero horizontal scroll.
+- **Staff Dashboard Routes (Source-Reviewed)**: Staff routes require an authenticated staff session and were audited through source inspection of `app/staff/(dashboard)/**`. **Staff side-gap resolution is not claimed based on the public homepage.** Instead, staff routes were verified as follows:
+  1. Top-level dashboard workspace layout (`app/staff/(dashboard)/layout.tsx`) wraps main content in `flex-1 min-w-0` with responsive margins and gutters spanning the entire available viewport width.
+  2. Operational data grids, tables, and calendars (`/staff/properties`, `/staff/inspections`, `/staff/inbox`, `/staff/customers`, `/staff/audit-log`, `/staff/team`) use `w-full` table layouts with dedicated horizontal scroll wrappers (`overflow-x-auto min-w-[520px]` or `min-w-[620px]`) so operational density utilizes available screen space without dead margins.
+  3. Single-entity management cards and forms (`/staff/signin`, `/staff/properties/new`, `/staff/profile`, `/staff/settings`) use intentional max-width containers (`max-w-xl`, `max-w-2xl`, `max-w-4xl`) to maintain ergonomic reading distances on wide viewports (1440px+).
 
 ---
 
@@ -196,11 +203,14 @@ The following two files were inspected read-only to preserve PR #25 boundaries:
 
 ## 8. Verification Results
 
-| Check | Tool | Result |
-|---|---|---|
-| TypeScript Typecheck | `npx tsc --noEmit` | **Pass** (0 errors) |
-| Unit & Integration Tests | `npm test` (Vitest) | **Pass** (39/39 suites passed, 315 passing tests, 16 skipped live tests) |
-| Dialog Regressions | `tests/unit/use-dialog-a11y.test.ts` | **Pass** (6/6 tests passed: scroll-lock reference counting, overlapping dialogs, rerender stability, focus trap, Escape) |
-| Linter | `npm run lint` (ESLint) | **Pass** (0 errors, 33 existing Next.js `<img>` warnings) |
-| Production Build | `npx next build --webpack` | **Pass** (84/84 static and dynamic routes built successfully) |
-| Interactive Browser Testing | Playwright (Headless Chromium) | **Pass** (All 8 automated browser interaction checks passed) |
+| Check | Tool / Command | Result | Notes |
+|---|---|---|---|
+| Application Typecheck | `npx tsc --noEmit` | **Pass** (0 errors) | Strict TypeScript compiler check across all app source files. |
+| Test Suite Typecheck | `npx tsc --project tsconfig.tests.json --noEmit` | **Pass** (0 errors) | Strict TypeScript compiler check across all test suites. |
+| Unit & Integration Tests | `npm test` (Vitest) | **Pass** (39/39 suites passed, 314 passing tests, 16 skipped live tests) | Full test suite execution across unit and API tests. |
+| Dialog A11y Regressions | `npx vitest run tests/unit/use-dialog-a11y.test.ts` | **Pass** (5/5 tests passed) | Mounted React 19 hook tests: scrollbar compensation (12px+16px=28px), dynamic lockScroll (desktop $\leftrightarrow$ mobile), topmost modal Escape ownership, focus stability on rerenders with inline callbacks. |
+| Linter | `npm run lint` (ESLint) | **Pass** (0 errors, 33 existing Next.js `<img>` warnings) | Zero ESLint errors across source and tests. |
+| Production Build (Local Worktree) | `npx next build --webpack` | **Pass** (84/84 static and dynamic routes built in 1044ms) | Webpack follows symlinked `node_modules` across worktrees. |
+| Production Build (Turbopack in Worktree) | `npx next build` | **Fails locally in worktree only** | Fails with `Could not find Next.js package (next/package.json)` because Turbopack's sandbox refuses symlinks pointing outside the workspace root (`node_modules -> /Nestly/node_modules`). |
+| Production Build (Vercel) | `npm run build` (`next build`) | **Passes on Vercel** | Vercel clones the repo into a single standalone workspace root where `node_modules` is a physical local folder installed by `npm install` (no external symlinks). |
+| Interactive Browser Testing | `node scripts/test-ui-release-browser.mjs` (Playwright) | **Pass** (19/19 checks passed) | Automated browser verification on mobile Nia, search filter drawer, and wide-screen horizontal scroll. |

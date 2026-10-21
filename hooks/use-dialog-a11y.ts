@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useId } from 'react';
 
 export interface UseDialogA11yOptions {
   isOpen: boolean;
@@ -24,10 +24,19 @@ export function acquireScrollLock() {
     const body = document.body;
     savedBodyOverflow = body.style.overflow;
     savedBodyPaddingRight = body.style.paddingRight;
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+    const computedPadding =
+      typeof window !== 'undefined' && window.getComputedStyle
+        ? parseFloat(window.getComputedStyle(body).paddingRight) || 0
+        : 0;
+    const scrollbarWidth =
+      typeof window !== 'undefined'
+        ? Math.max(0, window.innerWidth - document.documentElement.clientWidth)
+        : 0;
+
     body.style.overflow = 'hidden';
     if (scrollbarWidth > 0) {
-      body.style.paddingRight = `${scrollbarWidth}px`;
+      body.style.paddingRight = `${computedPadding + scrollbarWidth}px`;
     }
   }
   activeScrollLocks += 1;
@@ -52,10 +61,23 @@ export function resetScrollLocks(): void {
   savedBodyPaddingRight = '';
 }
 
+// Module-level active dialog stack for managing topmost modal Escape and focus containment
+const activeDialogStack: string[] = [];
+
+export function getActiveDialogStack(): string[] {
+  return [...activeDialogStack];
+}
+
+export function resetDialogStack(): void {
+  activeDialogStack.length = 0;
+}
+
 /**
  * Reusable hook managing accessibility for modal dialogs and slide-over drawers:
- * - Locks body scroll with reference-counted overlap protection and scrollbar shift compensation
- * - Restores body scroll only when all open dialog locks are released
+ * - Locks body scroll with reference-counted overlap protection and computed-padding scrollbar compensation
+ * - Dynamically responds to lockScroll transitions (e.g. desktop <-> mobile) without resetting focus
+ * - Restores body scroll and exact original inline styles only when all open dialog locks are released
+ * - Coordinates overlapping dialogs: only the topmost active modal owns Escape dismissal and Tab focus trapping
  * - Sets initial focus once on open to designated ref or first interactive child
  * - Traps Tab / Shift+Tab keyboard navigation within the dialog container
  * - Handles Escape key dismissal through a stable callback strategy
@@ -72,13 +94,15 @@ export function useDialogA11y({
   trapFocus = true,
   returnFocusRef,
 }: UseDialogA11yOptions) {
+  // Stable unique instance identifier to track dialog hierarchy in activeDialogStack
+  const instanceId = useId();
+
   // Stable refs for caller-supplied values to avoid lifecycle restarts on ordinary rerenders
   const onCloseRef = useRef(onClose);
   const containerRefRef = useRef(containerRef);
   const initialFocusRefRef = useRef(initialFocusRef);
   const returnFocusRefRef = useRef(returnFocusRef);
   const closeOnEscapeRef = useRef(closeOnEscape);
-  const lockScrollRef = useRef(lockScroll);
   const trapFocusRef = useRef(trapFocus);
 
   // Synchronize latest values after render without restarting the open lifecycle
@@ -88,21 +112,28 @@ export function useDialogA11y({
     initialFocusRefRef.current = initialFocusRef;
     returnFocusRefRef.current = returnFocusRef;
     closeOnEscapeRef.current = closeOnEscape;
-    lockScrollRef.current = lockScroll;
     trapFocusRef.current = trapFocus;
   });
 
+  // Dedicated scroll lock management: acquires and releases when isOpen or lockScroll changes,
+  // without restarting initial focus or restoring opener focus.
+  useEffect(() => {
+    if (!isOpen || !lockScroll) return;
+    acquireScrollLock();
+    return () => {
+      releaseScrollLock();
+    };
+  }, [isOpen, lockScroll]);
+
+  // Main dialog lifecycle: initial focus, opener capture/restoration, and keyboard management
   useEffect(() => {
     if (!isOpen) return;
 
+    // Register this dialog on the active dialog stack
+    activeDialogStack.push(instanceId);
+
     // Capture the opening trigger element once upon open
     const opener = returnFocusRefRef.current?.current ?? (document.activeElement as HTMLElement | null);
-
-    let didLock = false;
-    if (lockScrollRef.current) {
-      acquireScrollLock();
-      didLock = true;
-    }
 
     // Set initial focus once upon open
     const frameId = requestAnimationFrame(() => {
@@ -123,6 +154,10 @@ export function useDialogA11y({
     });
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Only the topmost active dialog handles Escape and Tab focus containment
+      const isTopmost = activeDialogStack[activeDialogStack.length - 1] === instanceId;
+      if (!isTopmost) return;
+
       if (closeOnEscapeRef.current && event.key === 'Escape') {
         event.stopPropagation();
         onCloseRef.current?.();
@@ -164,13 +199,17 @@ export function useDialogA11y({
     return () => {
       cancelAnimationFrame(frameId);
       window.removeEventListener('keydown', handleKeyDown);
-      if (didLock) {
-        releaseScrollLock();
+
+      // Unregister from the active dialog stack
+      const idx = activeDialogStack.lastIndexOf(instanceId);
+      if (idx !== -1) {
+        activeDialogStack.splice(idx, 1);
       }
+
       requestAnimationFrame(() => {
         const elementToFocus = returnFocusRefRef.current?.current ?? opener;
         elementToFocus?.focus?.({ preventScroll: true });
       });
     };
-  }, [isOpen]);
+  }, [isOpen, instanceId]);
 }
