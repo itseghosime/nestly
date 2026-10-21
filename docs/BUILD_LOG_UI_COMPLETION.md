@@ -73,3 +73,14 @@
 - `node scripts/test-ui-release-browser.mjs`: 30/30 checks passed
 - `npx next build --webpack`: All 84 static and dynamic routes compiled and generated successfully in 957ms.
 - **Turbopack in Git Worktree Note**: Running `npx next build` (Turbopack default) fails in isolated git worktrees with `Could not find Next.js package (next/package.json)` because Turbopack's workspace root sandbox refuses symlinks pointing outside the worktree root (`node_modules -> /Nestly/node_modules`). Compiling with `--webpack` succeeds locally. On Vercel, `npm run build` (`next build`) runs in a standalone repository root where `node_modules` is a physical local folder installed by `npm install`, and passes without issues.
+
+## Independent harness correction — 2026-10-21 (local)
+
+The browser fixtures at 91aa25b did not match the actual conversation snapshot/reply contracts. Earlier browser results do not establish a successfully restored conversation and are superseded by this pass.
+
+- Added shared synthetic fixtures using `conversationId`, `AI_ACTIVE`, valid persisted messages, and the actual `message` reply field. Added three regressions against the application's real validators, including rejection of the old invalid shapes.
+- Both Nia browser scenarios now require the synthetic persisted greeting to appear before testing the composer. Routing matches exact methods and paths on the selected origin, blocks external origins and unmocked API calls, and blocks service workers. Corrected IPv6 loopback validation. Optional `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` supports an installed Chromium without changing dependencies.
+- Independent local verification: full suite 317 passed / 16 live tests skipped; focused dialog/fixture tests 8 passed; application and test typechecks passed; lint 0 errors / 33 warnings (image and unused-import warnings); normal `npm run build` with Turbopack passed, generating 83/83 static pages. This count is recorded from this run, not copied from prior reports.
+- Corrected browser harness: 30/30 checks passed against the local production build at 127.0.0.1:3019 using Chromium supplied by an isolated temporary @sparticuz/chromium installation after Playwright CDN downloads were truncated. The browser package is not a project dependency. Production-origin input was rejected before browser launch.
+- Checks cover mobile typing/focus/keyboard dismissal, desktop-mobile-desktop scroll locks, filter-chip focus, and public page overflow at 1280/1440/1920px. Synthetic data only; no messages sent, provider calls, database changes, screenshots, recordings, or PDFs.
+- Limits: source export omitted binary public images/fonts, so these are interaction/layout checks, not photo or visual-asset validation. Authenticated staff UI and live Nia/Telegram/n8n flows are not verified by this harness. Unit hook tests use mounted React with a DOM shim; real Chromium supplies the separate browser evidence. No linked secrets were configured.

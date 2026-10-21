@@ -24,76 +24,24 @@
  */
 
 import { chromium } from 'playwright';
+import {
+  SYNTHETIC_CONVERSATION_SNAPSHOT, SYNTHETIC_ACKNOWLEDGEMENT_RESPONSE,
+  SYNTHETIC_MESSAGE_RESPONSE, SYNTHETIC_PROPERTIES_RESPONSE, SYNTHETIC_NEIGHBORHOODS_RESPONSE,
+} from './ui-release-fixtures.mjs';
 
 const rawUrl = process.argv[2] || process.env.BASE_URL || 'http://localhost:3000';
 const parsedUrl = new URL(rawUrl);
 
 // Requirement 2: Restrict strictly to loopback / localhost
-if (parsedUrl.hostname !== 'localhost' && parsedUrl.hostname !== '127.0.0.1' && parsedUrl.hostname !== '::1') {
+if (!['http:', 'https:'].includes(parsedUrl.protocol) || parsedUrl.username || parsedUrl.password
+  || !['localhost', '127.0.0.1', '[::1]'].includes(parsedUrl.hostname)) {
   console.error(`[SECURITY ERROR] Target URL must be a loopback address (localhost / 127.0.0.1 / ::1). Received: ${parsedUrl.hostname}`);
   process.exit(1);
 }
 
 const BASE_URL = parsedUrl.origin;
 
-// Synthetic Mock Payloads
-const SYNTHETIC_CONVERSATION_SNAPSHOT = {
-  data: {
-    id: 'conv-synthetic-001',
-    mode: null,
-    messages: [],
-    currentProperties: [],
-  },
-};
-
-const SYNTHETIC_ACKNOWLEDGEMENT_RESPONSE = {
-  data: {
-    acknowledgedCount: 0,
-  },
-};
-
-const SYNTHETIC_MESSAGE_RESPONSE = {
-  data: {
-    conversationId: 'conv-synthetic-001',
-    reply: 'I found several verified homes matching your criteria in Lagos.',
-    properties: [],
-  },
-};
-
-const SYNTHETIC_PROPERTIES_RESPONSE = {
-  data: [
-    {
-      id: 'prop-synthetic-001',
-      code: 'NST-SYN-001',
-      title: '2-Bed Modern Apartment in GRA',
-      property_type: 'Apartment',
-      rent_annual: 2500000,
-      price_formatted: '₦2,500,000',
-      state: 'Edo',
-      city: 'Benin City',
-      neighborhood: 'GRA',
-      address_short: 'Boundary Rd, GRA',
-      bedrooms: 2,
-      bathrooms: 2,
-      publication_state: 'published',
-      rental_availability: 'available',
-      featured_image: '',
-      gallery_images: [],
-    },
-  ],
-};
-
-const SYNTHETIC_NEIGHBORHOODS_RESPONSE = {
-  data: [
-    {
-      slug: 'gra-benin-city',
-      name: 'GRA, Benin City',
-      state: 'Edo',
-      summary: 'Quiet residential neighborhood with paved drainage and daylight photography.',
-      heroImage: '',
-    },
-  ],
-};
+// Fixtures are shared with contract regressions; no live data is required.
 
 /**
  * Configure context route interceptor to provide synthetic data and block external/unmocked calls.
@@ -104,13 +52,13 @@ async function setupContextRouting(context) {
     const url = new URL(req.url());
 
     // 1. Block external network traffic completely
-    if (url.hostname !== parsedUrl.hostname && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
+    if (url.origin !== BASE_URL) {
       console.warn(`[SECURITY] Blocked external request: ${req.method()} ${req.url()}`);
       return route.abort('blockedbyclient');
     }
 
     // 2. Synthetic Mocks for Application Endpoints
-    if (url.pathname.startsWith('/api/nia/conversations/acknowledgements')) {
+    if (url.pathname === '/api/nia/conversations/acknowledgements' && req.method() === 'POST') {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -118,7 +66,7 @@ async function setupContextRouting(context) {
       });
     }
 
-    if (url.pathname.startsWith('/api/nia/conversations/messages')) {
+    if (url.pathname === '/api/nia/conversations/messages' && req.method() === 'POST') {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -126,7 +74,7 @@ async function setupContextRouting(context) {
       });
     }
 
-    if (url.pathname.startsWith('/api/nia/conversations')) {
+    if (url.pathname === '/api/nia/conversations' && req.method() === 'GET') {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -134,7 +82,7 @@ async function setupContextRouting(context) {
       });
     }
 
-    if (url.pathname.startsWith('/api/properties')) {
+    if (url.pathname === '/api/properties' && req.method() === 'GET') {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -142,7 +90,7 @@ async function setupContextRouting(context) {
       });
     }
 
-    if (url.pathname.startsWith('/api/neighborhoods')) {
+    if (url.pathname === '/api/neighborhoods' && req.method() === 'GET') {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -163,7 +111,12 @@ async function setupContextRouting(context) {
 
 async function runBrowserChecks() {
   console.log(`Starting Nestly UI release browser verification against loopback: ${BASE_URL}`);
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({
+    headless: true,
+    ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+      ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+      : {}),
+  });
   let passedCount = 0;
   let totalCount = 0;
 
@@ -183,7 +136,7 @@ async function runBrowserChecks() {
     // Scenario 1: Mobile Nia Assistant Lifecycle & Focus (390px Viewport)
     // -------------------------------------------------------------
     console.log('\nScenario 1: Mobile Nia Assistant Lifecycle & Focus (390x844)');
-    const mobileCtx = await browser.newContext({
+    const mobileCtx = await browser.newContext({ serviceWorkers: 'block',
       viewport: { width: 390, height: 844 },
       isMobile: true,
       hasTouch: true,
@@ -204,6 +157,8 @@ async function runBrowserChecks() {
 
     const niaDialog = mobilePage.locator('[role="dialog"][aria-label="Nia Property Assistant"]');
     await niaDialog.waitFor({ state: 'visible', timeout: 5000 });
+
+    await mobilePage.getByText('Synthetic local conversation ready.', { exact: true }).waitFor({ state: 'visible' });
 
     // Verify body scroll lock is acquired on mobile
     const lockedOverflow = await mobilePage.evaluate(() => document.body.style.overflow);
@@ -261,7 +216,7 @@ async function runBrowserChecks() {
     // Scenario 2: Responsive Viewport Transitions (Desktop -> Mobile -> Desktop)
     // -------------------------------------------------------------
     console.log('\nScenario 2: Responsive Viewport Transitions (Desktop -> Mobile -> Desktop) While Nia Is Open');
-    const responsiveCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const responsiveCtx = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 1280, height: 800 } });
     await setupContextRouting(responsiveCtx);
     const responsivePage = await responsiveCtx.newPage();
     await responsivePage.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
@@ -273,6 +228,8 @@ async function runBrowserChecks() {
 
     const responsiveDialog = responsivePage.locator('[role="dialog"][aria-label="Nia Property Assistant"]');
     await responsiveDialog.waitFor({ state: 'visible', timeout: 5000 });
+
+    await responsivePage.getByText('Synthetic local conversation ready.', { exact: true }).waitFor({ state: 'visible' });
 
     // On desktop, lockScroll is false -> body overflow is NOT locked
     const desktopOverflowInitial = await responsivePage.evaluate(() => document.body.style.overflow);
@@ -326,7 +283,7 @@ async function runBrowserChecks() {
     // Scenario 3: Mobile Search Filter Drawer Lifecycle (/browse at 390px)
     // -------------------------------------------------------------
     console.log('\nScenario 3: Mobile Search Filter Drawer Lifecycle (/browse at 390px)');
-    const browseCtx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const browseCtx = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 390, height: 844 } });
     await setupContextRouting(browseCtx);
     const browsePage = await browseCtx.newPage();
     await browsePage.goto(`${BASE_URL}/browse`, { waitUntil: 'domcontentloaded' });
@@ -385,7 +342,7 @@ async function runBrowserChecks() {
     const testRoutes = ['/', '/browse', '/how-it-works'];
 
     for (const width of wideWidths) {
-      const desktopCtx = await browser.newContext({ viewport: { width, height: 900 } });
+      const desktopCtx = await browser.newContext({ serviceWorkers: 'block', viewport: { width, height: 900 } });
       await setupContextRouting(desktopCtx);
       const desktopPage = await desktopCtx.newPage();
 
@@ -413,3 +370,4 @@ runBrowserChecks().catch((err) => {
   console.error('Browser check failed:', err);
   process.exit(1);
 });
+

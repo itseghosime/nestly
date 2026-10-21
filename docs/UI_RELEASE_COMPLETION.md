@@ -1,3 +1,5 @@
+> Current verification: see the independent harness correction below. Earlier fixture-based success-path claims are superseded.
+
 # UI Release Completion Audit & Verification Matrix
 
 | Scope | Branch | Environment | Date | Status |
@@ -244,3 +246,14 @@ The following two files were inspected read-only to preserve PR #25 boundaries:
 | Production Build (Turbopack in Worktree) | `npx next build` | **Fails locally in worktree only** | Fails with `Could not find Next.js package (next/package.json)` because Turbopack's sandbox refuses symlinks pointing outside the workspace root (`node_modules -> /Nestly/node_modules`). |
 | Production Build (Vercel) | `npm run build` (`next build`) | **Passes on Vercel** | Vercel clones the repo into a single standalone workspace root where `node_modules` is a physical local folder installed by `npm install` (no external symlinks). |
 | Interactive Browser Testing | `node scripts/test-ui-release-browser.mjs` (Playwright) | **Pass** (30/30 checks passed) | Automated browser verification on mobile Nia, desktop $\leftrightarrow$ mobile transitions, search filter drawer, and wide-screen horizontal scroll. |
+
+## Independent harness correction — 2026-10-21 (local)
+
+The browser fixtures at 91aa25b did not match the actual conversation snapshot/reply contracts. Earlier browser results do not establish a successfully restored conversation and are superseded by this pass.
+
+- Added shared synthetic fixtures using `conversationId`, `AI_ACTIVE`, valid persisted messages, and the actual `message` reply field. Added three regressions against the application's real validators, including rejection of the old invalid shapes.
+- Both Nia browser scenarios now require the synthetic persisted greeting to appear before testing the composer. Routing matches exact methods and paths on the selected origin, blocks external origins and unmocked API calls, and blocks service workers. Corrected IPv6 loopback validation. Optional `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` supports an installed Chromium without changing dependencies.
+- Independent local verification: full suite 317 passed / 16 live tests skipped; focused dialog/fixture tests 8 passed; application and test typechecks passed; lint 0 errors / 33 warnings (image and unused-import warnings); normal `npm run build` with Turbopack passed, generating 83/83 static pages. This count is recorded from this run, not copied from prior reports.
+- Corrected browser harness: 30/30 checks passed against the local production build at 127.0.0.1:3019 using Chromium supplied by an isolated temporary @sparticuz/chromium installation after Playwright CDN downloads were truncated. The browser package is not a project dependency. Production-origin input was rejected before browser launch.
+- Checks cover mobile typing/focus/keyboard dismissal, desktop-mobile-desktop scroll locks, filter-chip focus, and public page overflow at 1280/1440/1920px. Synthetic data only; no messages sent, provider calls, database changes, screenshots, recordings, or PDFs.
+- Limits: source export omitted binary public images/fonts, so these are interaction/layout checks, not photo or visual-asset validation. Authenticated staff UI and live Nia/Telegram/n8n flows are not verified by this harness. Unit hook tests use mounted React with a DOM shim; real Chromium supplies the separate browser evidence. No linked secrets were configured.
