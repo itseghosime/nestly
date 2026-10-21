@@ -2,9 +2,9 @@
 
 ## Release decision
 
-PR #25 remains draft. Do not merge application routes that require the new RPCs until the prepared migration is approved and applied. The current Preview points to Production: keep it read-only. A successful Preview build does not verify database-backed behavior.
+PR #25 is merged at fd9881fdaa2483fd1bd919d1041e6c2e6d25452e after explicit user approval and successful application of the reviewed migration. Supabase recorded version 20261021113608; repository filename matches. Production deployment/read-only acceptance is recorded below. Preview points to Production: keep it read-only. A successful build does not verify the complete mutation journey.
 
-## Linked database inspection (read-only)
+## Pre-application linked database inspection (read-only)
 
 The existing Nestly project `jluraewjdvsmsisfskld` reports 25 applied migration versions. The repository has 26. Every predecessor of `20261021055142_staff_workspace_operating_defaults.sql` is present in the linked history; the new migration is missing. The older report of four applied versions referred to different local tracking and is not the linked project's history.
 
@@ -60,7 +60,7 @@ The view already exists in the linked project and excludes private contact/sourc
 
 Rollback before any private schema change is the previous published version above. After private columns exist, **do not restore the raw-table query**; fix forward while retaining the public projection. This is structural and synthetic-code verification, not a live search execution result.
 
-## Pending Production migration approval
+## Historical migration approval gate (resolved below)
 
 Exact prepared file: `supabase/migrations/20261021055142_staff_workspace_operating_defaults.sql` (798 lines). It adds workspace/default fields and source links, a private submission-media metadata table, indexes, guarded mutation/read RPCs, coverage enforcement and the public inspection-slot projection. It changes privileges/policies and trigger/function behavior. It does not reset the database or delete customer records.
 
@@ -83,3 +83,12 @@ The user explicitly approved applying the reviewed staff migration. Rechecked PR
 Production read-only acceptance: workspace_name/default_inspection_duration_mins now exist; seven guarded RPCs exist with fixed search paths; anonymous EXECUTE denied on those RPCs; media reservation/confirmation remain service-role-only. landlord_submission_media has RLS and no SELECT grant for anonymous or authenticated clients. public_properties remains 30 columns with zero tested private columns. Base property count remains 34; public projection remains 26. No reset, seed, message replay, email, or synthetic Production mutation was performed. This establishes schema/privilege acceptance, not the complete hosted mutation journey.
 
 Security advisors still report two SECURITY DEFINER public views, role-executable definer functions, service-only RLS/no-policy tables and disabled leaked-password protection. Public views/receipt/role guards require their documented access checks; no blanket clean-security claim is made. Full hosted non-admin/Auth/Storage acceptance and Telegram lifecycle/source-delay evidence remain pending. Merge/deployment status follows in the release PR. Earlier blocker entries above are historical; the exact migration approval and application blocker is now resolved.
+
+## 2026-10-21 — PR #25 merged and Production read-only acceptance
+
+- PR #25 merged at **fd9881fdaa2483fd1bd919d1041e6c2e6d25452e**, after exact head 3c89a75941eb51cde8529189705bcfd7e9df71d6 passed Vercel Preview. The application code tested locally remains dfa346b29b60ce3b77b7efb3af82ddc7d42d0cb9; subsequent changes only align migration history and document evidence.
+- Vercel Production deployment **dpl_FWZB1es23m15qtQnQz7CtWyTJ8GB** reached READY for that merge revision with nestly-sigma.vercel.app assigned. This is the deployed application revision, distinct from this later documentation update.
+- **Production/browser, read-only:** Existing Platform Admin session reloaded the settings page. The actual saved name and inspection defaults loaded; Save became enabled; all four linked coverage areas appeared. Earlier unavailable-settings/503 UI no longer appeared. Calendar and conversation inbox each finished loading without error alerts or loading/unavailable messages. No customer records or message contents were copied into this log. No Save, coverage mutation, notification toggle or record action was submitted.
+- **Production/public HTTP smoke:** homepage, properties GET and neighborhoods GET each returned 200; unauthenticated workspace GET returned 401. These are read/access checks, not creation/upload/handoff acceptance.
+- **Local after filename reconciliation:** all 26 migrations applied and 26/26 database acceptance checks passed again. Earlier application results remain 366 passed, 16 live skipped, typechecks/lint/build passed. No application changes since those checks.
+- **Remaining release limitations:** full hosted non-admin/Auth/Storage byte-upload/mutation acceptance and deliberate Telegram search → handoff → staff reply → Return to AI journey remain pending. No provider messages/replays or emails were sent; email tests remain paused. Escalation/digest services remain intentionally deferred. Existing security advisor findings remain documented. No screenshots, recordings or PDF were created.
