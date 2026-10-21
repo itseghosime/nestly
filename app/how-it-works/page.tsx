@@ -86,7 +86,7 @@ export default function HowItWorksPage() {
                 Viewing Fee Policy
               </span>
               <p className="font-headline text-lg sm:text-xl font-extrabold text-charcoal">₦0 Inspection Charge</p>
-              <span className="text-xs text-emerald-700 font-medium">100% verified access</span>
+              <span className="text-xs text-emerald-700 font-medium">Disclosed viewing terms</span>
             </div>
 
             <div className="p-2">
@@ -94,7 +94,7 @@ export default function HowItWorksPage() {
                 Infrastructure Check
               </span>
               <p className="font-headline text-lg sm:text-xl font-extrabold text-charcoal">Inverter &amp; Borehole</p>
-              <span className="text-xs text-muted-ink font-medium">Pre-audited utilities</span>
+              <span className="text-xs text-muted-ink font-medium">Reported utility specs</span>
             </div>
 
             <div className="p-2">
@@ -110,7 +110,7 @@ export default function HowItWorksPage() {
                 Title Assurance
               </span>
               <p className="font-headline text-lg sm:text-xl font-extrabold text-charcoal">C-of-O &amp; Survey</p>
-              <span className="text-xs text-emerald-700 font-medium">Direct instruction</span>
+              <span className="text-xs text-emerald-700 font-medium">Disclosed title details</span>
             </div>
           </div>
         </section>
@@ -122,7 +122,7 @@ export default function HowItWorksPage() {
             <div className="lg:col-span-5 space-y-4">
               <span className="font-headline text-5xl font-extrabold text-charcoal/20">01</span>
               <h2 className="font-headline text-2xl sm:text-3xl font-extrabold text-charcoal">
-                Browse verified daylight photography &amp; itemized fee sheets
+                Browse daylight photography &amp; itemized fee sheets
               </h2>
               <p className="text-xs sm:text-sm text-muted-ink leading-relaxed">
                 Filter homes by specific local criteria: dedicated BEDC transformers, solar inverter pre-cabling, treated borehole filtration, and flood-free topography in Sapele and Benin City.

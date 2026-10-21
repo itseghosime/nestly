@@ -40,7 +40,7 @@ export default function ServiceUnavailablePage() {
     setRetryFeedback(null);
     setTimeout(() => {
       setRetrying(false);
-      setRetryFeedback('Status check: Scheduled maintenance is currently active. Services will restore shortly. Your saved homes remain intact.');
+      setRetryFeedback('Live service status check is unavailable from this page. Please verify your internet connection and reload the page. Your saved homes remain intact.');
     }, 900);
   };
 

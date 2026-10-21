@@ -5,6 +5,7 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { MOTION, prefersReducedMotion } from '@/lib/motion';
 import { StaffHeader } from '@/components/staff/StaffHeader';
+import { useDialogA11y } from '@/hooks/use-dialog-a11y';
 import {
   FileText,
   Search,
@@ -65,9 +66,17 @@ export default function AuditLogPage() {
   const [error, setError] = useState('');
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
   const toastRef = useRef<HTMLDivElement>(null);
   const [csvToast, setCsvToast] = useState(false);
   const [csvMessage, setCsvMessage] = useState('');
+
+  useDialogA11y({
+    isOpen: Boolean(selectedEvent),
+    onClose: () => setSelectedEvent(null),
+    containerRef: drawerRef,
+    initialFocusRef: closeBtnRef,
+  });
 
   const loadLogs = useCallback(async () => {
     try {
@@ -123,14 +132,6 @@ export default function AuditLogPage() {
     if (!selectedEvent || !drawerRef.current || prefersReducedMotion()) return;
     gsap.fromTo(drawerRef.current, { x: 24, opacity: 0 }, { x: 0, opacity: 1, duration: 0.22, ease: MOTION.ease.crispOut, clearProps: 'transform,opacity' });
   }, { dependencies: [selectedEvent] });
-  useEffect(() => {
-    if (!selectedEvent) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelectedEvent(null);
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedEvent]);
 
   useGSAP(() => {
     if (!csvToast || !toastRef.current || prefersReducedMotion()) return;
@@ -456,6 +457,7 @@ export default function AuditLogPage() {
                 </h3>
               </div>
               <button
+                ref={closeBtnRef}
                 onClick={() => setSelectedEvent(null)}
                 aria-label="Close payload drawer"
                 className="w-8 h-8 rounded-full bg-[#202320]/5 hover:bg-[#202320]/10 flex items-center justify-center text-[#202320] transition-colors"
