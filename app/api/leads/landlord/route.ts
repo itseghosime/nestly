@@ -32,7 +32,7 @@ export async function GET() {
   const { context, response } = await requireStaff(LANDLORD_STAFF_ROLES);
   if (response) return response;
   const { data, error } = await context.client.from('landlord_submissions')
-    .select('id, customer_id, property_type, state, city, neighborhood, address, bedrooms, expected_annual_rent, description, status, created_at, updated_at, customer:customers!landlord_submissions_customer_id_fkey(full_name, display_name, email, phone)')
+    .select('id, customer_id, converted_property_id, property_type, state, city, neighborhood, address, bedrooms, expected_annual_rent, description, status, created_at, updated_at, customer:customers!landlord_submissions_customer_id_fkey(full_name, display_name, email, phone)')
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) return NextResponse.json({ error: 'Unable to load landlord submissions' }, { status: 503 });
@@ -42,6 +42,7 @@ export async function GET() {
       return {
         id: submission.id,
         customer_id: submission.customer_id,
+        converted_property_id: submission.converted_property_id,
         name: customer?.display_name || customer?.full_name || null,
         email: customer?.email || null,
         phone: customer?.phone || null,

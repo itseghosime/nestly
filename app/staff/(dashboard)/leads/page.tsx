@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { z } from 'zod';
 import { RefreshCw } from 'lucide-react';
 import { StaffHeader } from '@/components/staff/StaffHeader';
@@ -32,6 +33,7 @@ const landlordSubmissionSchema = z.object({
   expected_annual_rent: z.number(),
   description: z.string(),
   status: z.string(),
+  converted_property_id: z.string().uuid().nullable(),
   updated_at: z.string().datetime({ offset: true }),
   canUpdate: z.boolean().optional().default(false),
   created_at: z.string(),
@@ -39,6 +41,17 @@ const landlordSubmissionSchema = z.object({
 
 type ContactEnquiry = z.infer<typeof contactEnquirySchema>;
 type LandlordSubmission = z.infer<typeof landlordSubmissionSchema>;
+const PROPERTY_TYPES = ['apartment', 'house', 'duplex', 'studio', 'land', 'commercial'] as const;
+const conversionResponseSchema = z.object({
+  data: z.object({
+    property_id: z.string().uuid(),
+    title: z.string(),
+    publication_state: z.literal('draft'),
+    verification_state: z.literal('unverified'),
+    rent_annual: z.number(),
+    created: z.boolean(),
+  }),
+});
 type QueueState<T> =
   | { status: 'loading' }
   | { status: 'ready'; data: T[] }
@@ -161,6 +174,98 @@ function LeadStatusControl({ kind, lead, onSaved }: {
   );
 }
 
+function LandlordDraftControl({ submission, onCreated }: {
+  submission: LandlordSubmission;
+  onCreated: (submissionId: string, propertyId: string) => void;
+}) {
+  const initialType = PROPERTY_TYPES.find((type) => type === submission.property_type.trim().toLowerCase()) || '';
+  const [propertyType, setPropertyType] = useState<string>(initialType);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState('');
+  const inFlight = useRef(false);
+
+  if (!submission.canUpdate) {
+    return <p className="mt-3 text-xs text-muted-ink">Only authorized property managers can create drafts.</p>;
+  }
+  if (submission.converted_property_id) {
+    return (
+      <div className="mt-3 border-t border-hairline pt-3">
+        <p className="text-xs text-muted-ink">A private, unverified property draft is linked to this submission.</p>
+        <Link
+          href={`/staff/properties/${submission.converted_property_id}/edit`}
+          className="mt-2 inline-flex rounded-full bg-charcoal px-4 py-2 text-xs font-semibold text-white"
+        >
+          Open property editor
+        </Link>
+      </div>
+    );
+  }
+
+  const createDraft = async () => {
+    if (inFlight.current || !propertyType) return;
+    inFlight.current = true;
+    setSaving(true);
+    setFeedback('');
+    try {
+      const response = await fetch(`/api/leads/landlord/${submission.id}/convert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ propertyType }),
+      });
+      const body: unknown = await response.json().catch(() => null);
+      const parsed = conversionResponseSchema.safeParse(body);
+      if (!response.ok || !parsed.success) {
+        const message = body && typeof body === 'object' && 'error' in body && typeof body.error === 'string'
+          ? body.error
+          : 'Unable to confirm the property draft. Refresh before retrying.';
+        throw new Error(message);
+      }
+      const property = parsed.data.data;
+      onCreated(submission.id, property.property_id);
+      setFeedback(property.created ? 'Private draft created.' : 'Existing private draft reopened.');
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'Unable to confirm the property draft.');
+    } finally {
+      inFlight.current = false;
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-4 border-t border-hairline pt-3">
+      <p className="text-xs text-muted-ink">
+        Create a private draft for editing. This does not accept the submission, publish a listing, or verify it.
+      </p>
+      <div className="mt-2 flex flex-wrap items-end gap-2">
+        <div className="min-w-0 flex-1">
+          <label htmlFor={`landlord-property-type-${submission.id}`} className="mb-1 block text-xs font-semibold text-charcoal">
+            Property type for draft
+          </label>
+          <select
+            id={`landlord-property-type-${submission.id}`}
+            value={propertyType}
+            onChange={(event) => setPropertyType(event.target.value)}
+            disabled={saving}
+            className="w-full rounded-xl border border-hairline bg-white py-2 pl-3 text-xs disabled:opacity-50"
+          >
+            <option value="">Select a supported type</option>
+            {PROPERTY_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+          </select>
+        </div>
+        <button
+          type="button"
+          onClick={() => void createDraft()}
+          disabled={saving || !propertyType}
+          className="shrink-0 rounded-full bg-charcoal px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
+        >
+          {saving ? 'Creating…' : 'Create private draft'}
+        </button>
+      </div>
+      {feedback && <p role="status" aria-live="polite" className="mt-2 text-xs text-charcoal">{feedback}</p>}
+    </div>
+  );
+}
+
 function ContactQueue({ state, onSaved }: { state: QueueState<ContactEnquiry>; onSaved: (revision: LeadRevision) => void }) {
   return (
     <section className="rounded-3xl border border-hairline bg-white p-5 shadow-sm sm:p-6">
@@ -199,7 +304,11 @@ function ContactQueue({ state, onSaved }: { state: QueueState<ContactEnquiry>; o
   );
 }
 
-function LandlordQueue({ state, onSaved }: { state: QueueState<LandlordSubmission>; onSaved: (revision: LeadRevision) => void }) {
+function LandlordQueue({ state, onSaved, onCreated }: {
+  state: QueueState<LandlordSubmission>;
+  onSaved: (revision: LeadRevision) => void;
+  onCreated: (submissionId: string, propertyId: string) => void;
+}) {
   return (
     <section className="rounded-3xl border border-hairline bg-white p-5 shadow-sm sm:p-6">
       <h2 className="font-headline text-lg font-bold text-charcoal">Landlord submissions</h2>
@@ -240,6 +349,7 @@ function LandlordQueue({ state, onSaved }: { state: QueueState<LandlordSubmissio
               )}
               <p className="mt-3 text-[11px] text-muted-ink">{formatDate(submission.created_at)}</p>
               <LeadStatusControl kind="landlord" lead={submission} onSaved={onSaved} />
+              <LandlordDraftControl submission={submission} onCreated={onCreated} />
             </li>
           ))}
         </ul>
@@ -295,7 +405,10 @@ export default function StaffLeadsPage() {
           <ContactQueue state={contactState} onSaved={revision => setContactState(previous => previous.status === 'ready'
             ? { status: 'ready', data: previous.data.map(lead => lead.id === revision.id ? { ...lead, ...revision } : lead) } : previous)} />
           <LandlordQueue state={landlordState} onSaved={revision => setLandlordState(previous => previous.status === 'ready'
-            ? { status: 'ready', data: previous.data.map(lead => lead.id === revision.id ? { ...lead, ...revision } : lead) } : previous)} />
+            ? { status: 'ready', data: previous.data.map(lead => lead.id === revision.id ? { ...lead, ...revision } : lead) } : previous)}
+            onCreated={(submissionId, propertyId) => setLandlordState(previous => previous.status === 'ready'
+              ? { status: 'ready', data: previous.data.map(lead => lead.id === submissionId ? { ...lead, converted_property_id: propertyId } : lead) }
+              : previous)} />
         </div>
       </main>
     </div>

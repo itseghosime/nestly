@@ -33,18 +33,29 @@ interface SlotItem {
 type PropertyChoice = { id: string; title: string; neighborhood: string | null };
 type AgentChoice = { id: string; display_name: string; assigned_zone: string | null };
 type WorkspaceSettings = {
+  default_inspection_duration_mins: number;
   transit_buffer_mins: number;
   daylight_lock: boolean;
   daylight_start: string;
   daylight_end: string;
 };
 
-const SLOT_TIME_OPTIONS = [
-  { value: '10:00|11:30', label: '10:00 – 11:30 WAT', start: '10:00', end: '11:30' },
-  { value: '11:30|13:00', label: '11:30 – 13:00 WAT', start: '11:30', end: '13:00' },
-  { value: '14:00|15:30', label: '14:00 – 15:30 WAT', start: '14:00', end: '15:30' },
-  { value: '15:30|17:00', label: '15:30 – 17:00 WAT', start: '15:30', end: '17:00' },
-];
+function formatTime(minutes: number) {
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+}
+
+function slotTimeOptions(workspace: WorkspaceSettings) {
+  const configuredStart = workspace.daylight_lock ? workspace.daylight_start.slice(0, 5) : '08:00';
+  const configuredEnd = workspace.daylight_lock ? workspace.daylight_end.slice(0, 5) : '18:00';
+  const startLimit = Number(configuredStart.slice(0, 2)) * 60 + Number(configuredStart.slice(3, 5));
+  const endLimit = Number(configuredEnd.slice(0, 2)) * 60 + Number(configuredEnd.slice(3, 5));
+  const count = Math.max(0, Math.floor((endLimit - startLimit - workspace.default_inspection_duration_mins) / 30) + 1);
+  return Array.from({ length: count }, (_, index) => {
+    const start = startLimit + index * 30;
+    const end = start + workspace.default_inspection_duration_mins;
+    return { value: formatTime(start), label: `${formatTime(start)} – ${formatTime(end)} WAT` };
+  });
+}
 
 function tomorrowInLagos() {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -109,6 +120,7 @@ export default function AvailabilitySlotsPage() {
   const [properties, setProperties] = useState<PropertyChoice[]>([]);
   const [agents, setAgents] = useState<AgentChoice[]>([]);
   const [workspace, setWorkspace] = useState<WorkspaceSettings>({
+    default_inspection_duration_mins: 90,
     transit_buffer_mins: 30,
     daylight_lock: false,
     daylight_start: '07:00:00',
@@ -116,7 +128,7 @@ export default function AvailabilitySlotsPage() {
   });
   const [selectedProperty, setSelectedProperty] = useState('');
   const [slotDate, setSlotDate] = useState(tomorrowInLagos);
-  const [slotTime, setSlotTime] = useState('10:00|11:30');
+  const [slotTime, setSlotTime] = useState('10:00');
   const [assignedAgent, setAssignedAgent] = useState('');
   const [capacity, setCapacity] = useState('1');
   const [transitBuffer, setTransitBuffer] = useState('30');
@@ -151,6 +163,10 @@ export default function AvailabilitySlotsPage() {
       setProperties(propertyChoices);
       setAgents(agentChoices);
       setWorkspace(schedulingSettings);
+      const availableTimes = slotTimeOptions(schedulingSettings);
+      setSlotTime((current) => availableTimes.some((option) => option.value === current)
+        ? current
+        : availableTimes[0]?.value || '');
       setTransitBuffer(String(schedulingSettings.transit_buffer_mins));
       setSlots((slotResult.data || []).map((slot: {
         id: string;
@@ -193,8 +209,11 @@ export default function AvailabilitySlotsPage() {
 
   const handleCreateSlot = async (e: React.FormEvent) => {
     e.preventDefault();
-    const [startTime, endTime] = slotTime.split('|');
-    if (!selectedProperty || !startTime || !endTime) {
+    const startMinutes = Number(slotTime.slice(0, 2)) * 60 + Number(slotTime.slice(3, 5));
+    const endMinutes = startMinutes + workspace.default_inspection_duration_mins;
+    const startTime = formatTime(startMinutes);
+    const endTime = formatTime(endMinutes);
+    if (!selectedProperty || startMinutes < 0 || endMinutes > 24 * 60) {
       setError('Select a property and valid time window.');
       return;
     }
@@ -231,13 +250,7 @@ export default function AvailabilitySlotsPage() {
   const capacityUtilization = totalCapacity
     ? Math.round((reservedCapacity / totalCapacity) * 100)
     : 0;
-  const visibleSlotTimes = SLOT_TIME_OPTIONS.filter((option) => (
-    !workspace.daylight_lock
-    || (
-      option.start >= workspace.daylight_start.slice(0, 5)
-      && option.end <= workspace.daylight_end.slice(0, 5)
-    )
-  ));
+  const visibleSlotTimes = slotTimeOptions(workspace);
 
   const handleDeleteSlot = async (id: string) => {
     setError('');

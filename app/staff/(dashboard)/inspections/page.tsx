@@ -53,6 +53,29 @@ function keyForUtcDate(year: number, month: number, day: number) {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+function calendarDateWindow(
+  viewMode: 'Month' | 'Week' | 'List',
+  selectedDate: string,
+  visibleMonth: Date,
+) {
+  if (viewMode === 'Week') {
+    const weekStart = dateFromKey(selectedDate);
+    weekStart.setUTCDate(weekStart.getUTCDate() - ((weekStart.getUTCDay() + 6) % 7));
+    const weekEnd = new Date(weekStart);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+    return {
+      from: dateKey(weekStart),
+      to: dateKey(weekEnd),
+    };
+  }
+  const year = visibleMonth.getUTCFullYear();
+  const month = visibleMonth.getUTCMonth();
+  return {
+    from: keyForUtcDate(year, month, 1),
+    to: keyForUtcDate(year, month, new Date(Date.UTC(year, month + 1, 0)).getUTCDate()),
+  };
+}
+
 function slotTime(slot: Booking['slot']) {
   if (!slot) return 'Time not assigned';
   const formatter = new Intl.DateTimeFormat('en-GB', {
@@ -81,38 +104,81 @@ export default function InspectionCalendarPage() {
   const [error, setError] = useState('');
 
   const inspectorRef = useRef<HTMLDivElement>(null);
+  const requestSequence = useRef(0);
+  const dateWindow = calendarDateWindow(viewMode, selectedDate, visibleMonth);
 
   const loadData = useCallback(async () => {
+    const sequence = ++requestSequence.current;
+    setLoading(true);
     try {
-      const [bookingResponse, workspaceResponse] = await Promise.all([
-        fetch('/api/inspections/bookings?page=1'),
+      const [firstBookingResponse, workspaceResponse] = await Promise.all([
+        fetch(`/api/inspections/bookings?${new URLSearchParams({
+          from: dateWindow.from,
+          to: dateWindow.to,
+          page: '1',
+        })}`),
         fetch('/api/staff/workspace'),
       ]);
-      const [bookingResult, workspaceResult] = await Promise.all([
-        bookingResponse.json(),
+      const [firstBookingResult, workspaceResult] = await Promise.all([
+        firstBookingResponse.json(),
         workspaceResponse.json(),
       ]);
-      if (!bookingResponse.ok) throw new Error(bookingResult.error || 'Unable to load inspection requests');
+      if (!firstBookingResponse.ok) {
+        throw new Error(firstBookingResult.error || 'Unable to load inspection requests');
+      }
       if (!workspaceResponse.ok) throw new Error(workspaceResult.error || 'Unable to load scheduling settings');
-      setBookings(bookingResult.data || []);
-      setWorkspace(workspaceResult.data);
-      setError('');
+      if (
+        !Array.isArray(firstBookingResult.data)
+        || firstBookingResult.page !== 1
+        || !Number.isInteger(firstBookingResult.pageSize)
+        || !Number.isInteger(firstBookingResult.total)
+      ) {
+        throw new Error('Inspection calendar returned an invalid page');
+      }
+      const allBookings: Booking[] = [...firstBookingResult.data];
+      const total = firstBookingResult.total as number;
+      const pageSize = firstBookingResult.pageSize as number;
+      const pageCount = Math.ceil(total / pageSize);
+      if (pageCount > 1000) {
+        throw new Error('This calendar window contains too many requests to load at once; switch to Week view');
+      }
+      for (let page = 2; page <= pageCount; page += 1) {
+        const params = new URLSearchParams({
+          from: dateWindow.from,
+          to: dateWindow.to,
+          page: String(page),
+        });
+        const response = await fetch(`/api/inspections/bookings?${params}`);
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Unable to load all inspection requests');
+        if (
+          !Array.isArray(result.data)
+          || result.page !== page
+          || result.total !== total
+          || result.pageSize !== pageSize
+        ) {
+          throw new Error('Inspection calendar pagination changed while loading');
+        }
+        allBookings.push(...result.data);
+      }
+      if (sequence === requestSequence.current) {
+        setBookings(allBookings);
+        setWorkspace(workspaceResult.data);
+        setError('');
+      }
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load the inspection calendar');
+      if (sequence === requestSequence.current) {
+        setError(loadError instanceof Error ? loadError.message : 'Unable to load the inspection calendar');
+      }
     } finally {
-      setLoading(false);
+      if (sequence === requestSequence.current) setLoading(false);
     }
-  }, []);
+  }, [dateWindow.from, dateWindow.to]);
 
   useEffect(() => {
-    let active = true;
     void Promise.resolve().then(() => {
-      if (!active) return;
       void loadData();
     });
-    return () => {
-      active = false;
-    };
   }, [loadData]);
 
   const activeBookings = bookings.filter((booking) => (

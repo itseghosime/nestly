@@ -1,6 +1,17 @@
-# Nestly Backend Checklist — Current Status (2026-10-20)
+# Nestly Backend Checklist — Current Status (2026-10-21)
 
 > At the 2026-10-18 linked-migration verification checkpoint, the six reviewed Twilio migrations had been applied after an exact linked dry run and verified in linked history; no hosting configuration was changed at that checkpoint. Later environment-specific changes are recorded in the dated deltas below.
+
+## Current status snapshot — 21 October 2026
+
+The dated deltas below preserve historical evidence; this snapshot supersedes older PR #25 status statements.
+
+- **PR #25:** Existing `feature/staff-operations-completion`, still draft and not merged. Local `origin/main` was fetched at `bc940c7`; local merge commit `5779e90` includes merged PR #26 UI fixes. At the time this snapshot was written, the implementation had not yet been pushed; the exact pushed revision and Preview result are recorded in the follow-up status.
+- **Local code checks:** Full suite 364 passed / 16 skipped; application and test typechecks passed; ESLint 0 errors / 33 warnings; production build passed with 86/86 static pages.
+- **Migration history:** Existing local project `Nestly` on port 54322 tracks 4 of the PR worktree's 26 migration files. It is not a confirmed Production database. `--linked` reports `ProjectRefNotLinkedError`, so Production history is unknown. A new seed-disabled isolated stack applied all 26 migrations successfully after guarding the optional `n8n_chat_histories` table in migration `20261020193200`; `db lint --fail-on error` passed with one non-failing existing Telegram-function warning. No Production migration was applied.
+- **Functional Local evidence:** A marked synthetic landlord submission and private photo upload/retry succeeded through the real local APIs and storage; rent read back as `1234567.89`, the private bucket remained `public=false`, and anonymous public-object access returned 400. A transaction-based synthetic inbox RPC test returned the latest of three messages and rolled back.
+- **Staff acceptance remains blocked:** No authorized local staff session was available. The settings page redirects to sign-in and its API returns 401. No accounts or roles were created. Therefore settings mutation/audit readback, role/zone denials, lead status/conversion, calendar UI pagination, populated inbox UI, and browser sound activation are not functionally verified. Passing mocked tests do not close these gates.
+- **External boundaries:** No Production data, migration, deployment, n8n workflow, Telegram message, or email was changed or sent. Invitation/recovery email tests remain paused; the approved Telegram live sequence and n8n-versus-fallback diagnosis remain pending.
 
 ## 2026-10-18 delta — WhatsApp deferred from the active website release
 
@@ -372,3 +383,35 @@ This dated status supersedes the immediately preceding pending inspection items.
 
 ### PR #22 Production verification — 20 October 2026
 Merged f4871f0; exact Vercel Production revision READY. Authenticated sidebar counts 0 attention / 17 unread matched the database. Synthetic notification read/unread cycle 17 → 16 → reload persisted → 17 restored. Staff select arrows have 16px inset and 44px text reserve without font increase; customer profile activity and integration status readback passed. Mobile drawer recheck remains unverified because the browser viewport override did not apply. Full evidence and limitations: BUILD_LOG.md, “PR #22 merged; authenticated Production readback”. Remaining staff controls remain open in STAFF_DASHBOARD_AUDIT.md.
+
+### PR #25 handover status — 20 October 2026
+
+- **Production:** The approved Platform Admin browser verified the mobile drawer and current role-scoped sidebar counts: 0 conversation attention / 17 unread notifications. Drawer Escape close and focus return passed. This supersedes the PR #22-era mobile-drawer limitation above.
+- **Local:** Updated `/submit-property` select spacing passed at 390×844 for all seven controls, with no horizontal overflow. Local activity API returned 401 because no local staff session was present; local database-backed counts are not claimed.
+- **PR #25:** Draft head `352b505`; the Preview READY result confirms its build only. Its tests, typechecks, mutations and denied-access cases remain to be run against the PR worktree.
+- Non-admin permissions, Telegram n8n-versus-fallback routing/delay diagnosis, and invitation/recovery emails remain blocked or paused. Do not send/replay messages or emails.
+
+### PR #25 implementation update — 21 October 2026
+
+**Current status: backend implementation is present in the Local PR worktree; database-backed acceptance is blocked by migration-history mismatch. No commit/push, merge, or deployment was performed in this update.**
+
+- [x] Workspace name, default inspection duration, transit/daylight and retention settings have validated staff APIs and audited persistence RPCs; coverage areas have role-checked audited administration. Scheduling reads the configured duration and coverage; fixed NGN/WAT defaults remain. Retention is not connected to destructive cleanup.
+- [x] Sound preference is browser-local and sound activation waits for a user gesture. [ ] Browser interaction/reload behavior still needs functional verification.
+- [ ] Escalation thresholds and digest scheduling remain disabled until a real scheduler, deduplication, and delivery path can be tested safely.
+- [x] Contact/landlord status actions use atomic revision checks, role/zone enforcement, audit records, and idempotent desired-status retries. [ ] Validate database RLS/zone enforcement with isolated database tests.
+- [x] Landlord submissions have an explicit, deduplicated conversion action to an unpublished, unverified private draft, with source linkage and audit entries. Acceptance alone does not publish or verify.
+- [x] Public landlord photos now have a receipt-authorized private upload flow, bounded count/bytes, signature checks, deterministic retry paths, staging, and private evidence linkage. Signed URLs validate the source submission and staged object, and remain private to authorized staff. Mocked route tests pass. [ ] Verify actual private storage and policies against an isolated database/storage environment.
+- [x] Calendar API supports WAT date windows and exact pagination metadata; client loads every page and rejects inconsistent pagination. Inbox previews use a per-conversation latest-message RPC rather than the former shared 500-row limit. [ ] Verify the RPC and calendar queries after a compatible migration is applied in an isolated test database.
+- [x] Local focused backend tests: 85 passed; added calendar/inbox/private-media group: 18 passed; browser-storage preference persistence: 1 passed. Full Local suite: 356 passed / 16 skipped. App/test typechecks, targeted lint, full lint (0 errors, 33 warnings), and production build passed. No test result implies database or browser acceptance.
+- [ ] Migration `20261021055142_staff_workspace_operating_defaults.sql` remains unapplied. Read-only local history lists 26 repository migrations but only 4 applied IDs; reconcile in an isolated database before applying or claiming schema validation.
+- [ ] Non-admin browser checks remain unverified. Live Telegram search → preference → grounded fee → handoff → staff reply → Return to AI → contextual follow-up remains pending fresh user approval. No messages/replays or n8n changes.
+- [ ] Invitation/recovery emails remain paused and unsent.
+
+### PR #25 isolated validation — 21 October 2026
+
+- [x] Applied the complete 26-migration history, seed disabled, in a newly named isolated Supabase project. Migration `20261021055142_staff_workspace_operating_defaults.sql` applied successfully. The first attempt exposed the optional WF02 history-table assumption in `20261020193200`; the migration now guards its revoke when `public.n8n_chat_histories` is absent.
+- [x] Isolated schema lint passed with no errors. Private landlord media RLS is enabled; `anon` and `authenticated` lack table reads, while `service_role` has required access. Upload reservation/confirmation RPCs are service-role only; inbox previews are authenticated-only.
+- [x] Real Local public landlord submission, private photo upload, idempotent retry, persisted decimal rent, private-bucket flag, and anonymous-read denial passed with synthetic data. Synthetic inbox messages verified latest-message selection in a rolled-back transaction.
+- [x] Full Local checks passed: 364 tests / 16 skipped, both typechecks, lint (0 errors / 33 warnings), and production build (86/86 pages).
+- [ ] Authenticated database/UI checks remain blocked without an existing approved staff session: settings update/audit readback, role/zone enforcement, lead mutation/conversion, calendar pagination, populated inbox UI, and sound activation.
+- [ ] PR push and exact-revision Preview build remain pending; Production has not been changed.

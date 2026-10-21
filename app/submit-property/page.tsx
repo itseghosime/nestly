@@ -19,6 +19,8 @@ import {
 import { clearBrowserPendingFormSubmission, getPendingFormSubmission, isLeadSubmissionReceipt, parseExpectedAnnualRent } from '@/lib/public-form-submission';
 
 const PENDING_SUBMISSION_STORAGE_KEY = 'nestly:landlord-submission:v1';
+const MAX_PHOTO_COUNT = 5;
+const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
 
 export default function SubmitPropertyPage() {
   const [activeStep, setActiveStep] = useState(1);
@@ -41,6 +43,11 @@ export default function SubmitPropertyPage() {
   const [submitError, setSubmitError] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [photoError, setPhotoError] = useState('');
+  const [photoUploadInProgress, setPhotoUploadInProgress] = useState(false);
+  const [photosUploaded, setPhotosUploaded] = useState(false);
+  const [submissionKey, setSubmissionKey] = useState<string | null>(null);
   const [isNiaOpen, setIsNiaOpen] = useState(false);
 
   const mainRef = useRef<HTMLElement>(null);
@@ -83,9 +90,69 @@ export default function SubmitPropertyPage() {
     }
   };
 
+  const uploadPhotos = async (key: string, selectedPhotos: File[]) => {
+    if (selectedPhotos.length === 0) return true;
+    setPhotoUploadInProgress(true);
+    setSubmitError('');
+    try {
+      const form = new FormData();
+      selectedPhotos.forEach((file) => form.append('photos', file));
+      const response = await fetch('/api/leads/landlord/media', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': key },
+        body: form,
+      });
+      const result: unknown = await response.json().catch(() => null);
+      if (
+        !response.ok
+        || !result
+        || typeof result !== 'object'
+        || !('uploaded' in result)
+        || typeof result.uploaded !== 'number'
+      ) {
+        const errorMessage = result && typeof result === 'object'
+          && 'error' in result && typeof result.error === 'string'
+          ? result.error
+          : 'The server could not confirm photo storage.';
+        throw new Error(errorMessage);
+      }
+      setPhotosUploaded(true);
+      setPhotos([]);
+      setSubmissionKey(null);
+      if (!clearBrowserPendingFormSubmission(PENDING_SUBMISSION_STORAGE_KEY)) {
+        setSubmitError('Photos are stored privately, but this browser could not clear its retry key.');
+      }
+      return true;
+    } catch (uploadError) {
+      setSubmitError(`Submission receipt is confirmed, but photos are not confirmed. ${uploadError instanceof Error ? uploadError.message : 'Retry the photo upload.'}`);
+      return false;
+    } finally {
+      setPhotoUploadInProgress(false);
+    }
+  };
+
+  const handlePhotoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(event.target.files || []);
+    const totalBytes = selected.reduce((total, file) => total + file.size, 0);
+    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+    const invalid = selected.length > MAX_PHOTO_COUNT
+      || selected.some((file) => !supportedTypes.includes(file.type) || file.size < 1 || file.size > MAX_PHOTO_BYTES)
+      || totalBytes > MAX_PHOTO_BYTES;
+    if (invalid) {
+      setPhotoError('Choose up to five JPEG, PNG, WebP, or AVIF photos with a combined size no greater than 4MB.');
+      event.target.value = '';
+      setPhotos([]);
+      return;
+    }
+    setPhotos(selected);
+    setPhotoError('');
+    setSubmitError('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+    if (photoError) return;
     const newErrors: Record<string, string> = {};
 
     if (!propertyType || !state || !city.trim() || !neighborhood.trim() || !bedrooms || !bathrooms) {
@@ -168,11 +235,17 @@ export default function SubmitPropertyPage() {
         throw new Error(errorMessage);
       }
 
-      const retryStateCleared = clearBrowserPendingFormSubmission(PENDING_SUBMISSION_STORAGE_KEY);
-      if (!retryStateCleared) {
-        setSubmitError('Receipt was confirmed, but this browser could not clear its retry key. Avoid resetting this submission until session storage is available.');
-      }
       setSubmitted(true);
+      setSubmissionKey(pendingSubmission.key);
+      if (photos.length > 0) {
+        await uploadPhotos(pendingSubmission.key, photos);
+      } else {
+        const retryStateCleared = clearBrowserPendingFormSubmission(PENDING_SUBMISSION_STORAGE_KEY);
+        setSubmissionKey(null);
+        if (!retryStateCleared) {
+          setSubmitError('Receipt was confirmed, but this browser could not clear its retry key. Avoid resetting this submission until session storage is available.');
+        }
+      }
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Unable to submit property particulars.');
     } finally {
@@ -198,6 +271,11 @@ export default function SubmitPropertyPage() {
     setOwnerName('');
     setPhone('');
     setEmail('');
+    setPhotos([]);
+    setPhotoError('');
+    setPhotoUploadInProgress(false);
+    setPhotosUploaded(false);
+    setSubmissionKey(null);
     setActiveStep(1);
     setErrors({});
     setSubmitError(retryStateCleared ? '' : 'The previous receipt was confirmed, but this browser could not clear its retry key. A matching submission will reuse that key.');
@@ -292,11 +370,38 @@ export default function SubmitPropertyPage() {
                 <p className="text-xs sm:text-sm text-muted-ink max-w-md mx-auto leading-relaxed">
                   The server recorded your property submission for <span className="font-bold text-charcoal">{propertyTitle}</span> ({city}). Receipt does not mean the property is accepted, vetted, or published.
                 </p>
+                {photoUploadInProgress && (
+                  <p role="status" className="text-xs text-muted-ink">Uploading selected photos to private review storage…</p>
+                )}
+                {photosUploaded && (
+                  <p role="status" className="text-xs text-emerald-800">
+                    Photos are stored privately as review evidence; they are not public listing images.
+                  </p>
+                )}
+                {submissionKey && photos.length > 0 && (
+                  <div className="mx-auto max-w-md space-y-2">
+                    <p className="text-xs text-muted-ink">
+                      Retry photo storage with the same submission and unchanged files. Uploads are limited to five photos and 4MB total.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void uploadPhotos(submissionKey, photos)}
+                      disabled={photoUploadInProgress}
+                      className="px-6 py-2.5 rounded-full bg-charcoal text-white text-xs font-bold disabled:opacity-50"
+                    >
+                      {photoUploadInProgress ? 'Uploading photos…' : 'Retry photo upload'}
+                    </button>
+                  </div>
+                )}
+                {!photosUploaded && !photoUploadInProgress && photos.length === 0 && (
+                  <p className="text-xs text-muted-ink">No photos were attached to this submission.</p>
+                )}
                 {submitError && <p role="status" className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-2xl p-3 max-w-md mx-auto">{submitError}</p>}
                 <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
                   <button
                     type="button"
                     onClick={handleReset}
+                    disabled={photoUploadInProgress}
                     className="px-6 py-2.5 rounded-full bg-soft-stone hover:bg-stone-card text-charcoal text-xs font-bold nestly-press cursor-pointer"
                   >
                     Submit another property
@@ -643,9 +748,27 @@ export default function SubmitPropertyPage() {
                   <div className="pt-2">
                     <div className="rounded-2xl border border-dashed border-hairline bg-soft-stone p-4 flex items-start gap-3">
                       <ImageIcon className="w-4 h-4 text-muted-ink shrink-0 mt-0.5" />
-                      <p className="text-xs text-muted-ink leading-relaxed">
-                        Photo upload is unavailable in this form. No photos will be attached, and this form does not verify title documents.
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        <label htmlFor="sub-photos" className="block text-xs font-bold text-charcoal">
+                          Property photos (optional)
+                        </label>
+                        <input
+                          id="sub-photos"
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/avif"
+                          multiple
+                          disabled={isSubmitting}
+                          onChange={handlePhotoSelect}
+                          className="mt-2 block w-full text-xs text-charcoal file:mr-3 file:rounded-full file:border-0 file:bg-white file:px-4 file:py-2 file:text-xs file:font-semibold file:text-charcoal"
+                        />
+                        <p className="mt-2 text-xs leading-relaxed text-muted-ink">
+                          Up to five JPEG, PNG, WebP, or AVIF images; 4MB combined. Photos stay private as review evidence and are not published. Uploading photos does not verify title documents.
+                        </p>
+                        {photos.length > 0 && (
+                          <p className="mt-1 text-xs text-charcoal">{photos.length} photo{photos.length === 1 ? '' : 's'} selected</p>
+                        )}
+                        {photoError && <p role="alert" className="mt-1 text-xs text-red-700">{photoError}</p>}
+                      </div>
                     </div>
                   </div>
                 </div>

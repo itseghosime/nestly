@@ -21,6 +21,8 @@ type StaffIdentity = {
 export function StaffHeader({ breadcrumbs, actions }: StaffHeaderProps) {
   const [identity, setIdentity] = useState<StaffIdentity | null>(null);
   const [identityLoaded, setIdentityLoaded] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState<string | null>(null);
+  const [workspaceUnavailable, setWorkspaceUnavailable] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -58,10 +60,44 @@ export function StaffHeader({ breadcrumbs, actions }: StaffHeaderProps) {
     };
   }, []);
 
+  useEffect(() => {
+    const role = identity?.profile?.role;
+    if (!role || !['Platform Admin', 'Operations Lead', 'Field Vetting Agent'].includes(role)) return;
+    let active = true;
+    const loadWorkspaceName = async () => {
+      try {
+        const response = await fetch('/api/staff/workspace', { cache: 'no-store' });
+        const result: unknown = await response.json();
+        if (!response.ok || !result || typeof result !== 'object'
+          || !('data' in result) || !result.data || typeof result.data !== 'object'
+          || !('workspace_name' in result.data) || typeof result.data.workspace_name !== 'string') {
+          throw new Error('Unable to load workspace name');
+        }
+        if (active) {
+          setWorkspaceName(result.data.workspace_name);
+          setWorkspaceUnavailable(false);
+        }
+      } catch {
+        if (active) setWorkspaceUnavailable(true);
+      }
+    };
+    void loadWorkspaceName();
+    window.addEventListener('staff-workspace-updated', loadWorkspaceName);
+    return () => {
+      active = false;
+      window.removeEventListener('staff-workspace-updated', loadWorkspaceName);
+    };
+  }, [identity?.profile?.role]);
+
   const identityLabel = identity?.profile?.display_name.trim()
     || identity?.user.email
     || (identityLoaded ? 'Identity unavailable' : 'Loading identity…');
   const roleLabel = identity?.profile?.role || 'No staff profile';
+  const canReadWorkspaceName = ['Platform Admin', 'Operations Lead', 'Field Vetting Agent']
+    .includes(identity?.profile?.role || '');
+  const workspaceLabel = canReadWorkspaceName
+    ? workspaceName || (workspaceUnavailable ? 'Workspace unavailable' : 'Nestly Ops')
+    : 'Nestly Ops';
 
   return (
     <header className="w-full bg-warm/95 backdrop-blur-md border-b border-hairline py-3.5 px-4 sm:px-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sticky top-0 z-20">
@@ -69,7 +105,7 @@ export function StaffHeader({ breadcrumbs, actions }: StaffHeaderProps) {
       <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs">
         <nav aria-label="Staff Breadcrumb" className="flex items-center gap-1.5 text-muted-ink">
           <Link href="/staff/dashboard" className="hover:text-charcoal transition-colors">
-            Nestly Ops
+            {workspaceLabel}
           </Link>
           {breadcrumbs.map((crumb, idx) => (
             <React.Fragment key={idx}>

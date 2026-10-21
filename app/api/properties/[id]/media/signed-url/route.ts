@@ -60,13 +60,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!property || !media || !media.bucket_id || !media.object_path) {
     return NextResponse.json({ error: 'Media not found' }, { status: 404 });
   }
-  if (
-    media.object_path.split('/').length !== 2
-    || media.object_path.startsWith('/')
-    || media.object_path.split('/')[0] !== propertyId
-  ) {
-    return NextResponse.json({ error: 'Media not found' }, { status: 404 });
-  }
 
   const isPublic = (media.bucket_id === 'property-media' || media.bucket_id === 'property-drafts')
     && media.media_kind === 'listing'
@@ -86,8 +79,63 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const admin = createAdminClient();
-  const folder = propertyId;
-  const fileName = media.object_path.split('/')[1];
+  const objectPath = media.object_path.split('/');
+  const isPropertyScopedPath = objectPath.length === 2
+    && !media.object_path.startsWith('/')
+    && objectPath[0] === propertyId;
+  const mayBeSubmissionEvidence = media.bucket_id === 'property-drafts'
+    && media.media_kind === 'evidence'
+    && objectPath.length === 3
+    && objectPath[0] === 'landlord-submissions';
+  let isSubmissionEvidence = false;
+  if (mayBeSubmissionEvidence) {
+    const [
+      { data: linkedMedia, error: linkedMediaError },
+      { data: sourceProperty, error: sourcePropertyError },
+    ] = await Promise.all([
+      admin.from('property_media')
+        .select('landlord_submission_media_id')
+        .eq('id', body.media_id)
+        .eq('property_id', propertyId)
+        .maybeSingle(),
+      admin.from('properties')
+        .select('source_landlord_submission_id')
+        .eq('id', propertyId)
+        .maybeSingle(),
+    ]);
+    if (linkedMediaError || sourcePropertyError) {
+      console.error('Private evidence linkage lookup failed', linkedMediaError?.code || sourcePropertyError?.code);
+      return NextResponse.json({ error: 'Unable to verify media access' }, { status: 500 });
+    }
+    const sourceSubmissionId = sourceProperty?.source_landlord_submission_id;
+    if (
+      typeof linkedMedia?.landlord_submission_media_id === 'string'
+      && typeof sourceSubmissionId === 'string'
+      && sourceSubmissionId === objectPath[1]
+    ) {
+      const { data: staged, error: stagedError } = await admin.from('landlord_submission_media')
+        .select('id, submission_id, bucket_id, object_path, upload_status')
+        .eq('id', linkedMedia.landlord_submission_media_id)
+        .eq('submission_id', sourceSubmissionId)
+        .eq('upload_status', 'uploaded')
+        .maybeSingle();
+      if (stagedError) {
+        console.error('Private evidence authorization lookup failed', stagedError.code);
+        return NextResponse.json({ error: 'Unable to verify media access' }, { status: 500 });
+      }
+      isSubmissionEvidence = Boolean(
+        staged
+        && staged.bucket_id === media.bucket_id
+        && staged.object_path === media.object_path,
+      );
+    }
+  }
+  if (!isPropertyScopedPath && !isSubmissionEvidence) {
+    return NextResponse.json({ error: 'Media not found' }, { status: 404 });
+  }
+
+  const folder = objectPath.slice(0, -1).join('/');
+  const fileName = objectPath[objectPath.length - 1];
   const { data: objects, error: objectError } = await admin.storage
     .from(media.bucket_id)
     .list(folder, { limit: 100, search: fileName });

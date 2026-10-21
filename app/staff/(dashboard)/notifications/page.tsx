@@ -7,6 +7,11 @@ import { MOTION, prefersReducedMotion } from "@/lib/motion";
 import Link from "next/link";
 import { StaffHeader } from "@/components/staff/StaffHeader";
 import {
+  activateNotificationSound,
+  isNotificationSoundEnabled,
+  playNotificationSound,
+} from "@/lib/notification-sound";
+import {
   CheckCircle2,
   MessageSquare,
   Calendar,
@@ -50,7 +55,10 @@ export default function NotificationsPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [soundError, setSoundError] = useState("");
   const [updatingNotificationIds, setUpdatingNotificationIds] = useState<string[]>([]);
+  const knownNotificationIds = useRef(new Set<string>());
+  const hasLoadedNotifications = useRef(false);
 
   const loadNotifications = useCallback(async () => {
     try {
@@ -60,7 +68,22 @@ export default function NotificationsPage() {
       const response = await fetch(`/api/staff/notifications?${params}`);
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Unable to load notifications");
-      setNotifications(result.data as Notification[]);
+      const nextNotifications = result.data as Notification[];
+      if (hasLoadedNotifications.current && filter === "all" && page === 1) {
+        try {
+          const hasNewUnread = nextNotifications.some((notification) => (
+            !notification.isRead && !knownNotificationIds.current.has(notification.id)
+          ));
+          if (hasNewUnread && isNotificationSoundEnabled() && !playNotificationSound()) {
+            setSoundError("Interact with this page to allow notification sounds.");
+          }
+        } catch {
+          setSoundError("Unable to read the browser's notification sound preference.");
+        }
+      }
+      knownNotificationIds.current = new Set(nextNotifications.map((notification) => notification.id));
+      hasLoadedNotifications.current = true;
+      setNotifications(nextNotifications);
       setTotal(result.total || 0);
       setError("");
     } catch (loadError) {
@@ -125,6 +148,28 @@ export default function NotificationsPage() {
     };
   }, [loadNotifications]);
 
+  useEffect(() => {
+    const activateFromGesture = () => {
+      try {
+        if (!isNotificationSoundEnabled()) return;
+        void activateNotificationSound()
+          .then((ready) => {
+            if (!ready) setSoundError("This browser does not support notification sounds.");
+            else setSoundError("");
+          })
+          .catch(() => setSoundError("Browser audio could not be activated."));
+      } catch {
+        setSoundError("Unable to read the browser's notification sound preference.");
+      }
+    };
+    window.addEventListener("pointerdown", activateFromGesture);
+    window.addEventListener("keydown", activateFromGesture);
+    return () => {
+      window.removeEventListener("pointerdown", activateFromGesture);
+      window.removeEventListener("keydown", activateFromGesture);
+    };
+  }, []);
+
   useGSAP(() => {
     if (prefersReducedMotion() || !listRef.current) return;
     const rows = listRef.current.querySelectorAll('[data-notif-row]');
@@ -183,6 +228,7 @@ export default function NotificationsPage() {
             <p className="text-sm text-charcoal/70">
               Delivery and handoff events from the configured database. Personal message content is not shown here.
             </p>
+            {soundError && <p role="status" className="text-xs text-amber-800">{soundError}</p>}
           </div>
         </div>
 

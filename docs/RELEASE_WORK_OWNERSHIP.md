@@ -2,6 +2,14 @@
 
 Base: origin/main bc940c7b353ec58eb37ab478cbeb5577bc1b7b77. User requested two workstreams, one for ChatGPT and one for Antigravity. Preserve uncommitted work and merged PR #22/#23/#24.
 
+## Current status — 21 October 2026
+
+PR #25 remains the existing draft on `feature/staff-operations-completion`; the local worktree includes merged PR #26 UI changes. At the time this status was written, the implementation had not yet been pushed; the exact pushed revision and Preview result are recorded in the follow-up status.
+
+Local validation includes 364 passing tests / 16 skipped, app/test typechecks, ESLint (0 errors / 33 warnings), and a successful 86-page production build. A fresh seed-disabled Supabase stack applied all 26 migrations after `20261020193200_nestly_private_workflow_memory_web_access.sql` was made tolerant of the optional n8n history table. The existing local `Nestly` database on port 54322 has 4/26 PR-worktree migrations recorded; it is not confirmed Production. The linked Supabase target is unavailable (`ProjectRefNotLinkedError`), so Production migration history is unknown and no Production migration was run.
+
+Real Local synthetic verification passed for public landlord submission, private photo upload and same-content retry, private-bucket/read denial, and latest-message inbox RPC selection. Authenticated staff acceptance remains blocked because the local browser has no existing authorized staff session. No user account or role was created; settings/audit readback, role/zone denials, lead conversion, calendar UI, populated inbox UI, and browser sound activation remain unverified. Email tests remain paused; Telegram/n8n investigation remains pending. No Production data, messages, emails, or workflows were changed.
+
 ## ChatGPT: staff operations and backend
 Branch: feature/staff-operations-completion.
 Owned paths: app/api/**, lib/backend/**, lib/lead-management.ts, supabase/**, app/staff/(dashboard)/settings/page.tsx, app/staff/(dashboard)/leads/page.tsx, backend tests and authoritative backend/build-log summaries.
@@ -48,3 +56,13 @@ Own responsive layout, CSS, shared navigation/dialog interaction, accessibility 
 
 ## Shared safeguards
 No provider messages, replays, production form submissions, destructive data changes, account/role/password changes, screenshots, recordings, PDFs or hosting configuration changes. Preserve Telegram, n8n workflows, data, prices, fees, images, GSAP/gallery contracts, sidebar counts and select spacing. Verify each branch before integration; no blanket completion claim.
+
+## ChatGPT backend status update — 21 October 2026
+
+The first implementation slice and the workspace/settings, lead, draft-conversion, private-photo, calendar-pagination and inbox-preview code are now present in the Local `feature/staff-operations-completion` worktree. Focused regressions passed 85/85, the added calendar/inbox/private-media group passed 18/18, and the browser-storage preference test passed 1/1; the final full suite passed 356 with 16 skipped. Application/test typechecks, targeted lint, full lint (0 errors, 33 warnings) and the local production build passed. No commit/push, merge, or deployment was made.
+
+The additive migration `20261021055142_staff_workspace_operating_defaults.sql` is prepared but unapplied. Local migration history tracks only 4 of 26 repository versions; do not apply this migration to that database or any linked database until the mismatch and compatibility are resolved through an isolated validation path. Consequently, atomic audit, RLS/zone behavior, private storage, settings persistence and the new preview RPC are code-reviewed/mocked rather than database-verified.
+
+The calendar now requests complete WAT-bounded pages, and inbox previews use a latest-message-per-conversation RPC rather than a global message cap. Private evidence signed URLs verify source-submission linkage and upload state while denying anonymous access. Workspace naming also appears in the shared `StaffHeader` for roles authorized to read settings; this is a necessary shared-component text change only, with no CSS or navigation behavior changes, and should be coordinated with Antigravity.
+
+Escalation/digest delivery remains disabled; browser sound behavior needs functional verification. Non-admin role checks remain unverified. The live Telegram sequence and source/delay diagnosis remain pending; no message, replay, email, or n8n change occurred. Invitation/recovery email testing remains paused.
