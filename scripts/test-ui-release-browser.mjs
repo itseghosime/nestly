@@ -1,27 +1,168 @@
 /**
  * Automated Playwright browser verification script for Nestly release UI completion.
  *
- * Checks responsive behavior, accessibility, dialog management, and keyboard interaction:
- * 1. Mobile Nia assistant: open, body scroll lock, multi-character typing focus stability, Tab/Shift+Tab containment, Escape dismissal, opener focus restoration.
- * 2. Mobile filter drawer: open, scroll lock, chip interaction without focus jump, Escape dismissal, opener focus restoration.
- * 3. Overlapping dialogs: topmost modal Escape ownership.
- * 4. Wide-screen viewports (1280px, 1440px, 1920px): verifies absence of horizontal page scroll and proper container layout.
+ * Verifies responsive behavior, accessibility, dialog management, and keyboard interaction:
+ * 1. Mobile Nia Assistant: open, body scroll lock, multi-character typing exact value & focus stability,
+ *    Tab/Shift+Tab focus containment, Escape dismissal, opener focus restoration.
+ * 2. Responsive Viewport Transitions: Desktop -> Mobile -> Desktop while Nia remains open,
+ *    verifying dynamic scroll-lock transitions and stable focus without resets.
+ * 3. Mobile Search Filter Drawer (/browse at 390px): open, scroll lock, filter chip interaction
+ *    (verifying drawer visibility, active focus retention, and continued scroll lock), Escape dismissal, opener focus restoration.
+ * 4. Wide-Screen Viewports Layout Audit (1280px, 1440px, 1920px): verifies absence of horizontal page scroll.
+ *
+ * Security & Data Isolation:
+ * - Restricted strictly to loopback/localhost.
+ * - Intercepts all network traffic, providing synthetic responses for application endpoints
+ *   (/api/nia/conversations, /api/nia/conversations/acknowledgements, /api/nia/conversations/messages, /api/properties, /api/neighborhoods).
+ * - Blocks any external requests and any unmocked internal application calls (including unexpected mutations)
+ *   to ensure zero calls affect linked or production data.
+ * - Zero screenshots or recordings.
  *
  * Usage:
  *   node scripts/test-ui-release-browser.mjs [baseUrl]
  *   Default baseUrl: http://localhost:3000
- *
- * Requirements:
- *   - Uses synthetic/local fixtures only; zero real credentials or external API calls.
- *   - No screenshots, video, or trace recordings captured.
  */
 
 import { chromium } from 'playwright';
 
-const BASE_URL = process.argv[2] || process.env.BASE_URL || 'http://localhost:3000';
+const rawUrl = process.argv[2] || process.env.BASE_URL || 'http://localhost:3000';
+const parsedUrl = new URL(rawUrl);
+
+// Requirement 2: Restrict strictly to loopback / localhost
+if (parsedUrl.hostname !== 'localhost' && parsedUrl.hostname !== '127.0.0.1' && parsedUrl.hostname !== '::1') {
+  console.error(`[SECURITY ERROR] Target URL must be a loopback address (localhost / 127.0.0.1 / ::1). Received: ${parsedUrl.hostname}`);
+  process.exit(1);
+}
+
+const BASE_URL = parsedUrl.origin;
+
+// Synthetic Mock Payloads
+const SYNTHETIC_CONVERSATION_SNAPSHOT = {
+  data: {
+    id: 'conv-synthetic-001',
+    mode: null,
+    messages: [],
+    currentProperties: [],
+  },
+};
+
+const SYNTHETIC_ACKNOWLEDGEMENT_RESPONSE = {
+  data: {
+    acknowledgedCount: 0,
+  },
+};
+
+const SYNTHETIC_MESSAGE_RESPONSE = {
+  data: {
+    conversationId: 'conv-synthetic-001',
+    reply: 'I found several verified homes matching your criteria in Lagos.',
+    properties: [],
+  },
+};
+
+const SYNTHETIC_PROPERTIES_RESPONSE = {
+  data: [
+    {
+      id: 'prop-synthetic-001',
+      code: 'NST-SYN-001',
+      title: '2-Bed Modern Apartment in GRA',
+      property_type: 'Apartment',
+      rent_annual: 2500000,
+      price_formatted: '₦2,500,000',
+      state: 'Edo',
+      city: 'Benin City',
+      neighborhood: 'GRA',
+      address_short: 'Boundary Rd, GRA',
+      bedrooms: 2,
+      bathrooms: 2,
+      publication_state: 'published',
+      rental_availability: 'available',
+      featured_image: '',
+      gallery_images: [],
+    },
+  ],
+};
+
+const SYNTHETIC_NEIGHBORHOODS_RESPONSE = {
+  data: [
+    {
+      slug: 'gra-benin-city',
+      name: 'GRA, Benin City',
+      state: 'Edo',
+      summary: 'Quiet residential neighborhood with paved drainage and daylight photography.',
+      heroImage: '',
+    },
+  ],
+};
+
+/**
+ * Configure context route interceptor to provide synthetic data and block external/unmocked calls.
+ */
+async function setupContextRouting(context) {
+  await context.route('**/*', async (route) => {
+    const req = route.request();
+    const url = new URL(req.url());
+
+    // 1. Block external network traffic completely
+    if (url.hostname !== parsedUrl.hostname && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
+      console.warn(`[SECURITY] Blocked external request: ${req.method()} ${req.url()}`);
+      return route.abort('blockedbyclient');
+    }
+
+    // 2. Synthetic Mocks for Application Endpoints
+    if (url.pathname.startsWith('/api/nia/conversations/acknowledgements')) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(SYNTHETIC_ACKNOWLEDGEMENT_RESPONSE),
+      });
+    }
+
+    if (url.pathname.startsWith('/api/nia/conversations/messages')) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(SYNTHETIC_MESSAGE_RESPONSE),
+      });
+    }
+
+    if (url.pathname.startsWith('/api/nia/conversations')) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(SYNTHETIC_CONVERSATION_SNAPSHOT),
+      });
+    }
+
+    if (url.pathname.startsWith('/api/properties')) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(SYNTHETIC_PROPERTIES_RESPONSE),
+      });
+    }
+
+    if (url.pathname.startsWith('/api/neighborhoods')) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(SYNTHETIC_NEIGHBORHOODS_RESPONSE),
+      });
+    }
+
+    // 3. Block unexpected internal API requests (especially mutations) to protect linked state
+    if (url.pathname.startsWith('/api/')) {
+      console.warn(`[SECURITY] Blocked unmocked internal API call: ${req.method()} ${url.pathname}`);
+      return route.abort('blockedbyclient');
+    }
+
+    // Allow standard Next.js static assets and document routes
+    return route.continue();
+  });
+}
 
 async function runBrowserChecks() {
-  console.log(`Starting Nestly UI release browser verification against: ${BASE_URL}`);
+  console.log(`Starting Nestly UI release browser verification against loopback: ${BASE_URL}`);
   const browser = await chromium.launch({ headless: true });
   let passedCount = 0;
   let totalCount = 0;
@@ -39,7 +180,7 @@ async function runBrowserChecks() {
 
   try {
     // -------------------------------------------------------------
-    // Test Scenario 1: Mobile Nia Assistant (390px Viewport)
+    // Scenario 1: Mobile Nia Assistant Lifecycle & Focus (390px Viewport)
     // -------------------------------------------------------------
     console.log('\nScenario 1: Mobile Nia Assistant Lifecycle & Focus (390x844)');
     const mobileCtx = await browser.newContext({
@@ -47,23 +188,8 @@ async function runBrowserChecks() {
       isMobile: true,
       hasTouch: true,
     });
+    await setupContextRouting(mobileCtx);
     const mobilePage = await mobileCtx.newPage();
-
-    // Mock Nia conversation endpoint locally with synthetic data to avoid external n8n calls
-    await mobilePage.route('**/api/conversation', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          data: {
-            conversationId: 'mock-conv-123',
-            reply: 'Hello! I am Nia, your verified Lagos property assistant. How can I help you today?',
-            slots: [],
-            sources: [],
-          },
-        }),
-      });
-    });
 
     await mobilePage.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
 
@@ -73,21 +199,29 @@ async function runBrowserChecks() {
 
     // Click the floating launcher button to open Nia
     const launcher = mobilePage.getByRole('button', { name: /Open Nia Property Assistant/i });
+    await launcher.waitFor({ state: 'visible', timeout: 5000 });
     await launcher.click();
-    await mobilePage.waitForSelector('[role="dialog"][aria-label="Nia Property Assistant"]');
+
+    const niaDialog = mobilePage.locator('[role="dialog"][aria-label="Nia Property Assistant"]');
+    await niaDialog.waitFor({ state: 'visible', timeout: 5000 });
 
     // Verify body scroll lock is acquired on mobile
     const lockedOverflow = await mobilePage.evaluate(() => document.body.style.overflow);
     assert(lockedOverflow === 'hidden', 'Body scroll is locked (overflow: hidden) when Nia opens on mobile');
 
-    // Focus input and type multiple characters to test focus stability across state updates
+    // Focus input and type multiple characters
     const chatInput = mobilePage.locator('input[placeholder*="Ask Nia"]');
-    await chatInput.waitFor({ state: 'visible' });
+    await chatInput.waitFor({ state: 'visible', timeout: 5000 });
     await chatInput.focus();
-    await chatInput.pressSequentially('Looking for 2 bed in Ikoyi');
+    const typedText = 'Looking for 2 bed in Ikoyi';
+    await chatInput.pressSequentially(typedText);
 
-    const activeElementTag = await mobilePage.evaluate(() => document.activeElement?.tagName.toLowerCase());
-    assert(activeElementTag === 'input', 'Focus remains solidly on chat input after typing multiple characters');
+    // Requirement 4: Assert complete typed value and focused element
+    const actualInputValue = await chatInput.inputValue();
+    assert(actualInputValue === typedText, `Complete typed Nia input value confirmed: "${actualInputValue}"`);
+
+    const isInputActiveElement = await chatInput.evaluate((el) => document.activeElement === el);
+    assert(isInputActiveElement, 'Active element is verified to be the chat input');
 
     // Test Tab / Shift+Tab keyboard containment within dialog
     await mobilePage.keyboard.press('Tab');
@@ -106,13 +240,13 @@ async function runBrowserChecks() {
 
     // Test Escape key dismissal
     await mobilePage.keyboard.press('Escape');
-    await mobilePage.waitForSelector('[role="dialog"][aria-label="Nia Property Assistant"]', { state: 'hidden' });
+    await niaDialog.waitFor({ state: 'hidden', timeout: 5000 });
 
     // Verify body scroll is unlocked upon close
     const restoredOverflow = await mobilePage.evaluate(() => document.body.style.overflow);
     assert(restoredOverflow === '' || restoredOverflow === 'visible', 'Body scroll lock is released when Nia closes');
 
-    // Verify focus restoration to launcher button (scheduled on next animation frame)
+    // Verify focus restoration to launcher button (scheduled via requestAnimationFrame)
     await mobilePage.waitForFunction(
       () => document.activeElement?.getAttribute('aria-label') === 'Open Nia Property Assistant',
       null,
@@ -124,45 +258,135 @@ async function runBrowserChecks() {
     await mobileCtx.close();
 
     // -------------------------------------------------------------
-    // Test Scenario 2: Mobile Search Filter Drawer (/browse at 390px)
+    // Scenario 2: Responsive Viewport Transitions (Desktop -> Mobile -> Desktop)
     // -------------------------------------------------------------
-    console.log('\nScenario 2: Mobile Search Filter Drawer Lifecycle (/browse)');
+    console.log('\nScenario 2: Responsive Viewport Transitions (Desktop -> Mobile -> Desktop) While Nia Is Open');
+    const responsiveCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await setupContextRouting(responsiveCtx);
+    const responsivePage = await responsiveCtx.newPage();
+    await responsivePage.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+
+    // Open Nia on desktop
+    const desktopLauncher = responsivePage.getByRole('button', { name: /Open Nia Property Assistant/i });
+    await desktopLauncher.waitFor({ state: 'visible', timeout: 5000 });
+    await desktopLauncher.click();
+
+    const responsiveDialog = responsivePage.locator('[role="dialog"][aria-label="Nia Property Assistant"]');
+    await responsiveDialog.waitFor({ state: 'visible', timeout: 5000 });
+
+    // On desktop, lockScroll is false -> body overflow is NOT locked
+    const desktopOverflowInitial = await responsivePage.evaluate(() => document.body.style.overflow);
+    assert(desktopOverflowInitial === '' || desktopOverflowInitial === 'visible', 'Desktop initial (1280px): body scroll is unlocked while Nia is open');
+
+    // Type text into input
+    const responsiveInput = responsivePage.locator('input[placeholder*="Ask Nia"]');
+    await responsiveInput.waitFor({ state: 'visible', timeout: 5000 });
+    await responsiveInput.focus();
+    const responsiveQuery = 'Checking rent in Victoria Island';
+    await responsiveInput.pressSequentially(responsiveQuery);
+
+    const desktopVal = await responsiveInput.inputValue();
+    assert(desktopVal === responsiveQuery, 'Typed input value confirmed on desktop');
+
+    // Transition Desktop -> Mobile (390px) while Nia remains open
+    await responsivePage.setViewportSize({ width: 390, height: 844 });
+    await responsivePage.waitForTimeout(100);
+
+    // Confirm scroll-lock transitions to locked
+    const transitionedMobileOverflow = await responsivePage.evaluate(() => document.body.style.overflow);
+    assert(transitionedMobileOverflow === 'hidden', 'Scroll lock acquired (overflow: hidden) when resizing to mobile (390px) while Nia remains open');
+
+    // Confirm stable focus and preserved value
+    const mobileVal = await responsiveInput.inputValue();
+    assert(mobileVal === responsiveQuery, 'Typed input value remains intact across desktop -> mobile resize');
+
+    const focusInsideOnMobile = await responsivePage.evaluate(() => {
+      const dialog = document.querySelector('[role="dialog"][aria-label="Nia Property Assistant"]');
+      return dialog ? dialog.contains(document.activeElement) : false;
+    });
+    assert(focusInsideOnMobile, 'Keyboard focus remains stably inside Nia dialog without being stolen during mobile resize');
+
+    // Transition Mobile -> Desktop (1280px) while Nia remains open
+    await responsivePage.setViewportSize({ width: 1280, height: 800 });
+    await responsivePage.waitForTimeout(100);
+
+    // Confirm scroll-lock releases
+    const transitionedDesktopOverflow = await responsivePage.evaluate(() => document.body.style.overflow);
+    assert(transitionedDesktopOverflow === '' || transitionedDesktopOverflow === 'visible', 'Scroll lock released (overflow: "") when resizing back to desktop (1280px) while Nia remains open');
+
+    // Confirm stable focus and preserved value
+    const finalDesktopVal = await responsiveInput.inputValue();
+    assert(finalDesktopVal === responsiveQuery, 'Typed input value remains intact across mobile -> desktop resize');
+
+    await responsivePage.keyboard.press('Escape');
+    await responsiveDialog.waitFor({ state: 'hidden', timeout: 5000 });
+    await responsiveCtx.close();
+
+    // -------------------------------------------------------------
+    // Scenario 3: Mobile Search Filter Drawer Lifecycle (/browse at 390px)
+    // -------------------------------------------------------------
+    console.log('\nScenario 3: Mobile Search Filter Drawer Lifecycle (/browse at 390px)');
     const browseCtx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await setupContextRouting(browseCtx);
     const browsePage = await browseCtx.newPage();
     await browsePage.goto(`${BASE_URL}/browse`, { waitUntil: 'domcontentloaded' });
 
+    // Open filter drawer
     const filterButton = browsePage.getByRole('button', { name: 'Filters', exact: true });
     await filterButton.waitFor({ state: 'visible', timeout: 5000 });
     await filterButton.click();
-    await browsePage.waitForSelector('[role="dialog"][aria-label="Filter Homes"]');
+
+    const filterDialog = browsePage.locator('[role="dialog"][aria-label="Filter Homes"]');
+    await filterDialog.waitFor({ state: 'visible', timeout: 5000 });
 
     const filterLocked = await browsePage.evaluate(() => document.body.style.overflow);
-    assert(filterLocked === 'hidden', 'Filter drawer locks body scroll on open');
+    assert(filterLocked === 'hidden', 'Filter drawer locks body scroll (overflow: hidden) on open');
 
-    // Interact with a filter chip
-    const apartmentChip = browsePage.getByRole('button', { name: /Apartment/i }).first();
-    if (await apartmentChip.isVisible()) {
-      await apartmentChip.click();
-      assert(true, 'Filter chip click executed without errors or focus jump');
-    }
+    // Requirement 3: Required assertions on filter chip interaction
+    const apartmentChip = browsePage.getByRole('button', { name: 'Apartment', exact: true });
+    await apartmentChip.waitFor({ state: 'visible', timeout: 5000 });
+    await apartmentChip.click();
+
+    // Verify drawer remains open after chip click
+    const isDrawerVisibleAfterClick = await filterDialog.isVisible();
+    assert(isDrawerVisibleAfterClick, 'Filter drawer remains visible after filter chip click');
+
+    // Verify focus stays on the intended control
+    const isChipFocused = await apartmentChip.evaluate((el) => document.activeElement === el);
+    assert(isChipFocused, 'Focus remains on apartment filter chip after selection without resetting');
+
+    // Verify body scrolling remains locked
+    const lockedAfterChip = await browsePage.evaluate(() => document.body.style.overflow);
+    assert(lockedAfterChip === 'hidden', 'Body scroll remains locked after filter chip interaction');
 
     // Close filter drawer via Escape
     await browsePage.keyboard.press('Escape');
-    await browsePage.waitForSelector('[role="dialog"][aria-label="Filter Homes"]', { state: 'hidden' });
+    await filterDialog.waitFor({ state: 'hidden', timeout: 5000 });
 
     const filterRestored = await browsePage.evaluate(() => document.body.style.overflow);
-    assert(filterRestored === '' || filterRestored === 'visible', 'Filter drawer restores body scroll on Escape');
+    assert(filterRestored === '' || filterRestored === 'visible', 'Filter drawer restores body scroll on Escape dismissal');
+
+    // Verify opener focus restoration
+    await browsePage.waitForFunction(
+      (btn) => document.activeElement === btn,
+      await filterButton.elementHandle(),
+      { timeout: 3000 }
+    );
+    const isOpenerFocused = await filterButton.evaluate((el) => document.activeElement === el);
+    assert(isOpenerFocused, 'Opener filters button receives focus after drawer dismiss');
+
     await browseCtx.close();
 
     // -------------------------------------------------------------
-    // Test Scenario 3: Wide-Screen Viewports Layout Audit (1280px, 1440px, 1920px)
+    // Scenario 4: Wide-Screen Viewports Layout Audit (1280px, 1440px, 1920px)
     // -------------------------------------------------------------
-    console.log('\nScenario 3: Wide-Screen Container Layouts & Horizontal Scroll Audit');
+    console.log('\nScenario 4: Wide-Screen Container Layouts & Horizontal Scroll Audit');
     const wideWidths = [1280, 1440, 1920];
     const testRoutes = ['/', '/browse', '/how-it-works'];
 
     for (const width of wideWidths) {
       const desktopCtx = await browser.newContext({ viewport: { width, height: 900 } });
+      await setupContextRouting(desktopCtx);
       const desktopPage = await desktopCtx.newPage();
 
       for (const route of testRoutes) {

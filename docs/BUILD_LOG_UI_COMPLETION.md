@@ -42,11 +42,14 @@
 
 ### 5. Automated Browser Verification Script (`scripts/test-ui-release-browser.mjs`)
 - Playwright headless Chromium automated test suite added to repository.
-- Uses synthetic/local data only (zero production credentials, zero external API or network calls, zero screenshots or recordings).
+- Restricted strictly to loopback (`localhost` / `127.0.0.1` / `::1`).
+- Provides synthetic JSON mocks for `/api/nia/conversations`, `/api/nia/conversations/acknowledgements`, `/api/nia/conversations/messages`, `/api/properties`, and `/api/neighborhoods`.
+- Actively blocks all external requests and unmocked internal API calls (including any unexpected mutating POST/PUT/DELETE requests) to guarantee no impact on linked or production data.
 - Verifies:
-  1. Mobile Nia dialog: body scroll lock, multi-character typing focus stability, Tab/Shift+Tab containment, Escape dismissal, opener focus restoration.
-  2. Mobile filter drawer: body scroll lock, filter chip interaction without focus jump, Escape dismissal, opener focus restoration.
-  3. Wide-screen viewports (1280px, 1440px, 1920px): verifies absence of horizontal page scroll on public routes.
+  1. Mobile Nia dialog: body scroll lock, multi-character typing exact value & focus stability, Tab/Shift+Tab containment, Escape dismissal, opener focus restoration.
+  2. Responsive Viewport Transitions: Desktop $\leftrightarrow$ Mobile transitions while Nia remains open, confirming dynamic scroll-lock transitions and stable focus without resets.
+  3. Mobile filter drawer: body scroll lock, filter chip interaction without focus jump, drawer visibility retention, Escape dismissal, opener focus restoration.
+  4. Wide-screen viewports (1280px, 1440px, 1920px): verifies absence of horizontal page scroll on public routes.
 
 ### 6. Preserved ChatGPT Ownership (PR #25)
 - Inspected `app/staff/(dashboard)/settings/page.tsx` and `app/staff/(dashboard)/leads/page.tsx` read-only.
@@ -67,6 +70,6 @@
   - Mounted React 19 component regression: stable callbacks prevent focus-stealing on parent rerenders with new inline callbacks.
 - `npm test`: 39 test suites passed, 314 tests passed, 16 skipped live tests
 - `npm run lint`: 0 errors, 33 existing Next.js `<img>` warnings
-- `node scripts/test-ui-release-browser.mjs`: 19/19 checks passed
-- `npx next build --webpack`: All 84 static and dynamic routes compiled and generated successfully in 1044ms.
+- `node scripts/test-ui-release-browser.mjs`: 30/30 checks passed
+- `npx next build --webpack`: All 84 static and dynamic routes compiled and generated successfully in 957ms.
 - **Turbopack in Git Worktree Note**: Running `npx next build` (Turbopack default) fails in isolated git worktrees with `Could not find Next.js package (next/package.json)` because Turbopack's workspace root sandbox refuses symlinks pointing outside the worktree root (`node_modules -> /Nestly/node_modules`). Compiling with `--webpack` succeeds locally. On Vercel, `npm run build` (`next build`) runs in a standalone repository root where `node_modules` is a physical local folder installed by `npm install`, and passes without issues.

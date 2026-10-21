@@ -84,7 +84,18 @@ All edits strictly adhere to team ownership boundaries:
 
 ## 3. Interactive Browser Verification (Playwright Headless Chromium)
 
-Browser interactions were verified using the dedicated automated script [`scripts/test-ui-release-browser.mjs`](file:///Users/mac/Documents/Tech4Youth/Nestly-release-ui-completion/scripts/test-ui-release-browser.mjs). This script runs against local Next.js builds using synthetic fixtures only (zero production credentials, zero external API or network calls, and zero screenshots/recordings):
+Browser interactions were verified using the dedicated automated script [`scripts/test-ui-release-browser.mjs`](file:///Users/mac/Documents/Tech4Youth/Nestly-release-ui-completion/scripts/test-ui-release-browser.mjs).
+
+**Harness Isolation & Security Controls**:
+- **Loopback Enforcement**: Restricted strictly to loopback addresses (`localhost` / `127.0.0.1` / `::1`). Execution aborts immediately if configured against any external domain.
+- **Synthetic Endpoint Mocking**: Provides synthetic responses for application endpoints used by tested pages:
+  - `GET /api/nia/conversations` $\rightarrow$ `{ data: { id: 'conv-synthetic-001', mode: null, messages: [], currentProperties: [] } }`
+  - `POST /api/nia/conversations/acknowledgements` $\rightarrow$ `{ data: { acknowledgedCount: 0 } }`
+  - `POST /api/nia/conversations/messages` $\rightarrow$ `{ data: { conversationId: 'conv-synthetic-001', reply: '...', properties: [] } }`
+  - `GET /api/properties` $\rightarrow$ valid synthetic property listing payload.
+  - `GET /api/neighborhoods` $\rightarrow$ valid synthetic neighborhood guide payload.
+- **Request Blocking**: All external requests and any unmocked internal API calls (including any unexpected mutating POST/PUT/DELETE requests) are explicitly aborted by the routing interceptor (`route.abort('blockedbyclient')`), guaranteeing that test runs cannot leak calls to linked databases, Twilio, Telegram, or production environments.
+- **Strict Assertions**: Zero conditional skips or dummy assertions (`assert(true)`); every interaction validates active element focus, DOM visibility, and body scroll lock states. Zero screenshots or recordings captured.
 
 ### Scenario 1: Mobile Nia Assistant (390x844 Viewport)
 - **Environment**: Next.js production build (`http://localhost:3012`), Chromium Mobile Headless (390x844px, touch enabled).
@@ -92,22 +103,41 @@ Browser interactions were verified using the dedicated automated script [`script
   1. Initial state: `document.body.style.overflow` verified as unlocked (`""`).
   2. Clicked launcher button `Open Nia Property Assistant`: Dialog `div[role="dialog"][aria-label="Nia Property Assistant"]` mounted.
   3. Body scroll lock acquired: `document.body.style.overflow` became `"hidden"`.
-  4. Typed 26 characters into chat input (`"Looking for 2 bed in Ikoyi"`): Active focus verified to remain solidly on `<input>`, with zero focus-stealing or re-centering across state updates.
-  5. Keyboard containment: Forward `Tab` and backward `Shift+Tab` keys contained focus within the dialog container.
+  4. Typed 26 characters into chat input (`"Looking for 2 bed in Ikoyi"`):
+     - Asserted exact typed input value: `"Looking for 2 bed in Ikoyi"`.
+     - Asserted active element is confirmed to be the chat input itself.
+  5. Keyboard containment: Forward `Tab` and backward `Shift+Tab` keys contained focus within the dialog container without escaping.
   6. Dismissal: Pressed `Escape` key. Dialog closed cleanly.
   7. Scroll lock restoration: `document.body.style.overflow` restored to `""`.
   8. Opener focus restoration: Opener launcher button received focus on next animation frame.
 
-### Scenario 2: Mobile Search Filter Drawer (`/browse` at 390px Viewport)
+### Scenario 2: Responsive Viewport Transitions (Desktop $\rightarrow$ Mobile $\rightarrow$ Desktop) While Nia Is Open
+- **Environment**: Next.js production build (`http://localhost:3012`), Chromium Headless.
+- **Interactions & Observations**:
+  1. Opened Nia on desktop (1280x800px): Body scroll verified as unlocked (`overflow: ""`) since desktop chat modal does not lock body scrolling.
+  2. Typed query into input (`"Checking rent in Victoria Island"`): Value confirmed on desktop.
+  3. Resized viewport to mobile (390x844px) while Nia remained open:
+     - Scroll lock automatically acquired (`document.body.style.overflow` became `"hidden"`).
+     - Typed input value remained intact (`"Checking rent in Victoria Island"`).
+     - Active focus remained stably inside the Nia dialog without being stolen to opener or reset.
+  4. Resized viewport back to desktop (1280x800px) while Nia remained open:
+     - Scroll lock automatically released (`document.body.style.overflow` restored to `""`).
+     - Typed input value remained intact (`"Checking rent in Victoria Island"`).
+  5. Dismissed dialog via `Escape`.
+
+### Scenario 3: Mobile Search Filter Drawer (`/browse` at 390px Viewport)
 - **Environment**: Next.js production build (`http://localhost:3012`), Chromium Headless (390x844px).
 - **Interactions & Observations**:
   1. Clicked `Filters` button (`getByRole('button', { name: 'Filters', exact: true })`).
   2. Filter bottom sheet `div[role="dialog"][aria-label="Filter Homes"]` opened; `document.body.style.overflow` locked to `"hidden"`.
-  3. Clicked `"Apartment"` property type chip inside drawer (triggers parent state change and rerender).
-  4. Observed: Drawer remained open, `document.body.style.overflow` stayed `"hidden"`, and active focus remained inside the drawer without resetting.
-  5. Pressed `Escape`: Drawer closed; `document.body.style.overflow` restored to `""`; filter button refocused.
+  3. Clicked `"Apartment"` property type filter chip:
+     - Asserted drawer remains visible in the DOM.
+     - Asserted focus remains on the clicked apartment chip without focus jump or stolen focus.
+     - Asserted body scrolling remains locked (`overflow: "hidden"`).
+  4. Pressed `Escape`: Drawer closed; `document.body.style.overflow` restored to `""`.
+  5. Opener button focus restoration: Opener filter button confirmed to receive active keyboard focus.
 
-### Scenario 3: Wide Screen Layout & Horizontal Scroll Audit (1280px, 1440px & 1920px Viewports)
+### Scenario 4: Wide Screen Layout & Horizontal Scroll Audit (1280px, 1440px & 1920px Viewports)
 - **Environment**: Next.js production build (`http://localhost:3012`), Chromium Headless.
 - **Routes & Viewports Tested**: `/`, `/browse`, `/how-it-works` across 1280x900px, 1440x900px, and 1920x1080px.
 - **Interactions & Observations**:
@@ -213,4 +243,4 @@ The following two files were inspected read-only to preserve PR #25 boundaries:
 | Production Build (Local Worktree) | `npx next build --webpack` | **Pass** (84/84 static and dynamic routes built in 1044ms) | Webpack follows symlinked `node_modules` across worktrees. |
 | Production Build (Turbopack in Worktree) | `npx next build` | **Fails locally in worktree only** | Fails with `Could not find Next.js package (next/package.json)` because Turbopack's sandbox refuses symlinks pointing outside the workspace root (`node_modules -> /Nestly/node_modules`). |
 | Production Build (Vercel) | `npm run build` (`next build`) | **Passes on Vercel** | Vercel clones the repo into a single standalone workspace root where `node_modules` is a physical local folder installed by `npm install` (no external symlinks). |
-| Interactive Browser Testing | `node scripts/test-ui-release-browser.mjs` (Playwright) | **Pass** (19/19 checks passed) | Automated browser verification on mobile Nia, search filter drawer, and wide-screen horizontal scroll. |
+| Interactive Browser Testing | `node scripts/test-ui-release-browser.mjs` (Playwright) | **Pass** (30/30 checks passed) | Automated browser verification on mobile Nia, desktop $\leftrightarrow$ mobile transitions, search filter drawer, and wide-screen horizontal scroll. |
