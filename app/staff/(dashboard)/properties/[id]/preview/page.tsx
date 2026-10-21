@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { StaffHeader } from '@/components/staff/StaffHeader';
 import { fetchPropertyById } from '@/lib/properties';
 import type { Property } from '@/lib/types';
+import { useDialogA11y } from '@/hooks/use-dialog-a11y';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -31,6 +32,22 @@ export default function StaffPropertyPreviewPage({
   const approvalRef = useRef<HTMLDivElement>(null);
   const revisionRef = useRef<HTMLDivElement>(null);
   const bannerRef = useRef<HTMLDivElement>(null);
+  const approvalTriggerRef = useRef<HTMLButtonElement>(null);
+  const revisionTriggerRef = useRef<HTMLButtonElement>(null);
+
+  useDialogA11y({
+    isOpen: showApprovalModal,
+    onClose: () => !isMutating && setShowApprovalModal(false),
+    containerRef: approvalRef,
+    returnFocusRef: approvalTriggerRef,
+  });
+
+  useDialogA11y({
+    isOpen: showRevisionModal,
+    onClose: () => !isMutating && setShowRevisionModal(false),
+    containerRef: revisionRef,
+    returnFocusRef: revisionTriggerRef,
+  });
 
   React.useEffect(() => {
     let active = true;
@@ -48,18 +65,6 @@ export default function StaffPropertyPreviewPage({
       });
     return () => { active = false; };
   }, [resolvedParams.id]);
-
-  React.useEffect(() => {
-    if (!showApprovalModal && !showRevisionModal) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setShowApprovalModal(false);
-        setShowRevisionModal(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showApprovalModal, showRevisionModal]);
 
   useGSAP(() => {
     if (!showApprovalModal || !approvalRef.current || prefersReducedMotion()) return;
@@ -156,6 +161,7 @@ export default function StaffPropertyPreviewPage({
 
           <div className="flex items-center gap-2">
             <button
+              ref={revisionTriggerRef}
               type="button"
               onClick={() => setShowRevisionModal(true)}
               className="px-4 py-2 rounded-full bg-soft-stone hover:bg-hairline text-charcoal text-xs font-bold transition-all border border-hairline"
@@ -163,6 +169,7 @@ export default function StaffPropertyPreviewPage({
               Return to review
             </button>
             <button
+              ref={approvalTriggerRef}
               type="button"
               onClick={() => setShowApprovalModal(true)}
               className="px-5 py-2 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"

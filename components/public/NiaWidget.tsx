@@ -23,6 +23,7 @@ import {
   isNiaWebsiteConversationSnapshot,
   isNiaWebsiteReply,
 } from '@/lib/backend/nia-conversation-contract';
+import { useDialogA11y } from '@/hooks/use-dialog-a11y';
 import type { NiaSearchProperty } from '@/lib/backend/nia-property-search';
 import { useSavedHomes } from '@/lib/saved-homes-context';
 import { MOTION, prefersReducedMotion } from '@/lib/motion';
@@ -100,6 +101,16 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
   const [isOpenInternal, setIsOpenInternal] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+
+  useEffect(() => {
+    const updateViewport = () => {
+      setIsMobileViewport(window.innerWidth < 640);
+    };
+    updateViewport();
+    window.addEventListener('resize', updateViewport, { passive: true });
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
   const [inputVal, setInputVal] = useState('');
   const [pendingState, setPendingState] = useState<'none' | 'waiting' | 'replying'>('none');
   const [modeState, setModeState] = useState<'normal' | 'error'>('normal');
@@ -110,6 +121,7 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
 
   const panelRef = useRef<HTMLDivElement>(null);
   const minimizedRef = useRef<HTMLDivElement>(null);
+  const launcherBtnRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const timersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -300,22 +312,23 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
     { dependencies: [messages.length] }
   );
 
-  // Keyboard Escape handler when open
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (pendingState !== 'none') {
-          clearPendingTimers();
-          setPendingState('none');
-        } else if (!isMinimized) {
-          setIsOpen(false);
-        }
+  // Accessible dialog management (body scroll lock and focus trap on mobile; single unified Escape handler on all viewports)
+  useDialogA11y({
+    isOpen: isOpen && !isMinimized,
+    onClose: () => {
+      if (pendingState !== 'none') {
+        clearPendingTimers();
+        setPendingState('none');
+      } else {
+        setIsOpen(false);
       }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, isMinimized, pendingState, clearPendingTimers, setIsOpen]);
+    },
+    containerRef: panelRef,
+    lockScroll: isMobileViewport,
+    trapFocus: isMobileViewport,
+    closeOnEscape: true,
+    returnFocusRef: launcherBtnRef,
+  });
 
   const handleSend = (textToSend?: string, isRetry = false) => {
     const q = (textToSend ?? inputVal).trim();
@@ -510,6 +523,7 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
             </div>
           ) : (
             <button
+              ref={launcherBtnRef}
               type="button"
               onClick={() => setIsOpen(true)}
               aria-label="Open Nia Property Assistant"
@@ -540,7 +554,7 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
           role="dialog"
           aria-label="Nia Property Assistant"
           data-nia-state={conversationState}
-          className="fixed inset-0 sm:inset-auto sm:bottom-24 sm:right-6 sm:w-[410px] sm:h-[640px] bg-warm rounded-none sm:rounded-3xl shadow-2xl z-50 flex flex-col border border-hairline overflow-hidden"
+          className="fixed inset-0 sm:inset-auto sm:bottom-24 sm:right-6 sm:w-[410px] sm:h-[640px] max-h-[100dvh] bg-warm rounded-none sm:rounded-3xl shadow-2xl z-50 flex flex-col border border-hairline overflow-hidden"
         >
           {/* Header */}
           <div className="p-4 bg-primary text-white flex items-center justify-between border-b border-emerald-950">

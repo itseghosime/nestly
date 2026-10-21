@@ -353,74 +353,78 @@ export default function InspectionCalendarPage() {
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
           {/* Calendar Month Grid */}
           <div className="xl:col-span-8 bg-white rounded-3xl p-6 shadow-sm border border-hairline space-y-4">
-            {/* Weekdays */}
-            {viewMode !== 'List' && (
-              <div className="grid grid-cols-7 gap-2 text-center text-[11px] font-bold uppercase tracking-wider text-muted-ink pb-2 border-b border-hairline">
-                <span>Mon</span>
-                <span>Tue</span>
-                <span>Wed</span>
-                <span>Thu</span>
-                <span>Fri</span>
-                <span>Sat</span>
-                <span>Sun</span>
+            <div className={viewMode === 'List' ? 'w-full' : 'overflow-x-auto -mx-2 px-2'}>
+              <div className={viewMode === 'List' ? 'w-full' : 'min-w-[520px] sm:min-w-0 space-y-4'}>
+                {/* Weekdays */}
+                {viewMode !== 'List' && (
+                  <div className="grid grid-cols-7 gap-2 text-center text-[11px] font-bold uppercase tracking-wider text-muted-ink pb-2 border-b border-hairline">
+                    <span>Mon</span>
+                    <span>Tue</span>
+                    <span>Wed</span>
+                    <span>Thu</span>
+                    <span>Fri</span>
+                    <span>Sat</span>
+                    <span>Sun</span>
+                  </div>
+                )}
+
+                {/* Days Grid */}
+                <div className={viewMode === 'List' ? 'grid grid-cols-1 gap-2.5' : 'grid grid-cols-7 gap-2.5'}>
+                  {!loading && viewMode === 'List' && calendarCells.length === 0 && (
+                    <p className="text-sm text-muted-ink">No inspection requests in this month.</p>
+                  )}
+                  {calendarCells.map((key, index) => {
+                    if (!key) return <div key={`blank-${index}`} aria-hidden="true" />;
+                    const dayBookings = activeBookings.filter(
+                      (booking): booking is Booking & { slot: NonNullable<Booking['slot']> } => (
+                        booking.slot !== null && dateKey(new Date(booking.slot.starts_at)) === key
+                      ),
+                    );
+                    const date = dateFromKey(key);
+                    const isSelected = selectedDate === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setSelectedDate(key)}
+                        className={`nestly-press min-h-[85px] p-2.5 rounded-2xl flex flex-col justify-between text-left transition-all border ${
+                          isSelected
+                            ? 'bg-white ring-2 ring-primary border-primary shadow-xs'
+                            : 'bg-soft-stone/40 hover:bg-soft-stone border-hairline'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span
+                            className={`font-headline text-xs font-bold ${
+                              isSelected ? 'text-primary' : 'text-charcoal'
+                            }`}
+                          >
+                            {String(date.getUTCDate()).padStart(2, '0')} {viewMode === 'List'
+                              ? date.toLocaleDateString('en-NG', { weekday: 'long', month: 'short', timeZone: 'UTC' })
+                              : ''}
+                          </span>
+                          {dayBookings.length > 0 && (
+                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                          )}
+                        </div>
+
+                        {dayBookings.slice(0, viewMode === 'List' ? 10 : 2).map((booking) => (
+                          <div
+                            key={booking.id}
+                            className={`mt-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold truncate ${
+                              booking.status === 'approved'
+                                ? 'bg-emerald-50 text-emerald-800'
+                                : 'bg-amber-50 text-amber-800'
+                            }`}
+                          >
+                            {timeFormatter.format(new Date(booking.slot!.starts_at))} · {booking.property_title}
+                          </div>
+                        ))}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            )}
-
-            {/* Days Grid */}
-            <div className={viewMode === 'List' ? 'grid grid-cols-1 gap-2.5' : 'grid grid-cols-7 gap-2.5'}>
-              {!loading && viewMode === 'List' && calendarCells.length === 0 && (
-                <p className="text-sm text-muted-ink">No inspection requests in this month.</p>
-              )}
-              {calendarCells.map((key, index) => {
-                if (!key) return <div key={`blank-${index}`} aria-hidden="true" />;
-                const dayBookings = activeBookings.filter(
-                  (booking): booking is Booking & { slot: NonNullable<Booking['slot']> } => (
-                    booking.slot !== null && dateKey(new Date(booking.slot.starts_at)) === key
-                  ),
-                );
-                const date = dateFromKey(key);
-                const isSelected = selectedDate === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setSelectedDate(key)}
-                    className={`nestly-press min-h-[85px] p-2.5 rounded-2xl flex flex-col justify-between text-left transition-all border ${
-                      isSelected
-                        ? 'bg-white ring-2 ring-primary border-primary shadow-xs'
-                        : 'bg-soft-stone/40 hover:bg-soft-stone border-hairline'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <span
-                        className={`font-headline text-xs font-bold ${
-                          isSelected ? 'text-primary' : 'text-charcoal'
-                        }`}
-                      >
-                        {String(date.getUTCDate()).padStart(2, '0')} {viewMode === 'List'
-                          ? date.toLocaleDateString('en-NG', { weekday: 'long', month: 'short', timeZone: 'UTC' })
-                          : ''}
-                      </span>
-                      {dayBookings.length > 0 && (
-                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                      )}
-                    </div>
-
-                    {dayBookings.slice(0, viewMode === 'List' ? 10 : 2).map((booking) => (
-                      <div
-                        key={booking.id}
-                        className={`mt-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold truncate ${
-                          booking.status === 'approved'
-                            ? 'bg-emerald-50 text-emerald-800'
-                            : 'bg-amber-50 text-amber-800'
-                        }`}
-                      >
-                        {timeFormatter.format(new Date(booking.slot!.starts_at))} · {booking.property_title}
-                      </div>
-                    ))}
-                  </button>
-                );
-              })}
             </div>
           </div>
 
