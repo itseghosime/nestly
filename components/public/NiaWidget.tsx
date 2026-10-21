@@ -23,6 +23,7 @@ import {
   isNiaWebsiteConversationSnapshot,
   isNiaWebsiteReply,
 } from '@/lib/backend/nia-conversation-contract';
+import { useDialogA11y } from '@/hooks/use-dialog-a11y';
 import type { NiaSearchProperty } from '@/lib/backend/nia-property-search';
 import { useSavedHomes } from '@/lib/saved-homes-context';
 import { MOTION, prefersReducedMotion } from '@/lib/motion';
@@ -100,6 +101,16 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
   const [isOpenInternal, setIsOpenInternal] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+
+  useEffect(() => {
+    const updateViewport = () => {
+      setIsMobileViewport(window.innerWidth < 640);
+    };
+    updateViewport();
+    window.addEventListener('resize', updateViewport, { passive: true });
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
   const [inputVal, setInputVal] = useState('');
   const [pendingState, setPendingState] = useState<'none' | 'waiting' | 'replying'>('none');
   const [modeState, setModeState] = useState<'normal' | 'error'>('normal');
@@ -300,7 +311,17 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
     { dependencies: [messages.length] }
   );
 
-  // Keyboard Escape handler when open
+  // Accessible dialog management on mobile viewports: body scroll lock & focus trap
+  useDialogA11y({
+    isOpen: isOpen && !isMinimized && isMobileViewport,
+    onClose: () => setIsOpen(false),
+    containerRef: panelRef,
+    lockScroll: isMobileViewport,
+    trapFocus: isMobileViewport,
+    closeOnEscape: true,
+  });
+
+  // Keyboard Escape handler when open (supports cancelling pending queries first)
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -540,7 +561,7 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
           role="dialog"
           aria-label="Nia Property Assistant"
           data-nia-state={conversationState}
-          className="fixed inset-0 sm:inset-auto sm:bottom-24 sm:right-6 sm:w-[410px] sm:h-[640px] bg-warm rounded-none sm:rounded-3xl shadow-2xl z-50 flex flex-col border border-hairline overflow-hidden"
+          className="fixed inset-0 sm:inset-auto sm:bottom-24 sm:right-6 sm:w-[410px] sm:h-[640px] max-h-[100dvh] bg-warm rounded-none sm:rounded-3xl shadow-2xl z-50 flex flex-col border border-hairline overflow-hidden"
         >
           {/* Header */}
           <div className="p-4 bg-primary text-white flex items-center justify-between border-b border-emerald-950">

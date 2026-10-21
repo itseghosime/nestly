@@ -11,6 +11,7 @@ import { PropertyCard } from '@/components/public/PropertyCard';
 import { useSavedHomes } from '@/lib/saved-homes-context';
 import { prefersReducedMotion } from '@/lib/motion';
 import { NIA_TELEGRAM_URL } from '@/lib/contact-channels';
+import { useDialogA11y } from '@/hooks/use-dialog-a11y';
 import {
   Heart,
   Share2,
@@ -32,6 +33,16 @@ export default function SavedHomesPage() {
   const emptyRef = useRef<HTMLDivElement>(null);
   const modalBackdropRef = useRef<HTMLDivElement>(null);
   const modalContentRef = useRef<HTMLDivElement>(null);
+  const shareTriggerRef = useRef<HTMLButtonElement>(null);
+  const shareCloseBtnRef = useRef<HTMLButtonElement>(null);
+
+  useDialogA11y({
+    isOpen: showShareModal,
+    onClose: () => setShowShareModal(false),
+    containerRef: modalContentRef,
+    initialFocusRef: shareCloseBtnRef,
+    returnFocusRef: shareTriggerRef,
+  });
 
   useGSAP(
     () => {
@@ -56,7 +67,7 @@ export default function SavedHomesPage() {
     }
   }, [savedCount]);
 
-  // Share Modal entrance & Escape dismissal
+  // Share Modal entrance
   useEffect(() => {
     if (!showShareModal) return;
     if (!prefersReducedMotion() && modalBackdropRef.current && modalContentRef.current) {
@@ -67,11 +78,6 @@ export default function SavedHomesPage() {
         { opacity: 1, scale: 1, y: 0, duration: 0.26, ease: 'power3.out' }
       );
     }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowShareModal(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
   }, [showShareModal]);
 
   const handleAnimatedRemove = (propertyId: string, wrapperEl?: HTMLElement | null) => {
@@ -153,6 +159,7 @@ export default function SavedHomesPage() {
             {savedCount > 0 && (
               <>
                 <button
+                  ref={shareTriggerRef}
                   type="button"
                   onClick={() => setShowShareModal(true)}
                   className="px-4 py-2 rounded-full bg-white border border-hairline hover:bg-soft-stone text-xs font-bold text-charcoal flex items-center gap-2 shadow-2xs nestly-press cursor-pointer"
@@ -287,6 +294,7 @@ export default function SavedHomesPage() {
                   </div>
                 </div>
                 <button
+                  ref={shareCloseBtnRef}
                   type="button"
                   aria-label="Close modal"
                   onClick={() => setShowShareModal(false)}

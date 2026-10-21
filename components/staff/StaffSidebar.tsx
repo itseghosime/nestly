@@ -242,7 +242,7 @@ export function StaffSidebar() {
               >
                 <div className="flex items-center gap-3">
                   <Icon
-                    className={`w-4 h-4 transition-colors ${
+                    className={`w-4 h-4 shrink-0 transition-colors ${
                       isActive ? 'text-primary' : 'text-muted-ink'
                     }`}
                   />
@@ -264,10 +264,10 @@ export function StaffSidebar() {
               className="flex items-center justify-between px-3.5 py-2 rounded-full text-xs font-medium text-muted-ink hover:text-charcoal hover:bg-soft-stone transition-colors"
             >
               <span className="flex items-center gap-2.5">
-                <ExternalLink className="w-3.5 h-3.5" />
+                <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                 <span>View Public Site</span>
               </span>
-              <ChevronRight className="w-3 h-3" />
+              <ChevronRight className="w-3 h-3 shrink-0" />
             </Link>
           </div>
         </nav>
@@ -338,9 +338,9 @@ export function StaffSidebar() {
           onClick={openMobileDrawer}
           aria-label="Open staff navigation menu"
           aria-expanded={mobileOpen}
-          className="nestly-press p-2 rounded-lg bg-soft-stone text-charcoal"
+          className="nestly-press p-2 rounded-lg bg-soft-stone text-charcoal shrink-0"
         >
-          <Menu className="w-5 h-5" />
+          <Menu className="w-5 h-5 shrink-0" />
         </button>
       </div>
 
@@ -370,9 +370,9 @@ export function StaffSidebar() {
               type="button"
               onClick={closeMobileDrawer}
               aria-label="Close staff navigation menu"
-              className="absolute top-4 right-4 p-1.5 rounded-full bg-soft-stone text-charcoal hover:bg-stone-card transition-colors"
+              className="absolute top-4 right-4 p-1.5 rounded-full bg-soft-stone text-charcoal hover:bg-stone-card transition-colors shrink-0"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 shrink-0" />
             </button>
             {renderSidebarContent(true)}
           </div>

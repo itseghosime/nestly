@@ -192,9 +192,9 @@ export function PropertyCard({
 
           <Link
             href={`/inspection-request?property=${property.id}`}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-soft-stone hover:bg-persimmon hover:text-white text-charcoal text-xs font-bold tracking-tight nestly-press"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-soft-stone hover:bg-persimmon hover:text-white text-charcoal text-xs font-bold tracking-tight nestly-press shrink-0"
           >
-            <Calendar className="w-3.5 h-3.5" />
+            <Calendar className="w-3.5 h-3.5 shrink-0" />
             <span>Book Visit</span>
           </Link>
         </div>
@@ -205,7 +205,7 @@ export function PropertyCard({
           className="w-full py-2.5 px-4 rounded-xl bg-warm border border-hairline hover:border-charcoal/30 text-charcoal text-xs font-bold flex items-center justify-center gap-1.5 nestly-press group/btn"
         >
           <span>View Property &amp; Video Tour</span>
-          <ArrowRight className="w-3.5 h-3.5 text-muted-ink group-hover/btn:translate-x-1 transition-transform duration-150" />
+          <ArrowRight className="w-3.5 h-3.5 shrink-0 text-muted-ink group-hover/btn:translate-x-1 transition-transform duration-150" />
         </Link>
       </div>
     </article>

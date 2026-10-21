@@ -13,6 +13,7 @@ import { fetchProperties, IS_DEMO_MODE } from '@/lib/properties';
 import { PROPERTIES as FIXTURE_PROPERTIES } from '@/lib/fixtures/properties';
 import type { Property } from '@/lib/types';
 import { prefersReducedMotion } from '@/lib/motion';
+import { useDialogA11y } from '@/hooks/use-dialog-a11y';
 import {
   Search,
   SlidersHorizontal,
@@ -66,7 +67,17 @@ function BrowseContent() {
   const emptyRef = useRef<HTMLDivElement>(null);
   const filterDrawerRef = useRef<HTMLDivElement>(null);
   const filterBackdropRef = useRef<HTMLDivElement>(null);
+  const mobileFilterTriggerRef = useRef<HTMLButtonElement>(null);
+  const filterCloseBtnRef = useRef<HTMLButtonElement>(null);
   const isFirstRender = useRef(true);
+
+  useDialogA11y({
+    isOpen: mobileFilterDrawerOpen,
+    onClose: () => setMobileFilterDrawerOpen(false),
+    containerRef: filterDrawerRef,
+    initialFocusRef: filterCloseBtnRef,
+    returnFocusRef: mobileFilterTriggerRef,
+  });
 
   const [prevLocation, setPrevLocation] = useState(initialLocation);
   if (initialLocation !== prevLocation) {
@@ -178,11 +189,6 @@ function BrowseContent() {
         { yPercent: 0, duration: 0.3, ease: 'power3.out' }
       );
     }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMobileFilterDrawerOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
   }, [mobileFilterDrawerOpen]);
 
   const resetFilters = () => {
@@ -228,6 +234,7 @@ function BrowseContent() {
                 <span>No Account Required</span>
               </span>
               <button
+                ref={mobileFilterTriggerRef}
                 type="button"
                 onClick={() => setMobileFilterDrawerOpen(true)}
                 className="sm:hidden inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-charcoal text-white text-xs font-bold nestly-press"
@@ -564,6 +571,7 @@ function BrowseContent() {
             <div className="flex items-center justify-between pb-3 border-b border-hairline">
               <h3 className="font-headline text-lg font-extrabold text-charcoal">Refine Search</h3>
               <button
+                ref={filterCloseBtnRef}
                 type="button"
                 aria-label="Close filters"
                 onClick={() => setMobileFilterDrawerOpen(false)}

@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { StaffHeader } from '@/components/staff/StaffHeader';
 import { Property } from '@/lib/types';
 import { computeTotal, type FeeRow } from '@/lib/price';
+import { useDialogA11y } from '@/hooks/use-dialog-a11y';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -75,6 +76,16 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const toastRef = useRef<HTMLDivElement>(null);
+  const discardTriggerRef = useRef<HTMLButtonElement>(null);
+  const keepEditingBtnRef = useRef<HTMLButtonElement>(null);
+
+  useDialogA11y({
+    isOpen: showDiscardDialog,
+    onClose: () => setShowDiscardDialog(false),
+    containerRef: dialogRef,
+    initialFocusRef: keepEditingBtnRef,
+    returnFocusRef: discardTriggerRef,
+  });
 
   useGSAP(() => {
     if (!showDiscardDialog || !dialogRef.current || prefersReducedMotion()) return;
@@ -84,15 +95,6 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
     if (!isSavedToast || !toastRef.current || prefersReducedMotion()) return;
     gsap.fromTo(toastRef.current, { y: -8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.22, ease: MOTION.ease.crispOut, clearProps: 'transform,opacity' });
   }, { dependencies: [isSavedToast] });
-
-  useEffect(() => {
-    if (!showDiscardDialog) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowDiscardDialog(false);
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showDiscardDialog]);
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -266,6 +268,7 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
         actions={
           <div className="flex items-center gap-2">
             <button
+              ref={discardTriggerRef}
               type="button"
               onClick={() => setShowDiscardDialog(true)}
               className="px-3.5 py-1.5 rounded-full bg-soft-stone hover:bg-hairline text-charcoal text-xs font-semibold transition-colors border border-hairline shadow-2xs"
@@ -792,6 +795,7 @@ export function PropertyEditor({ initialProperty, isNew = false }: PropertyEdito
             </p>
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
+                ref={keepEditingBtnRef}
                 type="button"
                 onClick={() => setShowDiscardDialog(false)}
                 className="min-h-[36px] px-4 py-2 rounded-full bg-soft-stone hover:bg-hairline text-charcoal text-xs font-bold shrink-0 transition-colors"

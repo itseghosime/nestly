@@ -6,6 +6,7 @@ import { useGSAP } from "@gsap/react";
 import { MOTION, prefersReducedMotion } from "@/lib/motion";
 import Link from "next/link";
 import { StaffHeader } from "@/components/staff/StaffHeader";
+import { useDialogA11y } from "@/hooks/use-dialog-a11y";
 import {
   ShieldAlert,
   ArrowLeft,
@@ -17,20 +18,21 @@ import {
 export default function PermissionDeniedPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
+  const contactBtnRef = useRef<HTMLButtonElement>(null);
+  const modalCloseBtnRef = useRef<HTMLButtonElement>(null);
+
+  useDialogA11y({
+    isOpen: isModalOpen,
+    onClose: () => setIsModalOpen(false),
+    containerRef: modalRef,
+    initialFocusRef: modalCloseBtnRef,
+    returnFocusRef: contactBtnRef,
+  });
 
   useGSAP(() => {
     if (!isModalOpen || !modalRef.current || prefersReducedMotion()) return;
     gsap.fromTo(modalRef.current, { scale: 0.97, y: 8, opacity: 0 }, { scale: 1, y: 0, opacity: 1, duration: 0.2, ease: MOTION.ease.crispOut, clearProps: 'transform,opacity' });
   }, { dependencies: [isModalOpen] });
-
-  React.useEffect(() => {
-    if (!isModalOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsModalOpen(false);
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isModalOpen]);
 
   return (
     <div className="flex-1 flex flex-col min-h-screen bg-warm">
@@ -46,7 +48,7 @@ export default function PermissionDeniedPage() {
           {/* Badge */}
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-[#202320]/5 text-[#202320]/60 mb-3">
             <Lock className="w-3.5 h-3.5" />
-            Error 403 · Access Restricted · S18
+            Error 403 · Access Restricted
           </div>
 
           <h1 className="text-2xl md:text-3xl font-extrabold text-[#202320] tracking-tight mb-3">
@@ -69,6 +71,7 @@ export default function PermissionDeniedPage() {
             </Link>
 
             <button
+              ref={contactBtnRef}
               type="button"
               onClick={() => setIsModalOpen(true)}
               className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full border border-[#202320]/15 bg-white text-xs font-bold text-[#202320] shadow-sm hover:bg-[#202320]/5 transition-all hover:scale-[1.02] active:scale-[0.98]"
@@ -107,6 +110,7 @@ export default function PermissionDeniedPage() {
                   </div>
                 </div>
                 <button
+                  ref={modalCloseBtnRef}
                   onClick={() => setIsModalOpen(false)}
                   className="w-8 h-8 rounded-full bg-[#202320]/5 hover:bg-[#202320]/10 flex items-center justify-center text-[#202320] transition-colors"
                 >

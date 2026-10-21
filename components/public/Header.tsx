@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import gsap from 'gsap';
 import { useSavedHomes } from '@/lib/saved-homes-context';
 import { prefersReducedMotion } from '@/lib/motion';
+import { useDialogA11y } from '@/hooks/use-dialog-a11y';
 import {
   Heart,
   MessageSquare,
@@ -37,6 +38,16 @@ export function Header({ onOpenNia }: HeaderProps) {
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Accessible dialog management: body scroll lock, focus trap, Escape key, and focus return
+  useDialogA11y({
+    isOpen: mobileMenuOpen,
+    onClose: () => closeMobileMenu(true),
+    containerRef: drawerRef,
+    initialFocusRef: closeBtnRef,
+    returnFocusRef: menuTriggerRef,
+  });
 
   // Subtle header shadow on scroll
   useEffect(() => {
@@ -101,14 +112,9 @@ export function Header({ onOpenNia }: HeaderProps) {
     }, 0.02);
   }, []);
 
-  // Coordinate mobile drawer entrance & Escape key handling
+  // Coordinate mobile drawer entrance animation
   useEffect(() => {
-    if (!mobileMenuOpen) {
-      document.body.style.overflow = '';
-      return;
-    }
-
-    document.body.style.overflow = 'hidden';
+    if (!mobileMenuOpen) return;
 
     if (!prefersReducedMotion() && drawerRef.current && backdropRef.current) {
       gsap.fromTo(
@@ -130,18 +136,7 @@ export function Header({ onOpenNia }: HeaderProps) {
         );
       }
     }
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        closeMobileMenu(true);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.body.style.overflow = '';
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [mobileMenuOpen, closeMobileMenu]);
+  }, [mobileMenuOpen]);
 
   const navLinks = [
     { label: 'Browse homes', href: '/browse' },
@@ -229,9 +224,9 @@ export function Header({ onOpenNia }: HeaderProps) {
           {/* Submit Property Link (Desktop) */}
           <Link
             href="/submit-property"
-            className="hidden xl:inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-white border border-hairline hover:border-charcoal/40 text-charcoal text-[13px] font-bold tracking-tight nestly-press"
+            className="hidden xl:inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-white border border-hairline hover:border-charcoal/40 text-charcoal text-[13px] font-bold tracking-tight nestly-press shrink-0"
           >
-            <PlusCircle className="w-4 h-4 text-primary" />
+            <PlusCircle className="w-4 h-4 text-primary shrink-0" />
             <span>List Home</span>
           </Link>
 
@@ -239,9 +234,9 @@ export function Header({ onOpenNia }: HeaderProps) {
           <button
             type="button"
             onClick={onOpenNia}
-            className="hidden sm:inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-[13px] sm:text-[14px] font-bold tracking-tight shadow-sm hover:shadow-md nestly-press cursor-pointer"
+            className="hidden sm:inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-full bg-persimmon hover:bg-persimmon-hover text-white text-[13px] sm:text-[14px] font-bold tracking-tight shadow-sm hover:shadow-md nestly-press cursor-pointer shrink-0"
           >
-            <MessageSquare className="w-4 h-4" />
+            <MessageSquare className="w-4 h-4 shrink-0" />
             <span>Chat with Nia</span>
           </button>
 
@@ -252,9 +247,9 @@ export function Header({ onOpenNia }: HeaderProps) {
             onClick={() => setMobileMenuOpen(true)}
             aria-label={mobileMenuOpen ? 'Close mobile navigation' : 'Open mobile navigation'}
             aria-expanded={mobileMenuOpen}
-            className="lg:hidden flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white border border-hairline hover:bg-soft-stone text-charcoal nestly-press"
+            className="lg:hidden flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white border border-hairline hover:bg-soft-stone text-charcoal nestly-press shrink-0"
           >
-            <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Menu className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
           </button>
         </div>
       </header>
@@ -299,12 +294,13 @@ export function Header({ onOpenNia }: HeaderProps) {
                 </Link>
 
                 <button
+                  ref={closeBtnRef}
                   type="button"
                   onClick={() => closeMobileMenu(true)}
                   aria-label="Close menu"
-                  className="w-10 h-10 rounded-full bg-soft-stone hover:bg-stone-card text-charcoal flex items-center justify-center nestly-press"
+                  className="w-10 h-10 rounded-full bg-soft-stone hover:bg-stone-card text-charcoal flex items-center justify-center nestly-press shrink-0"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-5 h-5 shrink-0" />
                 </button>
               </div>
 
