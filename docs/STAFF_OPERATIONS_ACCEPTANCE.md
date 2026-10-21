@@ -75,3 +75,11 @@ After approval: recheck migration history and predecessor compatibility, apply t
 - Invitation/recovery email testing remains paused.
 - Escalation and digest controls intentionally stay unavailable until a real scheduler/delivery path exists. This work does not implement those deferred services.
 - No screenshots, recordings, PDF, customer-data deletion or hosting configuration change was made.
+
+## 2026-10-21 — Approved Production migration applied
+
+The user explicitly approved applying the reviewed staff migration. Rechecked PR #25 head 84546adb78b24de84e35a8216ee378b922496372 and exact SQL contents against GitHub; all 25 predecessors were present. Applied only that migration through Supabase. The tool recorded version **20261021113608_staff_workspace_operating_defaults**, so the repository filename is aligned to that recorded version (formerly prepared as 20261021055142). SQL contents are unchanged. Do not apply the old version a second time.
+
+Production read-only acceptance: workspace_name/default_inspection_duration_mins now exist; seven guarded RPCs exist with fixed search paths; anonymous EXECUTE denied on those RPCs; media reservation/confirmation remain service-role-only. landlord_submission_media has RLS and no SELECT grant for anonymous or authenticated clients. public_properties remains 30 columns with zero tested private columns. Base property count remains 34; public projection remains 26. No reset, seed, message replay, email, or synthetic Production mutation was performed. This establishes schema/privilege acceptance, not the complete hosted mutation journey.
+
+Security advisors still report two SECURITY DEFINER public views, role-executable definer functions, service-only RLS/no-policy tables and disabled leaked-password protection. Public views/receipt/role guards require their documented access checks; no blanket clean-security claim is made. Full hosted non-admin/Auth/Storage acceptance and Telegram lifecycle/source-delay evidence remain pending. Merge/deployment status follows in the release PR. Earlier blocker entries above are historical; the exact migration approval and application blocker is now resolved.
