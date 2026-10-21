@@ -76,6 +76,16 @@ describe('staff workspace settings', () => {
     expect(mocks.requireStaff).toHaveBeenCalledWith(['Platform Admin', 'Operations Lead', 'Field Vetting Agent']);
   });
 
+  it.each(['Operations Lead', 'Field Vetting Agent'])('returns a read-only workspace contract for %s', async (role) => {
+    mocks.requireStaff.mockResolvedValueOnce({ context: {
+      role, userId: areaId, client: { from: mocks.from, rpc: mocks.rpc },
+    } });
+    const response = await getSettings();
+    expect(response.status).toBe(200);
+    expect((await response.json()).canManage).toBe(false);
+    expect(response.headers.get('Cache-Control')).toBe('no-store, private');
+  });
+
   it('saves all validated settings through the atomic audited RPC', async () => {
     const response = await patchSettings(request({
       workspaceName: 'Nestly Operations',

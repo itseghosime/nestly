@@ -14,7 +14,9 @@
     "telegram:preflight": "node scripts/telegram-preflight.mjs",
     "test:telegram:local": "node scripts/test-telegram-local.mjs",
     "test:twilio-dedup:local": "node scripts/test-twilio-message-dedup-local.mjs",
-    "test:twilio-staff:local": "node scripts/test-twilio-staff-replies-local.mjs"
+    "test:twilio-staff:local": "node scripts/test-twilio-staff-replies-local.mjs",
+    "test:staff:db": "node scripts/test-staff-operations-db.mjs",
+    "test:staff:browser": "node scripts/test-staff-operations-browser.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
@@ -31,6 +33,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.10",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

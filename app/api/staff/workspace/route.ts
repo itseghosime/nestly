@@ -27,8 +27,13 @@ export async function GET() {
     .select(WORKSPACE_COLUMNS)
     .eq('id', 1)
     .single();
-  if (error) return NextResponse.json({ error: 'Unable to load workspace settings' }, { status: 503 });
-  return NextResponse.json({ data });
+  if (error) {
+    console.error('Workspace settings read failed', error.code || 'unknown');
+    return NextResponse.json({ error: 'Unable to load workspace settings' }, { status: 503 });
+  }
+  return NextResponse.json({ data, canManage: context.role === 'Platform Admin' }, {
+    headers: { 'Cache-Control': 'no-store, private' },
+  });
 }
 
 export async function PATCH(request: Request) {
@@ -61,5 +66,7 @@ export async function PATCH(request: Request) {
   }
   const settings = Array.isArray(data) ? data[0] : data;
   if (!settings) return NextResponse.json({ error: 'Unable to save workspace settings' }, { status: 503 });
-  return NextResponse.json({ data: settings });
+  return NextResponse.json({ data: settings, canManage: true }, {
+    headers: { 'Cache-Control': 'no-store, private' },
+  });
 }
