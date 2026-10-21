@@ -1522,3 +1522,9 @@ User requested a clean admin dashboard and removal of old notifications. In the 
 Simplified the overview to a full-width warm workspace with a rounded green welcome header, concise business labels, preserved real counts and working shortcuts. Removed the redundant integration-status summary from the overview; the dedicated integrations page remains available. Notification view now defaults to unread with a clear caught-up state and All history retained; browser sound detection supports the unread view. Authorization, data queries and n8n routing unchanged.
 
 Local TypeScript, focused lint and production build passed (85/85 pages). Existing dashboard and notification API regressions passed (see command npm test -- tests/api/staff-dashboard-audit.test.ts tests/api/staff-notifications.test.ts). Production visual/read-state verification follows deployment; no destructive reset or provider send performed.
+
+## 2026-10-21 — Old conversation cleanup
+
+User requested removal of old conversations from the fresh admin dashboard. Preflight found 16 existing threads (15 active AI threads and one already closed), newest created on 19 October. Used the signed-in Platform Admin Close Conversation action on the old active threads; closed sessions suppress queued AI replies through existing guards. No provider message, direct bulk SQL write or deletion was used. Conversation/message and audit history remains retained; closing ends those old sessions rather than erasing them.
+
+The staff queue now excludes CLOSED by default, with explicit CLOSED filtering preserved as Resolved history. The overview conversation count now measures open threads. Added regressions for default exclusion and explicit closed-history access. Focused conversation/dashboard tests, both typechecks, focused lint and production build passed. No schema or n8n change. Final Production readback/deployment is tracked in the completion response.

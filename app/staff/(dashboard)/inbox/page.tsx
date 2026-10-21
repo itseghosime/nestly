@@ -207,7 +207,7 @@ export default function ConversationInboxPage() {
                 <Clock className="w-4 h-4" />
               </div>
               <div className="flex flex-col">
-                <span className="text-[10px] text-muted-ink uppercase font-bold">Closed (page)</span>
+                <span className="text-[10px] text-muted-ink uppercase font-bold">Resolved (page)</span>
                 <span className="font-headline text-sm font-bold text-charcoal leading-none">{closedCount}</span>
               </div>
             </div>
@@ -274,7 +274,7 @@ export default function ConversationInboxPage() {
                   : 'bg-soft-stone text-charcoal/70 hover:bg-hairline'
               }`}
             >
-              All
+              Open
             </button>
             <button
               type="button"
@@ -321,7 +321,7 @@ export default function ConversationInboxPage() {
                   : 'bg-soft-stone text-charcoal/70 hover:bg-hairline'
               }`}
             >
-              Closed
+              Resolved history
             </button>
           </div>
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-hairline text-xs font-semibold">

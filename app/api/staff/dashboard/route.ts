@@ -27,7 +27,7 @@ export async function GET() {
       .eq('mode', 'HUMAN_ACTIVE')
       .order('updated_at', { ascending: false })
       .limit(3),
-    context.client.from('conversations').select('id', { count: 'exact', head: true }),
+    context.client.from('conversations').select('id', { count: 'exact', head: true }).neq('mode', 'CLOSED'),
     context.client.from('properties')
       .select('id', { count: 'exact', head: true })
       .eq('publication_state', 'published'),

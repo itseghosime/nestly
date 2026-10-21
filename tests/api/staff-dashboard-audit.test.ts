@@ -13,7 +13,7 @@ import { inspectStaffIntegrations } from '@/lib/backend/staff-integrations';
 const userId = '11111111-1111-4111-8111-111111111111';
 const notificationId = '22222222-2222-4222-8222-222222222222';
 function query(result: unknown) {
-  const chain = { select: vi.fn(), maybeSingle: vi.fn(), eq: vi.fn(), in: vi.fn(), order: vi.fn(), range: vi.fn(), or: vi.fn(), upsert: vi.fn(), delete: vi.fn(),
+  const chain = { select: vi.fn(), maybeSingle: vi.fn(), eq: vi.fn(), neq: vi.fn(), in: vi.fn(), order: vi.fn(), range: vi.fn(), or: vi.fn(), upsert: vi.fn(), delete: vi.fn(),
     then: (resolve: (value: unknown) => unknown) => Promise.resolve(result).then(resolve),
   };
   for (const [key, value] of Object.entries(chain)) if (key !== 'then') (value as ReturnType<typeof vi.fn>).mockReturnValue(chain);

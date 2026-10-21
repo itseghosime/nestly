@@ -31,6 +31,8 @@ beforeEach(() => {
   const conversationQuery = {
     select: vi.fn(() => conversationQuery),
     order: vi.fn(() => conversationQuery),
+    eq: vi.fn(() => conversationQuery),
+    neq: vi.fn(() => conversationQuery),
     range: vi.fn().mockResolvedValue({ data: [conversation], error: null, count: 1 }),
   };
   const profileQuery = {
@@ -60,6 +62,19 @@ beforeEach(() => {
 });
 
 describe('staff conversation previews', () => {
+  it('excludes resolved conversations from the default inbox', async () => {
+    await GET(new Request('https://nestly.example/api/staff/conversations'));
+    const chain = mocks.from.mock.results.find(r => r.value?.neq)?.value;
+    expect(chain.neq).toHaveBeenCalledWith('mode', 'CLOSED');
+  });
+
+  it('keeps resolved history explicitly accessible', async () => {
+    await GET(new Request('https://nestly.example/api/staff/conversations?mode=CLOSED'));
+    const chain = mocks.from.mock.results.find(r => r.value?.neq)?.value;
+    expect(chain.eq).toHaveBeenCalledWith('mode', 'CLOSED');
+    expect(chain.neq).not.toHaveBeenCalled();
+  });
+
   it('loads one database-selected latest message per conversation without a global message cap', async () => {
     const response = await GET(new Request('https://nestly.example/api/staff/conversations?page=1'));
 

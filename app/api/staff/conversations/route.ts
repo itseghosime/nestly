@@ -42,6 +42,7 @@ export async function GET(request: Request) {
     )
     .order('updated_at', { ascending: false });
   if (mode?.success) query = query.eq('mode', mode.data);
+  else query = query.neq('mode', 'CLOSED');
   if (channel?.success) query = query.eq('channel', channel.data);
   const { data, error, count } = await query.range((page - 1) * 100, page * 100 - 1);
   if (error) {
