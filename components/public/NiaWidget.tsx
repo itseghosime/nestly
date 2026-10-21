@@ -121,6 +121,7 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
 
   const panelRef = useRef<HTMLDivElement>(null);
   const minimizedRef = useRef<HTMLDivElement>(null);
+  const launcherBtnRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const timersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -311,32 +312,23 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
     { dependencies: [messages.length] }
   );
 
-  // Accessible dialog management on mobile viewports: body scroll lock & focus trap
+  // Accessible dialog management (body scroll lock and focus trap on mobile; single unified Escape handler on all viewports)
   useDialogA11y({
-    isOpen: isOpen && !isMinimized && isMobileViewport,
-    onClose: () => setIsOpen(false),
+    isOpen: isOpen && !isMinimized,
+    onClose: () => {
+      if (pendingState !== 'none') {
+        clearPendingTimers();
+        setPendingState('none');
+      } else {
+        setIsOpen(false);
+      }
+    },
     containerRef: panelRef,
     lockScroll: isMobileViewport,
     trapFocus: isMobileViewport,
     closeOnEscape: true,
+    returnFocusRef: launcherBtnRef,
   });
-
-  // Keyboard Escape handler when open (supports cancelling pending queries first)
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (pendingState !== 'none') {
-          clearPendingTimers();
-          setPendingState('none');
-        } else if (!isMinimized) {
-          setIsOpen(false);
-        }
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, isMinimized, pendingState, clearPendingTimers, setIsOpen]);
 
   const handleSend = (textToSend?: string, isRetry = false) => {
     const q = (textToSend ?? inputVal).trim();
@@ -531,6 +523,7 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
             </div>
           ) : (
             <button
+              ref={launcherBtnRef}
               type="button"
               onClick={() => setIsOpen(true)}
               aria-label="Open Nia Property Assistant"

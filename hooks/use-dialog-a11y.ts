@@ -13,13 +13,53 @@ export interface UseDialogA11yOptions {
   returnFocusRef?: React.RefObject<HTMLElement | null>;
 }
 
+// Module-level state tracking active scroll locks across overlapping dialogs/drawers
+let activeScrollLocks = 0;
+let savedBodyOverflow = '';
+let savedBodyPaddingRight = '';
+
+export function acquireScrollLock() {
+  if (typeof document === 'undefined') return;
+  if (activeScrollLocks === 0) {
+    const body = document.body;
+    savedBodyOverflow = body.style.overflow;
+    savedBodyPaddingRight = body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    body.style.overflow = 'hidden';
+    if (scrollbarWidth > 0) {
+      body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+  }
+  activeScrollLocks += 1;
+}
+
+export function releaseScrollLock() {
+  if (typeof document === 'undefined') return;
+  activeScrollLocks = Math.max(0, activeScrollLocks - 1);
+  if (activeScrollLocks === 0) {
+    document.body.style.overflow = savedBodyOverflow;
+    document.body.style.paddingRight = savedBodyPaddingRight;
+  }
+}
+
+export function getActiveScrollLocks(): number {
+  return activeScrollLocks;
+}
+
+export function resetScrollLocks(): void {
+  activeScrollLocks = 0;
+  savedBodyOverflow = '';
+  savedBodyPaddingRight = '';
+}
+
 /**
  * Reusable hook managing accessibility for modal dialogs and slide-over drawers:
- * - Locks body scroll with scrollbar shift compensation
- * - Restores body scroll upon close
- * - Sets initial focus to designated ref or first interactive child
- * - Traps Tab / Shift+Tab keyboard navigation within the dialog
- * - Handles Escape key dismissal
+ * - Locks body scroll with reference-counted overlap protection and scrollbar shift compensation
+ * - Restores body scroll only when all open dialog locks are released
+ * - Sets initial focus once on open to designated ref or first interactive child
+ * - Traps Tab / Shift+Tab keyboard navigation within the dialog container
+ * - Handles Escape key dismissal through a stable callback strategy
+ * - Ignores ordinary parent re-renders so typing, filtering, or list updates do not refocus or reset state
  * - Restores focus to opening trigger element upon close
  */
 export function useDialogA11y({
@@ -32,54 +72,67 @@ export function useDialogA11y({
   trapFocus = true,
   returnFocusRef,
 }: UseDialogA11yOptions) {
-  const previousFocusRef = useRef<HTMLElement | null>(null);
+  // Stable refs for caller-supplied values to avoid lifecycle restarts on ordinary rerenders
+  const onCloseRef = useRef(onClose);
+  const containerRefRef = useRef(containerRef);
+  const initialFocusRefRef = useRef(initialFocusRef);
+  const returnFocusRefRef = useRef(returnFocusRef);
+  const closeOnEscapeRef = useRef(closeOnEscape);
+  const lockScrollRef = useRef(lockScroll);
+  const trapFocusRef = useRef(trapFocus);
+
+  // Synchronize latest values after render without restarting the open lifecycle
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    containerRefRef.current = containerRef;
+    initialFocusRefRef.current = initialFocusRef;
+    returnFocusRefRef.current = returnFocusRef;
+    closeOnEscapeRef.current = closeOnEscape;
+    lockScrollRef.current = lockScroll;
+    trapFocusRef.current = trapFocus;
+  });
 
   useEffect(() => {
     if (!isOpen) return;
 
-    // Capture opener trigger
-    previousFocusRef.current = returnFocusRef?.current ?? (document.activeElement as HTMLElement | null);
+    // Capture the opening trigger element once upon open
+    const opener = returnFocusRefRef.current?.current ?? (document.activeElement as HTMLElement | null);
 
-    let prevOverflow = '';
-    let prevPadding = '';
-    if (lockScroll) {
-      const body = document.body;
-      prevOverflow = body.style.overflow;
-      prevPadding = body.style.paddingRight;
-      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-      body.style.overflow = 'hidden';
-      if (scrollbarWidth > 0) {
-        body.style.paddingRight = `${scrollbarWidth}px`;
-      }
+    let didLock = false;
+    if (lockScrollRef.current) {
+      acquireScrollLock();
+      didLock = true;
     }
 
-    // Set initial focus
+    // Set initial focus once upon open
     const frameId = requestAnimationFrame(() => {
-      if (initialFocusRef?.current) {
-        initialFocusRef.current.focus({ preventScroll: true });
-      } else if (containerRef.current) {
-        const focusable = containerRef.current.querySelectorAll<HTMLElement>(
+      if (initialFocusRefRef.current?.current) {
+        initialFocusRefRef.current.current.focus({ preventScroll: true });
+      } else if (containerRefRef.current?.current) {
+        const container = containerRefRef.current.current;
+        const focusable = container.querySelectorAll<HTMLElement>(
           'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
         );
         if (focusable.length > 0) {
           focusable[0].focus({ preventScroll: true });
         } else {
-          containerRef.current.setAttribute('tabindex', '-1');
-          containerRef.current.focus({ preventScroll: true });
+          container.setAttribute('tabindex', '-1');
+          container.focus({ preventScroll: true });
         }
       }
     });
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (closeOnEscape && event.key === 'Escape') {
+      if (closeOnEscapeRef.current && event.key === 'Escape') {
         event.stopPropagation();
-        onClose?.();
+        onCloseRef.current?.();
         return;
       }
 
-      if (trapFocus && event.key === 'Tab' && containerRef.current) {
+      if (trapFocusRef.current && event.key === 'Tab' && containerRefRef.current?.current) {
+        const container = containerRefRef.current.current;
         const focusableElements = Array.from(
-          containerRef.current.querySelectorAll<HTMLElement>(
+          container.querySelectorAll<HTMLElement>(
             'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
           )
         ).filter((el) => el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0);
@@ -93,7 +146,7 @@ export function useDialogA11y({
         const lastElement = focusableElements[focusableElements.length - 1];
 
         if (event.shiftKey) {
-          if (document.activeElement === firstElement || document.activeElement === containerRef.current) {
+          if (document.activeElement === firstElement || document.activeElement === container) {
             event.preventDefault();
             lastElement?.focus();
           }
@@ -111,12 +164,13 @@ export function useDialogA11y({
     return () => {
       cancelAnimationFrame(frameId);
       window.removeEventListener('keydown', handleKeyDown);
-      if (lockScroll) {
-        document.body.style.overflow = prevOverflow;
-        document.body.style.paddingRight = prevPadding;
+      if (didLock) {
+        releaseScrollLock();
       }
-      const elementToFocus = returnFocusRef?.current ?? previousFocusRef.current;
-      elementToFocus?.focus?.({ preventScroll: true });
+      requestAnimationFrame(() => {
+        const elementToFocus = returnFocusRefRef.current?.current ?? opener;
+        elementToFocus?.focus?.({ preventScroll: true });
+      });
     };
-  }, [isOpen, onClose, containerRef, initialFocusRef, closeOnEscape, lockScroll, trapFocus, returnFocusRef]);
+  }, [isOpen]);
 }

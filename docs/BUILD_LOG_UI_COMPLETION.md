@@ -51,3 +51,4 @@
 - `npm test`: 38 test suites passed, 309 tests passed, 16 skipped live tests
 - `npm run lint`: 0 errors, 39 existing Next.js `<img>` warnings
 - `npm run build`: All 84 static and dynamic routes compiled and generated successfully
+
