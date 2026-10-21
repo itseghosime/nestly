@@ -1475,3 +1475,4 @@ The browser fixtures at 91aa25b did not match the actual conversation snapshot/r
 
 - **Code revision:** Commit `032c88867f2cf949d3ea83e967b52f54e66fe55e` was pushed normally to `feature/staff-operations-completion`; PR #25 remains open and draft.
 - **Preview:** GitHub's Vercel status for that exact SHA completed with `success` and “Deployment has completed”: [Vercel Preview deployment](https://vercel.com/itseghosime-codebases-projects/nestly/5uiSRSLv4z4HxisfyRTtCmHiymaX). This is Preview build evidence only; no Production merge or deployment occurred.
+- **Latest main ancestry:** After the push, PR #25's base advanced to `982f43ac995f14d6e023ffcb93571c46a195e31e` (merged PR #26). `git merge-base --is-ancestor origin/main HEAD` passed at `d961c99`, so the latest main commit was already included and no additional merge was needed.

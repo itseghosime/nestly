@@ -1,6 +1,6 @@
 # Release completion ownership — 20 October 2026
 
-Base: origin/main bc940c7b353ec58eb37ab478cbeb5577bc1b7b77. User requested two workstreams, one for ChatGPT and one for Antigravity. Preserve uncommitted work and merged PR #22/#23/#24.
+Base at start: origin/main bc940c7b353ec58eb37ab478cbeb5577bc1b7b77; latest origin/main `982f43ac995f14d6e023ffcb93571c46a195e31e` is included in the current PR branch. User requested two workstreams, one for ChatGPT and one for Antigravity. Preserve uncommitted work and merged PR #22/#23/#24.
 
 ## Current status — 21 October 2026
 
