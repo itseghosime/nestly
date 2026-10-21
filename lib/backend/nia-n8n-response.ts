@@ -4,6 +4,7 @@ import type { NiaConversationAnswer } from '@/lib/backend/nia-conversation-respo
 
 export type NiaHistoryMessage = { role: 'user' | 'assistant' | 'staff'; content: string };
 export type NiaAiResult =
+  | { status: 'ready'; reason: 'SEARCH_ALREADY_PREPARED' }
   | { status: 'generated'; message: string; kind: 'grounded' | 'conversation' }
   | { status: 'fallback'; reason: string };
 
@@ -22,6 +23,7 @@ async function generateNiaAiReplyInternal(
   input: { requestId: string; query: string; answer: NiaConversationAnswer; history: NiaHistoryMessage[]; returningUser?: boolean },
   options: { env?: NodeJS.ProcessEnv; fetcher?: typeof fetch } = {},
 ): Promise<NiaAiResult> {
+  if (input.answer.searchPlanSource) return { status: 'ready', reason: 'SEARCH_ALREADY_PREPARED' };
   const env = options.env ?? process.env;
   if (env.NIA_N8N_ENABLED !== 'true') return { status: 'fallback', reason: 'DISABLED' };
   const secret = env.NESTLY_WF01_RELAY_SECRET?.trim();
@@ -47,7 +49,7 @@ async function generateNiaAiReplyInternal(
     const response = await (options.fetcher ?? fetch)(url.toString(), {
       method: 'POST', redirect: 'error', cache: 'no-store',
       headers: { 'Content-Type': 'application/json', 'X-Nestly-Relay-Secret': secret },
-      body, signal: AbortSignal.timeout(18_000),
+      body, signal: AbortSignal.timeout(6_000),
     });
     if (!response.ok) return { status: 'fallback', reason: 'AGENT_UNAVAILABLE' };
     // Stream with a hard bound; a malformed endpoint cannot exhaust server memory.
@@ -97,7 +99,7 @@ export async function generateNiaAiReply(
   const result = await generateNiaAiReplyInternal(input, options);
   console.info('Nia response outcome', {
     requestFingerprint: createHash('sha256').update(input.requestId).digest('hex').slice(0, 20),
-    source: result.status === 'generated' ? 'n8n' : 'fallback',
+    source: result.status === 'ready' ? (input.answer.searchPlanSource === 'n8n' ? 'n8n-search-plan' : 'grounded-local') : result.status === 'generated' ? 'n8n' : 'fallback',
     reason: result.status === 'fallback' ? result.reason : null,
     durationMs: Math.max(0, Date.now() - startedAt),
   });

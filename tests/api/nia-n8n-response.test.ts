@@ -19,6 +19,13 @@ beforeEach(() => { vi.spyOn(console, 'info').mockImplementation(() => {}); });
 afterEach(() => { vi.restoreAllMocks(); });
 
 describe('n8n Nia response bridge', () => {
+  it('does not make a second AI call after a completed search plan', async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    const answer = { ...input.answer, searchPlanSource: 'n8n' as const, searchResultCount: 3 };
+    expect(await generateNiaAiReply({ ...input, answer }, { env, fetcher })).toEqual({ status: 'ready', reason: 'SEARCH_ALREADY_PREPARED' });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it('sends authenticated bounded context and accepts a matching AI response', async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(result('Hey! How can I help with your home search?'));
     expect(await generateNiaAiReply(input, { env, fetcher })).toEqual({

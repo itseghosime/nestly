@@ -83,6 +83,20 @@ export async function GET(request: Request) {
     });
   }
 
+  // A completed conversation must not leave this browser unable to start a new chat.
+  // Expire only its token; messages and staff history remain untouched.
+  if (first.mode === 'CLOSED') {
+    const response = NextResponse.json({ data: null }, { headers: { 'Cache-Control': 'no-store' } });
+    response.cookies.set(WEBSITE_CONVERSATION_COOKIE, '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: WEBSITE_CONVERSATION_COOKIE_PATH,
+      maxAge: 0,
+    });
+    return response;
+  }
+
   const messages = rows.flatMap((row) => row.message_id
     ? [{
       id: row.message_id,

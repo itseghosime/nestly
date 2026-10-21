@@ -389,7 +389,17 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
           throw new Error(errorMessage);
         }
         setConversationMode(result.data.mode);
-        await loadSavedConversation(true);
+        const savedReply = result.data;
+        requestScrollToLatest();
+        setMessages((current) => [...current.filter((message) => !message.isError), {
+          id: `reply-${requestKey}`,
+          sender: savedReply.mode === 'AI_ACTIVE' ? 'nia' : 'system',
+          text: savedReply.message,
+          properties: savedReply.properties,
+          time: 'Just now',
+        }]);
+        // The POST has already persisted this reply. History hydration must not delay showing it.
+        void loadSavedConversation(true).catch(() => undefined);
         failedRequestRef.current = null;
         setLastFailedQuery(null);
         setModeState('normal');

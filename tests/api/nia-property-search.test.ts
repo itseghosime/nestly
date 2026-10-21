@@ -108,3 +108,5 @@ describe('Nia grounded property search parsing', () => {
     })).toBe(false);
   });
 });
+
+ it('does not treat polite or subjective search descriptions as mandatory amenities', () => { expect(parseNiaPropertySearch('Please show me nice available two-bedroom apartments in GRA with parking')).toMatchObject({ location: 'GRA', bedrooms: 2, propertyType: 'apartment', keywords: ['parking'] }); });

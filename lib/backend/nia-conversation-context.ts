@@ -137,6 +137,7 @@ export function classifyNiaMessageIntent(query: string): NiaMessageIntent {
   if (parsed.location || parsed.bedrooms || parsed.maxAnnualRent || parsed.propertyType || parsed.powerRequirement) {
     return 'search';
   }
+  if (SEARCH_REQUEST.test(query) && /\b(?:homes?|properties|property|listings?|apartments?|flats?)\b/i.test(query)) return 'search';
   return parsed.keywords.length > 0 && (SEARCH_REQUEST.test(query) || parsed.keywords.some((word) => ['solar', 'parking', 'inverter', 'furnished'].includes(word)))
     ? 'search'
     : 'unsupported';

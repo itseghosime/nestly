@@ -22,6 +22,7 @@ export type NiaPropertySearchResponse =
   | { status: 'matches'; count: number; matches: NiaSearchProperty[]; message: string };
 
 const STOP_WORDS = new Set([
+  'available', 'availability', 'affordable', 'nice', 'lovely', 'beautiful', 'decent', 'something', 'ones', 'options', 'around', 'within', 'budget', 'naira', 'million', 'year', 'yearly', 'annually', 'annual',
   'a', 'about', 'add', 'an', 'and', 'any', 'are', 'at', 'bed', 'bedroom', 'bedrooms',
   'below', 'browse', 'browsing', 'but', 'can', 'change', 'check', 'could', 'consider', 'dear', 'find', 'give',
   'for', 'from', 'get', 'good', 'have', 'hello', 'help', 'hey', 'hi', 'home', 'homes', 'house', 'houses',

@@ -1,3 +1,4 @@
+import { scheduleTelegramHandoffAlert } from '@/lib/backend/telegram-handoff-alert';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -181,6 +182,9 @@ export async function POST(request: Request) {
     });
     if (error) return attachSessionCookie(errorResponse(error, 'Unable to request a staff handoff'), token, isNewConversation);
     state = await getConversationState(supabase, tokenHash);
+    if (state?.mode === 'HUMAN_ACTIVE') {
+      scheduleTelegramHandoffAlert({ conversationId: state.conversationId, eventId: `website:${idempotencyKey}`, channel: 'website' });
+    }
   } else if (state.mode === 'AI_ACTIVE') {
     try {
       const answer = await answerNiaConversationMessage(supabase, parsed.data.content, state.context);

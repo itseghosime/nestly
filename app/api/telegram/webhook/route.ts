@@ -1,3 +1,4 @@
+import { scheduleTelegramHandoffAlert } from '@/lib/backend/telegram-handoff-alert';
 import { generateNiaAiReply, sanitizeNiaHistory, hasPriorTelegramMessages, getReturningNiaGreeting } from '@/lib/backend/nia-n8n-response';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
@@ -319,6 +320,7 @@ export async function POST(request: Request) {
       }
       return acceptedSendResult('Staff ownership was already active');
     }
+    scheduleTelegramHandoffAlert({ conversationId: inbound.conversation_id, eventId: `telegram:${settings.botId}:${parsed.updateId}`, channel: 'telegram' });
     if (handoff.should_dispatch) {
       await dispatchClaim(
         admin,
@@ -354,7 +356,7 @@ export async function POST(request: Request) {
     answer = await answerNiaConversationMessage(publicClient, parsed.text, inbound.nia_context);
     let returningUser = false;
     let history: ReturnType<typeof sanitizeNiaHistory> = [];
-    if (process.env.NIA_N8N_ENABLED === 'true') {
+    if (process.env.NIA_N8N_ENABLED === 'true' && !answer.searchPlanSource) {
       const historyResult = await admin.from('messages')
         .select('id, direction, sender_type, content')
         .eq('conversation_id', inbound.conversation_id)

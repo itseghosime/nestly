@@ -2,6 +2,7 @@ import { planNiaSearch } from '@/lib/backend/nia-search-plan';
 import { getNiaSocialReply } from '@/lib/backend/nia-social-reply';
 import {
   formatNiaListingPrice,
+  parseNiaPropertySearch,
   hasNiaSearchCriteria,
   type NiaPropertySearchCriteria,
   type NiaSearchProperty,
@@ -27,6 +28,8 @@ export interface NiaConversationAnswer {
   properties: NiaSearchProperty[];
   context: NiaConversationContext;
   searchResultCount?: number;
+  /** Search is ready; do not make another AI call just to introduce verified results. */
+  searchPlanSource?: 'n8n' | 'local';
 }
 
 const PROPERTY_FIELDS = 'id, title, price_ngn, price_period, currency, state, city, location, neighborhood, rent_annual';
@@ -158,9 +161,12 @@ export async function answerNiaConversationMessage(
   const socialReply = getNiaSocialReply(query, context.preferences !== null);
   if (socialReply) return { message: socialReply, properties: [], context };
   const referenceIndex = getNiaReferenceIndex(query);
-  const isReference = isNiaPropertyReference(query);
+  const initialCriteria = parseNiaPropertySearch(query);
+  const explicitListingRequest = /\b(find|show|browse|search|need|want|looking)\b/i.test(query)
+    && Boolean(initialCriteria.location || initialCriteria.bedrooms || initialCriteria.propertyType);
+  const isReference = isNiaPropertyReference(query) && !explicitListingRequest;
 
-  if (isNiaFeeQuestion(query)) {
+  if (isNiaFeeQuestion(query) && !explicitListingRequest) {
     const selectedId = referenceIndex !== null && isReference
       ? context.recentPropertyIds[referenceIndex]
       : context.selectedPropertyId
@@ -215,7 +221,7 @@ export async function answerNiaConversationMessage(
   const plan = localIntent === 'preference_recall' || localIntent === 'reset_preferences'
     ? null : await planNiaSearch(query, context.preferences);
   if (plan?.intent === 'clarification') {
-    return { message: plan.question, properties: [], context };
+    return { message: plan.question, properties: [], context, searchPlanSource: 'n8n' };
   }
   const intent = plan?.intent === 'search' ? 'search' : localIntent;
   if (intent === 'preference_recall') {
@@ -273,7 +279,7 @@ export async function answerNiaConversationMessage(
   const criteria = plan?.intent === 'search'
     ? plan.criteria
     : resolveNiaPreferences(query, context.preferences);
-  if (!hasNiaSearchCriteria(criteria)) {
+  if (!hasNiaSearchCriteria(criteria) && intent !== 'search') {
     return {
       message: 'I can search current published listings by area, bedrooms, property type, listing details, or annual rent. What should I use?',
       properties: [],
@@ -289,6 +295,7 @@ export async function answerNiaConversationMessage(
         : `I couldn't find a current listing${criteria.location ? ' in ' + criteria.location : ''} matching those requirements. Would you like to consider nearby areas?`,
       properties: [],
       searchResultCount: 0,
+      searchPlanSource: plan?.intent === 'search' ? 'n8n' : 'local',
       context: mergeContext(context, {
         preferences: criteria,
         pendingQuestion: 'broaden_search',
@@ -307,6 +314,7 @@ export async function answerNiaConversationMessage(
       selectedPropertyId: null,
     },
     searchResultCount: result.count,
+    searchPlanSource: plan?.intent === 'search' ? 'n8n' : 'local',
   };
 }
 

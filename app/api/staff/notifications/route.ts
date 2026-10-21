@@ -24,6 +24,7 @@ const notificationReadUpdate = z.object({
 
 function notificationTitle(templateKey: string) {
   const titles: Record<string, string> = {
+    'human_handoff.telegram_alert': 'Telegram handoff alert',
     'human_handoff_requested': 'Human handoff requested',
     'contact-enquiry.new': 'New contact enquiry',
     'landlord-submission.new': 'New landlord submission',
@@ -98,7 +99,9 @@ export async function GET(request: Request) {
       type: notificationKind(notification.template_key),
       title: notificationTitle(notification.template_key),
       badge: notification.template_key,
-      description: notification.channel === 'dashboard'
+      description: notification.template_key === 'human_handoff.telegram_alert'
+        ? `Telegram staff alert: ${notification.status === 'sent' ? 'accepted by Telegram API; handset delivery unconfirmed' : notification.status === 'failed' ? 'rejected by Telegram; staff inbox remains available' : 'delivery not confirmed'}.`
+        : notification.channel === 'dashboard'
         ? 'Saved workspace alert. Read status is personal to your staff account.'
         : `Provider delivery status: ${notification.status}. Attempts: ${notification.attempts}.`,
       createdAt: notification.created_at,
