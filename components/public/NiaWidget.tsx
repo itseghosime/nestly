@@ -848,11 +848,12 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
           {(voice.isBusy || voice.error) && (
             <div className="px-4 py-2 bg-soft-stone border-t border-hairline text-xs flex items-center justify-between gap-2">
               <span role={voice.error ? 'alert' : 'status'} aria-live="polite" className={voice.error ? 'text-rose-700' : 'text-charcoal'}>
-                {voice.error || (voice.state === 'recording' ? `Listening ${voice.seconds}s / 60s · On your device` : voice.state === 'transcribing' ? 'Finishing on-device transcription…' : 'Preparing on-device dictation. A speech pack may download.')}
+                {voice.error || (voice.state === 'recording' ? `Recording ${voice.seconds}s / 60s · Audio stays on your device` : voice.state === 'transcribing' ? 'Transcribing on your device… Review the text before sending.' : voice.state === 'loading' ? `Preparing speech model${voice.progress === null ? '… First use downloads the model.' : `… ${voice.progress}%`}` : 'Allow microphone access to record.')}
               </span>
               <div className="flex items-center gap-3 shrink-0">
                 
-                <button type="button" onClick={voice.cancel} className="font-semibold text-charcoal underline">Cancel dictation</button>
+                {voice.canRetry && <button type="button" onClick={voice.retry} className="font-semibold text-primary">Retry transcription</button>}
+                <button type="button" onClick={voice.cancel} className="font-semibold text-charcoal underline">Cancel recording</button>
               </div>
             </div>
           )}
@@ -886,11 +887,11 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
             {voice.supported && (
               <button type="button"
                 onClick={voice.state === 'recording' ? voice.stop : voice.start}
-                disabled={isReplyPending || conversationMode === 'CLOSED' || voice.state === 'transcribing' || voice.state === 'requesting'}
-                aria-label={voice.state === 'recording' ? 'Stop dictation' : 'Dictate message'}
-                title="Dictate on your device for up to 60 seconds. Review the text before sending."
+                disabled={isReplyPending || conversationMode === 'CLOSED' || voice.state === 'transcribing' || voice.state === 'requesting' || voice.state === 'loading'}
+                aria-label={voice.state === 'recording' ? 'Stop recording' : 'Record voice message'}
+                title="Record up to 60 seconds. Whisper runs on your device; review the text before sending."
                 className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 disabled:opacity-40 ${voice.state === 'recording' ? 'bg-rose-600 text-white' : 'bg-soft-stone text-charcoal hover:bg-hairline'}`}>
-                {voice.state === 'transcribing' || voice.state === 'requesting' ? <Loader2 className="w-4 h-4 animate-spin" /> : voice.state === 'recording' ? <Square className="w-4 h-4 fill-current" /> : <Mic className="w-4 h-4" />}
+                {voice.state === 'transcribing' || voice.state === 'requesting' || voice.state === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : voice.state === 'recording' ? <Square className="w-4 h-4 fill-current" /> : <Mic className="w-4 h-4" />}
               </button>
             )}
             {isReplyPending ? (

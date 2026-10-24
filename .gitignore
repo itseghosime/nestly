@@ -68,3 +68,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Generated pinned Whisper browser runtime; recreated by predev/prebuild.
+/public/voice/runtime-v3.8.1/
