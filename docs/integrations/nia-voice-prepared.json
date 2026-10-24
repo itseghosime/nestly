@@ -1,0 +1,146 @@
+{
+  "workflowId": "CFeb2L0Pd9uOQkVK",
+  "baseVersion": "ed5973dc-b2a6-488a-909c-442375217ec3",
+  "approvalRequired": "OpenAI transcription via n8n; uploads contain only the recording, MIME and request metadata, not chat history.",
+  "operations": [
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Nia Voice Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          1200
+        ],
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "nestly-nia-transcribe",
+          "authentication": "headerAuth",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "WUIUPRjF5BufdnOw",
+            "name": "Header Auth account"
+          }
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Validate Nia Voice",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          240,
+          1200
+        ],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "const b=$input.first().json.body;\nconst types={'audio/webm':'webm','audio/mp4':'mp4','audio/ogg':'ogg','audio/wav':'wav','audio/mpeg':'mp3'};\nif(!b||b.version!==1||typeof b.requestId!=='string'||!/^[a-zA-Z0-9:_-]{1,160}$/.test(b.requestId)||!types[b.mimeType]\n||typeof b.audioBase64!=='string'||b.audioBase64.length<4||b.audioBase64.length>2796204||!/^[A-Za-z0-9+/]+={0,2}$/.test(b.audioBase64)\n||typeof b.durationSeconds!=='number'||!Number.isFinite(b.durationSeconds)||b.durationSeconds<=0||b.durationSeconds>60)throw new Error('INVALID_VOICE_REQUEST');\nreturn [{json:{requestId:b.requestId},binary:{data:{data:b.audioBase64,mimeType:b.mimeType,fileName:'recording.'+types[b.mimeType]}}}];"
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Transcribe Nia Voice",
+        "type": "@n8n/n8n-nodes-langchain.openAi",
+        "typeVersion": 2.3,
+        "position": [
+          480,
+          1200
+        ],
+        "parameters": {
+          "resource": "audio",
+          "operation": "transcribe",
+          "binaryPropertyName": "data",
+          "options": {
+            "temperature": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Normalize Nia Transcript",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          720,
+          1200
+        ],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "const text=$input.first().json.text;\nif(typeof text!=='string'||text.length>4000)throw new Error('INVALID_TRANSCRIPT');\nreturn [{json:{version:1,requestId:$('Validate Nia Voice').first().json.requestId,text:text.trim()}}];"
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Return Nia Transcript",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.4,
+        "position": [
+          960,
+          1200
+        ],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ $json }}",
+          "options": {
+            "responseCode": 200
+          }
+        }
+      }
+    },
+    {
+      "type": "addConnection",
+      "source": "Nia Voice Webhook",
+      "target": "Validate Nia Voice",
+      "connectionType": "main",
+      "sourceIndex": 0,
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Validate Nia Voice",
+      "target": "Transcribe Nia Voice",
+      "connectionType": "main",
+      "sourceIndex": 0,
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Transcribe Nia Voice",
+      "target": "Normalize Nia Transcript",
+      "connectionType": "main",
+      "sourceIndex": 0,
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Normalize Nia Transcript",
+      "target": "Return Nia Transcript",
+      "connectionType": "main",
+      "sourceIndex": 0,
+      "targetIndex": 0
+    },
+    {
+      "type": "addNodeGroup",
+      "name": "Voice transcription",
+      "nodeNames": [
+        "Validate Nia Voice",
+        "Transcribe Nia Voice",
+        "Normalize Nia Transcript",
+        "Return Nia Transcript"
+      ],
+      "description": "Validate short audio, transcribe it, and return editable text. Never send a chat message."
+    }
+  ]
+}
