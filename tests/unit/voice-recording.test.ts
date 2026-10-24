@@ -1,12 +1,42 @@
-import {describe,expect,it,vi} from 'vitest';
-import {appendVoiceTranscript,chooseVoiceMime,hasVoiceFileSignature,normalizeVoiceMime} from '@/lib/voice-recording';
-import {transcribeNiaRecording,voiceTranscriptionUrl} from '@/lib/backend/voice-transcription';
-const env={NIA_VOICE_ENABLED:'true',NIA_N8N_WEBHOOK_URL:'https://synthetic.n8n.cloud/webhook/nestly-nia-response',NESTLY_WF01_RELAY_SECRET:'synthetic-secret'};
-describe('voice recording boundaries',()=>{
- it('normalizes browser codecs and chooses Safari-compatible recording when needed',()=>{expect(normalizeVoiceMime('audio/webm;codecs=opus')).toBe('audio/webm');expect(normalizeVoiceMime('text/html')).toBeNull();expect(chooseVoiceMime(m=>m==='audio/mp4')).toBe('audio/mp4');});
- it('recognizes real container signatures',()=>{expect(hasVoiceFileSignature(new TextEncoder().encode('RIFF0000WAVE'),'audio/wav')).toBe(true);expect(hasVoiceFileSignature(new TextEncoder().encode('0000ftypmp42'),'audio/mp4')).toBe(true);expect(hasVoiceFileSignature(new TextEncoder().encode('plain text'),'audio/mp4')).toBe(false);});
- it('appends editable text and bounds the complete draft',()=>{expect(appendVoiceTranscript('Hi Nia','2 bedrooms in Ugbor')).toBe('Hi Nia 2 bedrooms in Ugbor');expect(appendVoiceTranscript('a'.repeat(3990),'b'.repeat(30))).toHaveLength(4000);});
- it('does not expose or accept an unsafe transcription endpoint',()=>{expect(voiceTranscriptionUrl({...env,NIA_N8N_WEBHOOK_URL:'http://unsafe/nia'})).toBeNull();expect(voiceTranscriptionUrl({...env,NIA_VOICE_ENABLED:'false'})).toBeNull();});
- it('uses authenticated bounded transcription with request correlation',async()=>{const fetcher=vi.fn<typeof fetch>().mockImplementation(async(_url,init)=>{const b=JSON.parse(String(init?.body));expect(b.audioBase64).toBe('AQID');return Response.json({version:1,requestId:b.requestId,text:' A flat in Sapele '});});expect(await transcribeNiaRecording(Uint8Array.from([1,2,3]),'audio/webm',3,{env,fetcher})).toBe('A flat in Sapele');expect(fetcher.mock.calls[0][0]).toBe('https://synthetic.n8n.cloud/webhook/nestly-nia-transcribe');expect(fetcher.mock.calls[0][1]?.headers).toMatchObject({'X-Nestly-Relay-Secret':'synthetic-secret'});});
- it('rejects mismatched, empty and oversized transcription responses',async()=>{for(const text of ['', 'a'.repeat(4001)]){const fetcher=vi.fn<typeof fetch>().mockImplementation(async(_url,init)=>Response.json({version:1,requestId:JSON.parse(String(init?.body)).requestId,text}));await expect(transcribeNiaRecording(new Uint8Array([1]),'audio/webm',1,{env,fetcher})).rejects.toThrow();}await expect(transcribeNiaRecording(new Uint8Array([1]),'audio/webm',1,{env,fetcher:vi.fn<typeof fetch>().mockResolvedValue(Response.json({version:1,requestId:'wrong',text:'hello'}))})).rejects.toThrow('INVALID_TRANSCRIPT');});
+import { describe, expect, it, vi } from "vitest";
+import {
+  appendVoiceTranscript,
+  getLocalSpeechConstructor,
+} from "@/lib/voice-recording";
+describe("private on-device dictation", () => {
+  it("refuses legacy or remote-only recognition", () => {
+    expect(getLocalSpeechConstructor({})).toBeNull();
+    class Legacy {
+      static available = vi.fn();
+    }
+    expect(
+      getLocalSpeechConstructor({
+        SpeechRecognition: Legacy,
+        webkitSpeechRecognition: Legacy,
+      }),
+    ).toBeNull();
+    expect(
+      getLocalSpeechConstructor({ webkitSpeechRecognition: Legacy }),
+    ).toBeNull();
+  });
+  it("requires both local processing and availability support", () => {
+    class Local {
+      static available = vi.fn();
+    }
+    Object.defineProperty(Local.prototype, "processLocally", { value: false });
+    expect(getLocalSpeechConstructor({ SpeechRecognition: Local })).toBe(Local);
+    class MissingAvailability {}
+    Object.defineProperty(MissingAvailability.prototype, "processLocally", {
+      value: false,
+    });
+    expect(
+      getLocalSpeechConstructor({ SpeechRecognition: MissingAvailability }),
+    ).toBeNull();
+  });
+  it("appends editable text and bounds the draft", () => {
+    expect(appendVoiceTranscript(" Hello ", " two bedrooms ")).toBe(
+      "Hello two bedrooms",
+    );
+    expect(appendVoiceTranscript("a".repeat(3998), "hello")).toHaveLength(4000);
+  });
 });

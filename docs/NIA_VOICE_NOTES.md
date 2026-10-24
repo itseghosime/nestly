@@ -1,39 +1,31 @@
-# Nia website voice notes
+# Nia on-device dictation
 
-Status: implemented and locally tested; provider activation blocked pending explicit approval. Nothing is enabled in Production.
+This supersedes the initial, unmerged server-transcription proposal. No audio upload endpoint, provider relay, n8n audio branch, transcription key or new environment setting is shipped.
 
-## User experience
+## How to use
 
-Open Nia and click the microphone. Permission is requested only on that click. Record up to 60 seconds, then stop; the transcript is appended to the existing draft. Review or edit it and click Send. Recording never automatically submits a chat message. Cancel stops recording or ignores an in-flight result. Retry reuses the failed clip without requesting another recording. Closing Nia releases microphone tracks and cancels pending transcription.
+1. Open the website Nia chat in a supported browser.
+2. Click **Dictate message**. A missing local English speech pack may download at this point. Microphone permission is requested when recognition starts, never when opening the site.
+3. Speak, then click **Stop dictation** (maximum 60 seconds). Recognition is required to run on your device.
+4. Review or edit the text appended to your existing draft.
+5. Click **Send** to submit text through the existing Nia conversation path.
 
-The existing 14px chat input and website/Telegram conversation paths remain unchanged. Unsupported browsers, denied microphone permission and unavailable transcription retain typing. HTTPS or localhost is required for microphone access. WebM/Opus and Safari MP4 are supported where MediaRecorder offers them; actual Safari/iPhone microphone acceptance remains unverified.
+Cancel discards that dictation. Closing/minimizing Nia or starting an ordinary reply aborts microphone recognition and ignores late results. The existing draft remains. Permission denial and recognition failures allow typing or a new attempt. No recording is retained for retry because the app never creates an audio file.
 
-## Server contract
+## Privacy boundary and compatibility
 
-GET /api/nia/transcribe returns capability only. POST accepts multipart audio plus durationSeconds, checks same origin, limits requests to five per minute through the existing guard, bounds streamed input and audio to 2 MiB, and checks MIME/container signatures. The 60-second server check uses client-declared duration; it does not decode and independently verify media length. Transcript length is capped at 4,000 characters.
+The app uses only unprefixed SpeechRecognition with processLocally support and available({langs:['en-US'], processLocally:true}). It sets processLocally=true before start and refuses legacy/remote-only implementations. There is no online speech-recognition fallback. Audio is processed by the browser locally, not uploaded to Nestly, n8n or an AI provider by this feature. Only text is sent, when the user clicks Send. Normal site/data requests still occur.
 
-NIA_VOICE_ENABLED defaults false. When enabled, the server derives the transcription endpoint from NIA_N8N_WEBHOOK_URL and authenticates with the existing server-only relay secret. Requests have unique IDs, a 20-second timeout and bounded responses. No secret reaches the browser. No new database tables or migrations are required.
+This API is experimental and browser/OS/language-pack dependent. A native microphone button appears only when the required local interfaces and language availability are present. Unsupported browsers, including devices without these local APIs, retain typing. Do not promise universal iPhone/Safari support. English (en-US) is the initial supported pack; Nigerian accent accuracy needs actual user-device acceptance. HTTPS or localhost is required. A pack download transfers a model to the device; it does not upload microphone audio. Cancellation during installation ignores its completion but cannot necessarily cancel a browser-managed model download.
 
-## Prepared n8n branch — NOT applied
+The app receives final recognized text, caps it at 4,000 characters and appends to the draft within that cap. Listening stops at 60 seconds, with startup and completion timeout handling. Chat stays 14px; no auto-send or audio-message history is introduced. Existing website/Telegram AI and human handoff paths are unchanged. No database migrations or n8n edits are needed.
 
-| Node | Purpose |
-| --- | --- |
-| Nia Voice Webhook | Separate POST endpoint; existing Header Auth credential |
-| Validate Nia Voice | Validate envelope and turn base64 into binary audio |
-| Transcribe Nia Voice | Managed OpenAI audio transcription through n8n credits |
-| Normalize Nia Transcript | Validate text and echo request ID |
-| Return Nia Transcript | Return versioned JSON |
+## Reproduce checks
 
-Connect each row to the next. Exact prepared operations and base workflow version are in integrations/nia-voice-prepared.json. All five node parameter schemas were validated read-only. No workflow update or publication occurred. Re-read the current graph/version before applying this additive branch; do not overwrite newer changes.
+Run npm test, npm run typecheck, npm run typecheck:tests, npm run lint and npm run build. After building, run node scripts/test-nia-voice-browser.mjs (set PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH if needed).
 
-## Audio processing and activation
+The harness starts a loopback production build, intercepts application APIs, blocks external requests and supplies a fake local SpeechRecognition implementation. It requires explicit text Send, asserts processLocally on availability/install/start, checks no transcription/audio endpoint request, and verifies cancellation, denied permission, local pack installation, auto-stop, close cleanup and unsupported-browser typing. No real microphone, audio recording, screenshot or video is used. These are local synthetic UI checks, not actual browser speech-quality or Production device acceptance.
 
-Automatic approval review rejected activation: general permission to add voice notes did not explicitly authorize disclosure of recordings to OpenAI. Obtain that approval before applying the prepared nodes, making a provider test, enabling NIA_VOICE_ENABLED or merging for activation. The proposed request sends the selected audio, MIME, duration and request ID through n8n to OpenAI; it does not include chat history. This may consume n8n credits.
+Rollback: revert the voice-notes PR; typed chat and existing server responses continue. No provider or database rollback is necessary.
 
-The application does not store audio in the database or attach it to chat records. Failed clips remain in browser memory for retry until cancelled/closed; transport and provider processing still occur after activation. Do not promise zero provider/platform retention. Existing n8n execution payload saving is disabled; confirm settings and provider retention terms before activation.
-
-## Evidence
-
-Local tests: 400 passed, 16 live tests skipped; application/test typechecks and production build passed. Full lint: zero errors, 33 existing image warnings. Eight local production-build browser scenarios passed using a fake microphone and intercepted synthetic API responses: click-only permission, record/stop/edit/manual send, recording cancel, transcription cancel, denial, clip retry, 60-second auto-stop and close cleanup. Run scripts/test-nia-voice-browser.mjs with PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH if required. It restricts testing to loopback and blocks external requests; no recordings/screenshots are created.
-
-These checks do not prove real audio recognition, accent quality, iPhone recording or provider availability. No user audio, Telegram message or Production mutation was sent during verification. After approval: apply the additive branch, validate with authorized synthetic speech, confirm transcript response, enable the flag and verify the exact deployed revision. Rollback: disable the flag; existing typed chat continues.
+Local results for this revision: 387 tests passed, 16 live skipped; application/test typechecks passed; full lint zero errors with 33 existing image warnings; production build 85/85 routes; browser harness passed all ten scenarios with zero audio/transcription requests and no unexpected mutations. These are not live speech-recognition tests.
