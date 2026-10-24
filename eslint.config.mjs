@@ -9,7 +9,6 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
-    "public/voice/runtime-v3.8.1/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

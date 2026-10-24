@@ -16,13 +16,10 @@
     "test:twilio-dedup:local": "node scripts/test-twilio-message-dedup-local.mjs",
     "test:twilio-staff:local": "node scripts/test-twilio-staff-replies-local.mjs",
     "test:staff:db": "node scripts/test-staff-operations-db.mjs",
-    "test:staff:browser": "node scripts/test-staff-operations-browser.mjs",
-    "predev": "node scripts/prepare-voice-runtime.mjs",
-    "prebuild": "node scripts/prepare-voice-runtime.mjs"
+    "test:staff:browser": "node scripts/test-staff-operations-browser.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
-    "@huggingface/transformers": "3.8.1",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
     "date-fns": "^4.4.0",
