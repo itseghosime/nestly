@@ -30,7 +30,7 @@ import type { NiaSearchProperty } from '@/lib/backend/nia-property-search';
 import { useSavedHomes } from '@/lib/saved-homes-context';
 import { MOTION, prefersReducedMotion } from '@/lib/motion';
 import { useVoiceNote } from '@/hooks/use-voice-note';
-import { appendVoiceTranscript } from '@/lib/voice-recording';
+import { appendVoiceTranscript, MAX_TRANSCRIPT_CHARACTERS } from '@/lib/voice-recording';
 import { useMessageStreamScroll } from '@/hooks/use-message-stream-scroll';
 
 export type NiaConversationState =
@@ -340,7 +340,7 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
 
   const handleSend = (textToSend?: string, isRetry = false) => {
     const q = (textToSend ?? inputVal).trim();
-    if (!q || pendingState !== 'none' || voice.isBusy) return;
+    if (!q || q.length > MAX_TRANSCRIPT_CHARACTERS || pendingState !== 'none' || voice.isBusy) return;
 
     clearPendingTimers();
     const requestKey = isRetry && failedRequestRef.current?.query === q
@@ -845,15 +845,16 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
             </button>
           </div>
 
-          {(voice.isBusy || voice.error) && (
+          {(voice.isBusy || voice.error || inputVal.trim().length > MAX_TRANSCRIPT_CHARACTERS) && (
             <div className="px-4 py-2 bg-soft-stone border-t border-hairline text-xs flex items-center justify-between gap-2">
               <span role={voice.error ? 'alert' : 'status'} aria-live="polite" className={voice.error ? 'text-rose-700' : 'text-charcoal'}>
-                {voice.error || (voice.state === 'recording' ? `Recording ${voice.seconds}s / 60s · Audio stays on your device` : voice.state === 'transcribing' ? 'Transcribing on your device… Review the text before sending.' : voice.state === 'loading' ? `Preparing speech model${voice.progress === null ? '… First use downloads the model.' : `… ${voice.progress}%`}` : 'Allow microphone access to record.')}
+                {voice.error || (inputVal.trim().length > MAX_TRANSCRIPT_CHARACTERS ? 'Your message is over 4,000 characters. Shorten it before sending.' : '') || (voice.state === 'recording' ? "Listening… Tap Stop when you’re done." : voice.state === 'transcribing' ? 'Finishing… Review the text before sending.' : 'Allow microphone access to speak.')}
+                {voice.isBusy && <span className="block text-muted-ink mt-1">Your browser may process speech online. Nestly doesn’t save audio.</span>}
               </span>
               <div className="flex items-center gap-3 shrink-0">
                 
-                {voice.canRetry && <button type="button" onClick={voice.retry} className="font-semibold text-primary">Retry transcription</button>}
-                <button type="button" onClick={voice.cancel} className="font-semibold text-charcoal underline">Cancel recording</button>
+                
+                <button type="button" onClick={voice.cancel} className="font-semibold text-charcoal underline">Cancel voice input</button>
               </div>
             </div>
           )}
@@ -887,11 +888,11 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
             {voice.supported && (
               <button type="button"
                 onClick={voice.state === 'recording' ? voice.stop : voice.start}
-                disabled={isReplyPending || conversationMode === 'CLOSED' || voice.state === 'transcribing' || voice.state === 'requesting' || voice.state === 'loading'}
+                disabled={isReplyPending || conversationMode === 'CLOSED' || voice.state === 'transcribing' || voice.state === 'requesting'}
                 aria-label={voice.state === 'recording' ? 'Stop recording' : 'Record voice message'}
-                title="Record up to 60 seconds. Whisper runs on your device; review the text before sending."
+                title="Speak, stop, review and send. Your browser may process speech online; Nestly does not save audio."
                 className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 disabled:opacity-40 ${voice.state === 'recording' ? 'bg-rose-600 text-white' : 'bg-soft-stone text-charcoal hover:bg-hairline'}`}>
-                {voice.state === 'transcribing' || voice.state === 'requesting' || voice.state === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : voice.state === 'recording' ? <Square className="w-4 h-4 fill-current" /> : <Mic className="w-4 h-4" />}
+                {voice.state === 'transcribing' || voice.state === 'requesting' ? <Loader2 className="w-4 h-4 animate-spin" /> : voice.state === 'recording' ? <Square className="w-4 h-4 fill-current" /> : <Mic className="w-4 h-4" />}
               </button>
             )}
             {isReplyPending ? (
@@ -907,7 +908,7 @@ export function NiaWidget({ isOpenExternal, onCloseExternal }: NiaWidgetProps) {
             ) : (
               <button
                 type="submit"
-                disabled={!inputVal.trim() || conversationMode === 'CLOSED' || voice.isBusy}
+                disabled={!inputVal.trim() || inputVal.trim().length > MAX_TRANSCRIPT_CHARACTERS || conversationMode === 'CLOSED' || voice.isBusy}
                 aria-label="Send message to Nia"
                 className="nestly-press w-9 h-9 rounded-full bg-persimmon hover:bg-persimmon-hover disabled:opacity-40 text-white flex items-center justify-center transition-colors shrink-0"
               >

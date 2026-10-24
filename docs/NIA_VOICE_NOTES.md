@@ -1,37 +1,29 @@
-# Nia browser Whisper voice-to-text
+# Nia voice input — browser speech recognition
 
-Replaces native SpeechRecognition with quantized Whisper Tiny English, running in a Web Worker using single-thread WebAssembly. No audio-upload API, transcription provider, API key, n8n edit or database migration is involved.
+Current implementation supersedes the earlier native-on-device and Whisper proposals. User explicitly approved browser speech processing that may run online, clarifying that audio must not be saved to the database. User then required listening until Stop recording is clicked.
 
 ## User steps
 
-1. Open Nia and click **Record voice message**. No model download or microphone access occurs before that click.
-2. First use downloads the engine/model, with a preparation progress message. Runtime files come from Nestly and model files from Hugging Face. The browser can cache them; private browsing or cache eviction can require another download.
-3. Allow the microphone and speak for up to 60 seconds.
-4. Click **Stop recording**. Microphone tracks release immediately. Audio is downsampled to 16 kHz locally and transferred to the worker through postMessage.
-5. Review/edit the text appended to the existing draft, then click **Send**. Nothing auto-sends.
+Open Nia → Record voice message → speak → Stop recording → review/edit text → Send. There is no Nestly model download or recording-duration cap. Nothing is sent to Nia or saved as a message until Send. Current draft text is preserved and dictated text is appended once. No MediaRecorder, audio file, application audio-upload route, Storage object or audio database field is involved.
 
-Cancel discards the current recording. Closing/minimizing Nia releases the microphone/audio graph, terminates model work and ignores late replies. Failed inference offers Retry using the same PCM in browser memory; it does not reopen the microphone. Samples are cleared on success/cancel/close. No file is created or saved to chat/database. Silent clips are rejected before inference. Typing remains available on unsupported devices or after a failure. Chat text remains 14px.
+The app requests continuous browser recognition using SpeechRecognition or webkitSpeechRecognition and does not call available/install or require processLocally. If that property exists, it is set false so a downloaded local pack is not required. The browser may process audio through its own online service; processing/retention by that browser/provider is outside Nestly's control. The site discloses this while listening. Do not claim audio never leaves the device or is never retained by a browser vendor.
 
-## Privacy and compatibility
+## Keep listening until Stop
 
-The model receives a Float32Array, not a remotely hosted audio URL. The worker's fetch wrapper only permits GET/HEAD downloads from the site or huggingface.co; it cannot POST/PUT recordings. Model retrieval may redirect to Hugging Face's file CDN and reveals normal network metadata such as IP address, but does not send microphone samples. No microphone audio is logged or persisted. The ordinary chat endpoint receives text only after explicit Send.
+There is no 60-second or other recording timer. Silence/no-speech followed by a normal browser end event resumes recognition automatically, preserving previous text without duplicate results. Normal browser-imposed session endings also resume. Stop during a restart cancels the restart and returns collected text. Cancel discards text from that voice session, and closing/minimizing Nia releases recognition and prevents restarts. Late results after cancellation are ignored.
 
-Requires HTTPS/localhost, Worker, WebAssembly, AudioContext, AudioWorkletNode and getUserMedia. Native browser SpeechRecognition is no longer needed. Real iPhone/Safari microphone behavior, memory pressure and Nigerian accent/location-name accuracy remain device acceptance checks; do not promise universal support or speed on weaker phones. First-use downloads can be sizable, and local inference consumes CPU/battery. Transcripts can be wrong: review before sending.
+Permission denial, loss of the browser recognition service, network failure, closing/suspending the tab/device or an unsupported browser can interrupt capture. The app cannot force a browser/vendor to maintain an uninterrupted microphone session. Those failures stop safely, preserve any recognized text for review and explain how to retry/type. Startup and final-result watchdogs do not impose a listening-duration limit. English en-GB is requested; actual accent/device accuracy still needs user testing.
 
-Model: onnx-community/whisper-tiny.en, q8, revision 2575352d61be1bf7225cf8f8b268a4678025fc58. Runtime: @huggingface/transformers 3.8.1, WASM, one thread (does not require SharedArrayBuffer). Bounds: 60-second audio, 4,000-character transcript, 180-second load timeout and 90-second inference timeout. There is no remote recognition fallback.
+Long voice input is not truncated or stopped at 4,000 characters. The existing backend message-size limit still applies to Send: the full draft is kept, a warning is shown and Send is disabled until the text is shortened. Existing 14px composer styling and website/Telegram replies remain unchanged.
 
-## Development and deployment
+## Removal and deployment
 
-npm ci installs the pinned dependency. npm run dev/build run scripts/prepare-voice-runtime.mjs first to copy the package's standalone browser JS, WASM, module and license into ignored public/voice/runtime-v3.8.1/. These assets are served statically; no model or inference code runs in a Next server function. Weights download only after Record is clicked. No binary/model cache is committed. Normal Vercel Git deployment requires no new environment setting.
+Removed Transformers.js, Whisper worker/client/worklet, generated runtime preparation, WASM/model assets and obsolete tests. No provider API key or environment change is required. Existing browser model caches from the earlier version may remain on individual devices but are no longer used. No n8n workflow or database migration changed. Deploy via existing Nestly Git-to-Vercel integration.
 
-Rollback by reverting the Whisper PR; prior native dictation and typed chat return. No provider or database cleanup is needed.
+## Evidence and reproduction
 
-## Verification evidence
+Run npm test, npm run typecheck, npm run typecheck:tests, npm run lint and npm run build. Then run scripts/test-nia-voice-browser.mjs with a local Chromium path if necessary. The harness starts a loopback production build, mocks browser recognition and all APIs, blocks external requests and asserts no model requests or application audio uploads. No real microphone/provider speech test is automated.
 
-Local full suite: 392 passed, 16 live tests skipped; app/test typechecks and production build (85/85 routes) passed. Unit coverage includes resampling, duration/sample bounds, silence, worker correlation, cancellation/errors/timeouts and preserving retry PCM.
+Unit cases cover one-hour listening without app stop, normal/silent session restarts, duplicate-result replacement, explicit Stop, Stop between sessions, cancellation/late results, permission failures, final-event timeout and preserving long text. Browser cases cover manual Send, editable text, no 60-second stop, both cancellation paths, session restart/silence, permissions, oversized-draft editing, close cleanup and unsupported-browser typing. Production runtime acceptance and actual iPhone/Chrome service quality remain separate from synthetic local tests.
 
-scripts/test-nia-voice-browser.mjs runs a loopback production build with synthetic PCM and a fake worker. Eleven scenarios pass: click-only activation; record/edit/manual Send; cancel recording; cancel model preparation; cancel inference/ignore late reply; permission denial; retry without microphone; silence; 60-second auto-stop; close cleanup; unsupported-device typing. External requests are blocked; zero audio-upload requests and unexpected mutations are permitted. No actual microphone or screenshots/videos are used.
-
-scripts/test-whisper-engine.mjs tests the actual shipped model/runtime against a supplied public/synthetic WAV. Set VOICE_TEST_WAV, optionally VOICE_TEST_EXPECT and PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH. The local browser uses only GET/HEAD network requests. A public JFK sample from Hugging Face docs produced “my fellow Americans” correctly: initial load 30,131 ms, inference 2,143 ms, zero network writes. This is local test-machine evidence, not a Production/mobile SLA or accent acceptance result. The fixture/cache are not committed.
-
-References: https://huggingface.co/docs/transformers.js/ and https://huggingface.co/onnx-community/whisper-tiny.en . No customer/provider message, Production form, real microphone recording, screenshot, video or migration was initiated by verification.
+Reference: https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition .

@@ -1,4 +1,4 @@
-// Loopback-only UI regression with synthetic microphone PCM and a fake local Whisper worker.
+// Local-only UI verification with a fake browser speech service. No real microphone/provider.
 import { chromium } from "playwright";
 import { spawn } from "node:child_process";
 import assert from "node:assert/strict";
@@ -49,111 +49,72 @@ try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await page.addInitScript(() => {
     window.voiceTest = {
-      microphones: 0,
+      starts: 0,
       stops: 0,
-      workers: 0,
-      terminates: 0,
+      aborts: 0,
       deny: false,
-      fail: false,
-      loadDelay: 0,
-      resultDelay: 0,
+      text: "two-bedroom apartment in GRA",
+      delay: 0,
       offset: 0,
-      inferences: 0,
-      silence: false,
     };
     const now = Date.now;
     Date.now = () => now() + window.voiceTest.offset;
-    window.SpeechRecognition = undefined;
     window.Worker = class {
       constructor() {
-        window.voiceTest.workers++;
-      }
-      postMessage(data) {
-        const callback = (event) => this.onmessage?.({ data: event });
-        if (data.type === "load") {
-          callback({ id: data.id, type: "progress", progress: 42 });
-          setTimeout(
-            () => callback({ id: data.id, type: "ready" }),
-            window.voiceTest.loadDelay,
-          );
-        } else {
-          window.voiceTest.inferences++;
-          setTimeout(() => {
-            const fail = window.voiceTest.fail;
-            window.voiceTest.fail = false;
-            callback({
-              id: data.id,
-              type: fail ? "error" : "result",
-              text: "two-bedroom apartment in GRA",
-            });
-          }, window.voiceTest.resultDelay);
-        }
-      }
-      terminate() {
-        window.voiceTest.terminates++;
+        throw new Error("No model worker should be created");
       }
     };
-    window.AudioContext = class {
-      sampleRate = 48000;
-      destination = {};
-      audioWorklet = { addModule: async () => {} };
-      async resume() {}
-      async close() {}
-      createMediaStreamSource() {
-        return { connect() {}, disconnect() {} };
+    window.webkitSpeechRecognition = class {
+      processLocally = true;
+      start() {
+        window.voiceTest.starts++;
+        window.recognition = this;
+        queueMicrotask(() => {
+          if (window.voiceTest.deny) {
+            this.onerror?.({ error: "not-allowed" });
+            return;
+          }
+          if (this.processLocally !== false)
+            throw new Error("No downloaded pack permitted");
+          this.onstart?.();
+          this.onresult?.({
+            results: [{ 0: { transcript: window.voiceTest.text } }],
+          });
+        });
+      }
+      stop() {
+        window.voiceTest.stops++;
+        const end = this.onend;
+        setTimeout(() => end?.(), window.voiceTest.delay);
+      }
+      abort() {
+        window.voiceTest.aborts++;
       }
     };
-    window.AudioWorkletNode = class {
-      port = { onmessage: null };
-      connect() {
-        this.timer = setInterval(
-          () =>
-            this.port.onmessage?.({
-              data: new Float32Array(4800).fill(
-                window.voiceTest.silence ? 0 : 0.1,
-              ),
-            }),
-          20,
-        );
-      }
-      disconnect() {
-        clearInterval(this.timer);
-      }
-    };
-    Object.defineProperty(navigator, "mediaDevices", {
-      configurable: true,
-      value: {
-        getUserMedia: async () => {
-          window.voiceTest.microphones++;
-          if (window.voiceTest.deny)
-            throw new DOMException("Denied", "NotAllowedError");
-          return {
-            getTracks: () => [{ stop: () => window.voiceTest.stops++ }],
-          };
-        },
-      },
-    });
+    window.SpeechRecognition = undefined;
   });
   let sends = 0,
-    audioRequests = 0,
-    unexpectedMutations = 0,
+    uploads = 0,
+    models = 0,
     sentText = "";
   async function intercept(route) {
-    const request = route.request(),
-      url = new URL(request.url());
-    if (url.pathname.includes("transcribe")) audioRequests++;
+    const req = route.request(),
+      url = new URL(req.url());
+    if (url.pathname.includes("transcribe")) uploads++;
+    if (url.pathname.startsWith("/voice/") || url.hostname === "huggingface.co")
+      models++;
     if (url.origin !== origin) {
       await route.abort();
       return;
     }
     if (url.pathname === "/api/nia/conversations/messages") {
       sends++;
-      sentText = request.postDataJSON().content;
+      sentText = req.postDataJSON().content;
       await route.fulfill({
         json: {
           data: {
             mode: "AI_ACTIVE",
-            message: "Synthetic saved response",
+            message: "Synthetic reply",
             properties: [],
           },
         },
@@ -165,10 +126,8 @@ try {
       return;
     }
     if (url.pathname.startsWith("/api/")) {
-      if (request.method() !== "GET") {
-        unexpectedMutations++;
-        await route.abort();
-        return;
+      if (req.method() !== "GET") {
+        throw Error("Unexpected mutation");
       }
       await route.fulfill({ json: { data: [], total: 0 } });
       return;
@@ -181,27 +140,26 @@ try {
     .getByRole("button", { name: "Open Nia Property Assistant", exact: true })
     .click();
   const mic = () =>
-    page.getByRole("button", { name: "Record voice message", exact: true });
-  const stop = () =>
-    page.getByRole("button", { name: "Stop recording", exact: true });
-  const cancel = () =>
-    page.getByRole("button", { name: "Cancel recording", exact: true });
-  const input = () =>
-    page
-      .getByRole("dialog", { name: "Nia Property Assistant" })
-      .locator("input");
-  const record = async () => {
-    await mic().click();
-    await stop().waitFor();
-    await page.waitForTimeout(100);
-  };
+      page.getByRole("button", { name: "Record voice message", exact: true }),
+    stop = () =>
+      page.getByRole("button", { name: "Stop recording", exact: true }),
+    cancel = () =>
+      page.getByRole("button", { name: "Cancel voice input", exact: true }),
+    input = () =>
+      page
+        .getByRole("dialog", { name: "Nia Property Assistant" })
+        .locator("input");
   await mic().waitFor();
-  assert.equal(await page.evaluate(() => window.voiceTest.microphones), 0);
-  assert.equal(await page.evaluate(() => window.voiceTest.workers), 0);
+  assert.equal(await page.evaluate(() => window.voiceTest.starts), 0);
   await input().fill("Hi Nia");
-  await record();
+  await mic().click();
+  await stop().waitFor();
   await input().press("Enter");
   assert.equal(sends, 0);
+  await page.evaluate(() => (window.voiceTest.offset += 120000));
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => window.voiceTest.stops), 0);
+  assert.equal(await stop().count(), 1);
   await stop().click();
   await page.waitForFunction(
     () =>
@@ -217,31 +175,49 @@ try {
   assert.equal(sends, 1);
   assert.equal(sentText, "Edited text only");
   await input().fill("Keep draft");
-  await record();
+  await mic().click();
+  await stop().waitFor();
   await cancel().click();
   assert.equal(await input().inputValue(), "Keep draft");
-  await page.evaluate(() => (window.voiceTest.loadDelay = 800));
-  const before = await page.evaluate(() => window.voiceTest.microphones);
+  await page.evaluate(() => (window.voiceTest.delay = 600));
   await mic().click();
-  await page
-    .getByText("Preparing speech model… 42%", { exact: true })
-    .waitFor();
-  await cancel().click();
-  await page.waitForTimeout(900);
-  assert.equal(await page.evaluate(() => window.voiceTest.microphones), before);
-  await page.evaluate(() => (window.voiceTest.loadDelay = 0));
-  await page.evaluate(() => (window.voiceTest.resultDelay = 600));
-  await record();
   await stop().click();
   await page
-    .getByText("Transcribing on your device… Review the text before sending.", {
-      exact: true,
-    })
+    .locator('[role="status"]')
+    .filter({ hasText: "Finishing… Review the text before sending." })
     .waitFor();
   await cancel().click();
   await page.waitForTimeout(700);
   assert.equal(await input().inputValue(), "Keep draft");
-  await page.evaluate(() => (window.voiceTest.resultDelay = 0));
+  await page.evaluate(() => (window.voiceTest.delay = 0));
+  await mic().click();
+  await stop().waitFor();
+  const starts = await page.evaluate(() => window.voiceTest.starts);
+  await page.evaluate(() => {
+    window.voiceTest.text = "near GRA";
+    window.recognition.onend();
+  });
+  await page.waitForFunction((n) => window.voiceTest.starts > n, starts);
+  await stop().waitFor();
+  assert.equal(await input().inputValue(), "Keep draft");
+  await stop().click();
+  await page.waitForFunction(
+    () =>
+      document.querySelector('[role="dialog"] input')?.value ===
+      "Keep draft two-bedroom apartment in GRA near GRA",
+  );
+  await input().fill("");
+  await page.evaluate(() => (window.voiceTest.text = ""));
+  await mic().click();
+  await stop().waitFor();
+  const before = await page.evaluate(() => window.voiceTest.starts);
+  await page.evaluate(() => {
+    window.recognition.onerror({ error: "no-speech" });
+    window.recognition.onend();
+  });
+  await page.waitForFunction((n) => window.voiceTest.starts > n, before);
+  await stop().waitFor();
+  await cancel().click();
   await page.evaluate(() => (window.voiceTest.deny = true));
   await mic().click();
   await page
@@ -251,57 +227,42 @@ try {
     )
     .waitFor();
   await cancel().click();
-  await page.evaluate(() => (window.voiceTest.deny = false));
-  await page.evaluate(() => (window.voiceTest.fail = true));
-  await record();
+  await page.evaluate(() => {
+    window.voiceTest.deny = false;
+    window.voiceTest.text = "a".repeat(5000);
+  });
+  await mic().click();
+  await stop().waitFor();
   await stop().click();
-  await page
-    .getByRole("button", { name: "Retry transcription", exact: true })
-    .waitFor();
-  const count = await page.evaluate(() => window.voiceTest.microphones);
-  await page
-    .getByRole("button", { name: "Retry transcription", exact: true })
-    .click();
   await page.waitForFunction(
     () =>
-      document.querySelector('[role="dialog"] input')?.value ===
-      "Keep draft two-bedroom apartment in GRA",
+      document.querySelector('[role="dialog"] input')?.value.length === 5000,
   );
-  assert.equal(await page.evaluate(() => window.voiceTest.microphones), count);
-  await input().fill("");
-  await page.evaluate(() => (window.voiceTest.silence = true));
-  await record();
-  const inferences = await page.evaluate(() => window.voiceTest.inferences);
-  await stop().click();
-  await page
-    .getByText(
-      "No speech was detected. Please record again or type your message.",
-      { exact: true },
-    )
-    .waitFor();
   assert.equal(
-    await page.evaluate(() => window.voiceTest.inferences),
-    inferences,
+    await page
+      .getByRole("button", { name: "Send message to Nia", exact: true })
+      .isDisabled(),
+    true,
   );
-  await cancel().click();
-  await page.evaluate(() => (window.voiceTest.silence = false));
-  await record();
-  await page.evaluate(() => (window.voiceTest.offset += 61000));
-  await page.waitForFunction(
-    () =>
-      document.querySelector('[role="dialog"] input')?.value ===
-      "two-bedroom apartment in GRA",
+  await input().fill("Short enough");
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Send message to Nia", exact: true })
+      .isEnabled(),
+    true,
   );
-  await record();
-  const stops = await page.evaluate(() => window.voiceTest.stops);
+  await mic().click();
+  await stop().waitFor();
+  const aborts = await page.evaluate(() => window.voiceTest.aborts);
   await page
     .getByRole("button", { name: "Close Nia assistant", exact: true })
     .click();
-  await page.waitForFunction((n) => window.voiceTest.stops > n, stops);
+  await page.waitForFunction((n) => window.voiceTest.aborts > n, aborts);
   const unsupported = await browser.newPage();
   await unsupported.route("**/*", intercept);
   await unsupported.addInitScript(() => {
-    window.AudioWorkletNode = undefined;
+    window.SpeechRecognition = undefined;
+    window.webkitSpeechRecognition = undefined;
   });
   await unsupported.goto(origin);
   await unsupported
@@ -316,26 +277,22 @@ try {
       .count(),
     0,
   );
-  await unsupported
-    .getByRole("dialog", { name: "Nia Property Assistant" })
-    .locator("input")
-    .fill("Typing still works");
+  assert.equal(uploads, 0);
+  assert.equal(models, 0);
   assert.equal(sends, 1);
-  assert.equal(audioRequests, 0);
-  assert.equal(unexpectedMutations, 0);
   console.log(
     JSON.stringify({
-      environment: "local production build, synthetic PCM/Whisper worker",
+      environment: "local production build, fake browser speech service",
       scenarios: 11,
       passed: true,
-      audioUploadRequests: audioRequests,
-      unexpectedMutations,
-      microphoneUsed: false,
+      modelRequests: models,
+      audioUploadRequestsFromApp: uploads,
+      realMicrophoneUsed: false,
     }),
   );
-} catch (error) {
+} catch (e) {
   console.error(log.slice(-1000));
-  throw error;
+  throw e;
 } finally {
   if (browser) await browser.close();
   server.kill("SIGTERM");
