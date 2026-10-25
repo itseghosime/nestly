@@ -19,23 +19,35 @@ const SavedHomesContext = createContext<SavedHomesContextType | undefined>(undef
 const STORAGE_KEY = 'nestly_saved_homes_v2';
 
 export function SavedHomesProvider({ children }: { children: React.ReactNode }) {
-  const [savedIds, setSavedIds] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return ['prop-gra-01', 'prop-ugbor-03'];
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : ['prop-gra-01', 'prop-ugbor-03'];
-    } catch {
-      return ['prop-gra-01', 'prop-ugbor-03'];
-    }
-  });
+  // Server and first client render both start empty; storage is loaded after hydration.
+  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [storageLoaded, setStorageLoaded] = useState(false);
 
   useEffect(() => {
+    let active = true;
+    let ids: string[] = [];
+    try {
+      const stored: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      if (Array.isArray(stored)) ids = [...new Set(stored.filter((id): id is string => typeof id === 'string' && id.length > 0))];
+    } catch {
+      // Missing, invalid or unavailable storage starts with no saved homes.
+    }
+    queueMicrotask(() => {
+      if (!active) return;
+      setSavedIds(ids);
+      setStorageLoaded(true);
+    });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!storageLoaded) return; // Never overwrite an existing list before reading it.
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(savedIds));
     } catch {
-      // Fallback
+      // Saving still works in memory when browser storage is unavailable.
     }
-  }, [savedIds]);
+  }, [savedIds, storageLoaded]);
 
   const isSaved = (id: string) => savedIds.includes(id);
 
