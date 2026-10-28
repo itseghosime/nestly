@@ -22,6 +22,8 @@ export type NiaPropertySearchResponse =
   | { status: 'matches'; count: number; matches: NiaSearchProperty[]; message: string };
 
 const STOP_WORDS = new Set([
+  'state', 'city', 'town', 'neighborhood', 'neighbourhood',
+  'i', 'just', 'said', 'say', 'already', 'dont', 'don', 'did', 'didnt', 'didn', 'doesnt', 'doesn', 'not', 'there', 'uselu', 'lagos',
   'available', 'availability', 'affordable', 'nice', 'lovely', 'beautiful', 'decent', 'something', 'ones', 'options', 'around', 'within', 'budget', 'naira', 'million', 'year', 'yearly', 'annually', 'annual',
   'a', 'about', 'add', 'an', 'and', 'any', 'are', 'at', 'bed', 'bedroom', 'bedrooms',
   'below', 'browse', 'browsing', 'but', 'can', 'change', 'check', 'could', 'consider', 'dear', 'find', 'give',
@@ -56,7 +58,7 @@ export function normalizeNiaSearchKeywords(keywords: readonly string[]): string[
   for (const keyword of keywords) {
     const words = keyword.normalize('NFKC').toLowerCase().match(/[a-z]{3,}/g) ?? [];
     for (const word of words) {
-      if (!STOP_WORDS.has(word)) normalized.add(word);
+      if (!STOP_WORDS.has(word) && !LOCATION_HINTS.some(([hint]) => hint === word)) normalized.add(word);
       if (normalized.size === 4) return [...normalized];
     }
   }
@@ -80,6 +82,18 @@ const LOCATION_HINTS = [
   ['ugbor', 'Ugbor'],
   ['ihama', 'Ihama'],
   ['gra', 'GRA'],
+  ['uselu', 'Uselu'],
+  ['lagos', 'Lagos'],
+  ['port harcourt', 'Port Harcourt'], ['akwa ibom', 'Akwa Ibom'], ['cross river', 'Cross River'],
+  ['fct', 'Abuja'], ['abuja', 'Abuja'], ['lekki', 'Lekki'], ['ikeja', 'Ikeja'], ['ikorodu', 'Ikorodu'], ['ajah', 'Ajah'],
+  ['wuse', 'Wuse'], ['gwarinpa', 'Gwarinpa'], ['ibadan', 'Ibadan'], ['abeokuta', 'Abeokuta'], ['akure', 'Akure'], ['jos', 'Jos'],
+  ['abia', 'Abia'], ['adamawa', 'Adamawa'], ['anambra', 'Anambra'], ['bauchi', 'Bauchi'], ['bayelsa', 'Bayelsa'],
+  ['benue', 'Benue'], ['borno', 'Borno'], ['delta', 'Delta'], ['ebonyi', 'Ebonyi'], ['edo', 'Edo'], ['ekiti', 'Ekiti'],
+  ['enugu', 'Enugu'], ['gombe', 'Gombe'], ['imo', 'Imo'], ['jigawa', 'Jigawa'], ['kaduna', 'Kaduna'], ['kano', 'Kano'],
+  ['katsina', 'Katsina'], ['kebbi', 'Kebbi'], ['kogi', 'Kogi'], ['kwara', 'Kwara'], ['nasarawa', 'Nasarawa'], ['niger', 'Niger'],
+  ['ogun', 'Ogun'], ['ondo', 'Ondo'], ['osun', 'Osun'], ['oyo', 'Oyo'], ['plateau', 'Plateau'], ['rivers', 'Rivers'],
+  ['sokoto', 'Sokoto'], ['taraba', 'Taraba'], ['yobe', 'Yobe'], ['zamfara', 'Zamfara'],
+
 ] as const;
 
 const PROPERTY_TYPE_HINTS: ReadonlyArray<readonly [RegExp, NiaPropertyType]> = [
@@ -95,19 +109,33 @@ export function parseNiaPropertySearch(query: string): NiaPropertySearchCriteria
   const normalized = query.normalize('NFKC').toLowerCase();
   let remaining = normalized;
 
-  let location: string | undefined;
+  const places: Array<{ canonical: string; index: number; end: number }> = [];
   for (const [hint, canonical] of LOCATION_HINTS) {
     const pattern = new RegExp('\\b' + hint + '\\b', 'gi');
-    if (pattern.test(remaining)) {
-      location ??= canonical;
-      remaining = remaining.replace(pattern, ' ');
+    for (const match of normalized.matchAll(pattern)) {
+      places.push({ canonical, index: match.index!, end: match.index! + match[0].length });
     }
+    remaining = remaining.replace(pattern, ' ');
   }
+  places.sort((a, b) => a.index - b.index || b.end - a.end);
+  const selected = places.filter((place, index) => !places.slice(0, index).some(other => other.index <= place.index && other.end >= place.end));
+  const firstPlace = selected[0];
+  // Preserve explicit city/state scope, but do not replace the requested area with nearby landmarks.
+  const landmark = firstPlace ? normalized.slice(firstPlace.end).search(/\b(?:off|near|close to|next to|beside|around)\b/i) : -1;
+  const boundary = firstPlace && landmark >= 0 ? firstPlace.end + landmark : normalized.length;
+  const location = selected.length ? [...new Set(selected.filter(place => place.index < boundary).map(place => place.canonical))].join(' ') : undefined;
 
   const powerRequirement = /\b24\s*(?:hours?|hrs?|h|\/7)[\s-]*solar\b|\bsolar[\s-]*(?:for\s+)?24\s*(?:hours?|hrs?|h|\/7)\b/i.test(normalized)
     ? '24h_solar' as const : undefined;
   remaining = remaining.replace(/\b24\s*(?:hours?|hrs?|h|\/7)\b/g, ' ');
 
+  // Unqualified plural "houses" means homes in ordinary conversation, not a detached-house filter.
+  // A bedroom-qualified or explicitly detached/standalone request remains a house constraint.
+  if (/\bhouses\b/i.test(remaining)
+    && !/\b(?:detached|standalone|semi[- ]detached)\b/i.test(remaining)
+    && !/\b(?:\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)\s*-?\s*bed(?:room)?s?\b/i.test(remaining)) {
+    remaining = remaining.replace(/\bhouses\b/gi, ' ');
+  }
   let propertyType: NiaPropertyType | undefined;
   for (const [pattern, type] of PROPERTY_TYPE_HINTS) {
     const match = remaining.match(pattern);
