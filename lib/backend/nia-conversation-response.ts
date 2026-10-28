@@ -15,6 +15,7 @@ import {
   EMPTY_NIA_CONTEXT,
   normalizeNiaContext,
   resolveNiaPreferences,
+  inferNiaLocationReply,
   type NiaConversationContext,
 } from '@/lib/backend/nia-conversation-context';
 import { buildNiaFeeAnswer, type NiaPublicFee } from '@/lib/backend/nia-fee-answer';
@@ -159,7 +160,11 @@ export async function answerNiaConversationMessage(
     };
   }
   const socialReply = getNiaSocialReply(query, context.preferences !== null);
-  if (socialReply) return { message: socialReply, properties: [], context };
+  if (socialReply) return {
+    message: socialReply, properties: [],
+    context: !context.preferences && /(?:which area|tell me (?:the area|where)|tell me where)/i.test(socialReply)
+      ? { ...context, pendingQuestion: 'awaiting_location' } : context,
+  };
   const referenceIndex = getNiaReferenceIndex(query);
   const initialCriteria = parseNiaPropertySearch(query);
   const explicitListingRequest = /\b(find|show|browse|search|need|want|looking)\b/i.test(query)
@@ -217,7 +222,8 @@ export async function answerNiaConversationMessage(
     };
   }
 
-  const localIntent = classifyNiaMessageIntent(query);
+  const locationReply = inferNiaLocationReply(query, context);
+  const localIntent = locationReply ? 'search' : classifyNiaMessageIntent(query);
   const plan = localIntent === 'preference_recall' || localIntent === 'reset_preferences'
     ? null : await planNiaSearch(query, context.preferences);
   if (plan?.intent === 'clarification') {
@@ -272,13 +278,15 @@ export async function answerNiaConversationMessage(
       ? "I'm not quite sure what you mean yet. Your preferences are unchanged. Would you like to keep looking with them, change your search, or check a listing's fees?"
         : "I'd be happy to help you find a home. Which area are you interested in?",
       properties: [],
-      context,
+      context: context.preferences ? context : { ...context, pendingQuestion: 'awaiting_location' },
     };
   }
 
   const criteria = plan?.intent === 'search'
     ? plan.criteria
-    : resolveNiaPreferences(query, context.preferences);
+    : locationReply
+      ? { ...resolveNiaPreferences(query, context.preferences), location: locationReply, keywords: context.preferences?.keywords ?? [] }
+      : resolveNiaPreferences(query, context.preferences);
   if (!hasNiaSearchCriteria(criteria) && intent !== 'search') {
     return {
       message: 'I can search current published listings by area, bedrooms, property type, listing details, or annual rent. What should I use?',
@@ -292,7 +300,7 @@ export async function answerNiaConversationMessage(
     return {
       message: criteria.powerRequirement === '24h_solar'
         ? `I don't have a listing in ${criteria.location || 'your chosen area'} with confirmed round-the-clock solar recorded right now. Would you like to consider nearby areas while keeping that requirement?`
-        : `I couldn't find a current listing${criteria.location ? ' in ' + criteria.location : ''} matching those requirements. Would you like to consider nearby areas?`,
+        : `I couldn't find a current listing${criteria.location ? ' in ' + criteria.location : ''} matching those requirements${criteria.propertyType ? ` (${criteria.propertyType})` : ''}. Would you like to consider nearby areas${criteria.propertyType ? ' or another property type' : ''}?`,
       properties: [],
       searchResultCount: 0,
       searchPlanSource: plan?.intent === 'search' ? 'n8n' : 'local',

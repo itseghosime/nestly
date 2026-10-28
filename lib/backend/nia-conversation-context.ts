@@ -10,7 +10,7 @@ export interface NiaConversationContext {
   preferences: NiaPropertySearchCriteria | null;
   recentPropertyIds: string[];
   selectedPropertyId: string | null;
-  pendingQuestion?: 'broaden_search';
+  pendingQuestion?: 'broaden_search' | 'awaiting_location';
 }
 
 export const EMPTY_NIA_CONTEXT: NiaConversationContext = {
@@ -71,7 +71,7 @@ export function normalizeNiaContext(value: unknown): NiaConversationContext {
     ) preferences = normalized;
   }
   return {
-    ...(context.pendingQuestion === 'broaden_search' ? { pendingQuestion: 'broaden_search' as const } : {}),
+    ...(['broaden_search', 'awaiting_location'].includes(String(context.pendingQuestion)) ? { pendingQuestion: context.pendingQuestion as 'broaden_search' | 'awaiting_location' } : {}),
     preferences,
     recentPropertyIds,
     selectedPropertyId: typeof context.selectedPropertyId === 'string'
@@ -141,4 +141,19 @@ export function classifyNiaMessageIntent(query: string): NiaMessageIntent {
   return parsed.keywords.length > 0 && (SEARCH_REQUEST.test(query) || parsed.keywords.some((word) => ['solar', 'parking', 'inverter', 'furnished'].includes(word)))
     ? 'search'
     : 'unsupported';
+}
+
+/** Accept a direct place answer only when Nia has a search/location context. No geography is invented. */
+export function inferNiaLocationReply(query: string, context: NiaConversationContext): string | null {
+  if (!context.pendingQuestion && !context.preferences) return null;
+  if (getNiaSocialReply(query, Boolean(context.preferences)) !== null) return null;
+  const parsed = parseNiaPropertySearch(query);
+  if (parsed.location || parsed.bedrooms || parsed.propertyType || parsed.maxAnnualRent || parsed.powerRequirement) return null;
+  if (!parsed.keywords.length || parsed.keywords.every(word => ['solar', 'parking', 'inverter', 'furnished', 'security', 'water', 'pool', 'gated'].includes(word))) return null;
+  const value = query.normalize('NFKC').trim().replace(/[.!?]+$/, '')
+    .replace(/^(?:i\s+(?:just\s+|already\s+)?(?:said|mean|meant)|what\s+about|how\s+about|actually|instead|try|in|at|around|near)\s+/i, '').trim();
+  if (value.length < 2 || value.length > 64 || !/^[\p{L}][\p{L} .,'-]*$/u.test(value) || value.split(/\s+/).length > 6) return null;
+  // Do not turn questions, personal chat, corrections without a place, or amenities into areas.
+  if (/\b(?:i|you|my|your|me|what|which|how|why|who|when|where|can|could|would|should|is|are|was|were|have|has|said|mean|sorry|fine|okay|great|good|bad|yes|no|thanks|thank|want|need|tell|understand|weather|price|rent|fee|fees|help|please|solar|parking|bedrooms?|location|area|another|other|more|options?|types?|propert(?:y|ies)|homes?|anywhere|else)\b/i.test(value)) return null;
+  return value;
 }
