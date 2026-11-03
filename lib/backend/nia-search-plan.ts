@@ -29,7 +29,7 @@ export async function planNiaSearch(
       method: 'POST', redirect: 'error', cache: 'no-store',
       headers: { 'Content-Type': 'application/json', 'X-Nestly-Relay-Secret': secret },
       body: JSON.stringify({ version: 1, requestId, query: query.slice(0, 4000), preferences }),
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(15_000),
     });
     if (!response.ok || !response.body) return null;
     const reader = response.body.getReader();
