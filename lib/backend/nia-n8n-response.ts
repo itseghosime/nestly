@@ -49,7 +49,7 @@ async function generateNiaAiReplyInternal(
     const response = await (options.fetcher ?? fetch)(url.toString(), {
       method: 'POST', redirect: 'error', cache: 'no-store',
       headers: { 'Content-Type': 'application/json', 'X-Nestly-Relay-Secret': secret },
-      body, signal: AbortSignal.timeout(6_000),
+      body, signal: AbortSignal.timeout(15_000),
     });
     if (!response.ok) return { status: 'fallback', reason: 'AGENT_UNAVAILABLE' };
     // Stream with a hard bound; a malformed endpoint cannot exhaust server memory.
