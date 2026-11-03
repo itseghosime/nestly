@@ -1623,3 +1623,12 @@ Final clean build passed with 85/85 routes after the last parser regression case
   - GET conversation: HTTP 200, six saved messages, AI_ACTIVE. No customer identifiers, session token, or property records logged here.
 - Conclusion: core website → Render n8n → OpenRouter roundtrip and secret match proven on two of three requests, but intermittent fallback remains. The 5–7-second end-to-end target is NOT met. No browser/mobile or actual Telegram delivery acceptance claimed this pass; no Telegram messages sent.
 - WF03, WF05, WF06 remain inactive/prepared, and their credentials/database-backed integration acceptance remains incomplete. WF01 WhatsApp remains inactive/deferred. Full migration is NOT complete; do not conflate core Nia cutover with all exported automation workflows being operational.
+
+
+## 2026-11-03 — Local Mac n8n migration acceptance
+
+Connected local-n8n through the user's Cloudflare Quick Tunnel. Imported WF02 (ygeYrQMJvaQgf9iv), WF03 (0YRJRo2sU2xz2K1g), WF05 (WaUUp8jV3MP5lrrR), WF06 (NjdmEBlT98Vtwccn) into the personal project. WF02 retains original prompts, bounded envelopes and response contracts; active backend paths use OpenRouter nvidia/nemotron-3.5-lightning:free with reasoning disabled. Legacy WhatsApp was not imported or activated. DB workflows remain inactive and require application database credentials and acceptance; no database writes performed.
+
+Assigned existing local OpenRouter and Header Auth credentials without reading secrets. Published WF02 version c8c08efc-400e-49de-88a3-ce635e41ca32. Local manual execution 2 passed: two-bedroom apartment search in GRA/Benin, ~1.396s. Execution 3 passed: friendly greeting, ~1.057s. These are workflow times, not website latency. Authenticated public-tunnel request (synthetic execution 4) passed ~2.038s with matching requestId and search plan; unauthenticated POST returned 403. Synthetic-only acceptance workflow archived afterward. No Telegram/provider messages sent.
+
+Production cutover was attempted under the migration task but automatic approval review rejected the temporary Mac-tunnel outage risk and required explicit approval. No workaround attempted. Readback confirms NIA_N8N_WEBHOOK_URL remains the Render endpoint; no deployment was created. Local tests do not establish Production acceptance. Mac, Docker and tunnel must remain running; restarting Quick Tunnel changes hostname. Production approval, website round-trip verification, database credential wiring, inspection/failure-recovery tests and Telegram acceptance remain pending.
