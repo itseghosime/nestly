@@ -1564,3 +1564,14 @@ Fixed the local fallback: recognized locations include Uselu/Lagos, states and c
 Read-only linked database aggregate: 26 public listings, Uselu 0, Lagos 0, GRA 3 (2 apartments/1 duplex). No individual property/customer records printed or changed. Local full tests 410 passed/16 live skipped; app/test typechecks passed; full lint 0 errors/33 existing warnings, focused lint passed. Fourteen new regressions reproduce the reported chain with a blocked planner and serialized public-query filters, including genuine constraint preservation and DB-error handling. See NIA_LOCATION_FOLLOWUPS.md. Full n8n AI remains blocked on execution capacity; no plan/billing action performed. Production acceptance/deployment is tracked separately from local synthetic tests. No screenshots, videos, PDF or provider messages created.
 
 Final clean build passed with 85/85 routes after the last parser regression cases. No n8n workflow was modified or published. Full AI recovery is explicitly blocked on the account's execution allowance; the released fallback correction does not claim to restore exhausted execution capacity.
+
+## 2026-11-03 — Render n8n migration prepared, not cut over
+
+- Source: user-supplied Nestly.zip with WF01, WF02, WF03, WF05, WF06.
+- Imported inactive drafts to https://n8n-itseghosime.onrender.com: WF02 vus4Eop583nZp7ov (15 nodes), WF03 zcexdmKaK2QP6izo (3), WF05 JnEMPkGT4XZMRaf4 (2), WF06 XasIfvJuzUxU40jp (2).
+- Preserved every imported node's runtime parameters, prompts, Code source, and graph edges; WF02's WF03 reference remapped to the new ID. Readback confirmed 14/14 WF02 and 2/2 WF03 edges, and unchanged WF05/WF06 connections. Restored timeout, execution privacy, timezone, and caller settings where supported.
+- Credential inventory returned zero accessible credentials. No source credential IDs were carried into the destination as valid credentials. Reconnect Gemini, Nestly Backend Header Auth, Supabase, and Postgres privately before execution.
+- Existing inactive WF01 remains untouched (MCP unavailable); WhatsApp stays deferred.
+- SDK validation passed for all four imports, not live execution acceptance. Static sample-field warnings concern Code-produced agentInput and Error Trigger workflow payload; source review confirms the Code assigns agentInput. WF02 canvas grouping warning remains because the shared model spans three independent paths; topology preserved instead of changing model ownership.
+- Attempt to reconnect WF03/WF05 errorWorkflow was rejected: destination WF06 has no published version. No partial settings applied by rejected operations. Link new WF06 after credentials and recovery SQL are validated and it is published.
+- No workflow published or executed; no messages, DB mutations/migrations, website endpoint/environment changes, or deployment made. Production cutover remains blocked pending credentials, recovery-handler linkage, authenticated synthetic tests, and endpoint switch.
